@@ -1,0 +1,14 @@
+[package]
+name = "tlb"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hex = "0.4"
+impl-tools = "0.10"
+bitvec = "1"
+sha2 = "0.10"
+thiserror = "1"
+
+[dev-dependencies]
+hex-literal = "0.4"
