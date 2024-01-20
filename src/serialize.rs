@@ -3,7 +3,7 @@ use std::{rc::Rc, sync::Arc};
 use bitvec::{order::BitOrder, slice::BitSlice, store::BitStore};
 use impl_tools::autoimpl;
 
-use crate::{Cell, Error, Result};
+use crate::{Cell, ErrorReason, Result};
 
 #[autoimpl(for <T: trait + ?Sized> &T, &mut T, Box<T>, Rc<T>, Arc<T>)]
 pub trait TLBSerialize {
@@ -53,7 +53,7 @@ impl CellBuilder {
     {
         self.0
             .push_reference(reference.to_cell()?)
-            .map_err(|_| Error::TooManyReferences)?;
+            .map_err(|_| ErrorReason::TooManyReferences)?;
         Ok(self)
     }
 
@@ -98,6 +98,7 @@ impl CellBuilder {
 }
 
 impl TLBSerialize for () {
+    #[inline]
     fn store(&self, _builder: &mut CellBuilder) -> Result<()> {
         Ok(())
     }
@@ -127,8 +128,8 @@ where
 {
     #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<()> {
-        for v in self {
-            builder.store(v)?;
+        for (i, v) in self.iter().enumerate() {
+            builder.store(v).map_err(|err| err.with_nth(i))?;
         }
         Ok(())
     }
@@ -144,7 +145,8 @@ macro_rules! impl_tlb_serialize_for_tuple {
             #[inline]
             fn store(&self, builder: &mut CellBuilder) -> Result<()> {
                 builder$(
-                    .store(&self.$n)?)+;
+                    .store(&self.$n)
+                    .map_err(|err| err.with_nth($n))?)+;
                 Ok(())
             }
         }

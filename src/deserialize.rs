@@ -2,17 +2,38 @@ use std::sync::Arc;
 
 use bitvec::{mem::bits_of, order::Msb0, slice::BitSlice, vec::BitVec};
 
-use crate::{Cell, Error, Result};
+use crate::{Cell, ErrorReason, Result};
 
 pub trait TLBDeserialize: Sized {
     fn parse(parser: &mut CellParser<'_>) -> Result<Self>;
+}
+
+impl<T> TLBDeserialize for Box<T>
+where
+    T: TLBDeserialize,
+{
+    fn parse(parser: &mut CellParser<'_>) -> Result<Self> {
+        T::parse(parser).map(Box::new)
+    }
+}
+
+impl<T> TLBDeserialize for Arc<T>
+where
+    T: TLBDeserialize,
+{
+    fn parse(parser: &mut CellParser<'_>) -> Result<Self> {
+        T::parse(parser).map(Arc::new)
+    }
 }
 
 pub trait TLBDeserializeExt: TLBDeserialize {
     fn parse_fully(cell: &Cell) -> Result<Self> {
         let mut parser = cell.parser();
         let v = parser.parse()?;
-        parser.is_empty().then_some(v).ok_or(Error::MoreLeft)
+        parser
+            .is_empty()
+            .then_some(v)
+            .ok_or(ErrorReason::MoreLeft.into())
     }
 }
 
@@ -41,7 +62,7 @@ impl<'a> CellParser<'a> {
     where
         T: TLBDeserialize,
     {
-        let reference = self.pop_reference().ok_or(Error::NoMoreLeft)?;
+        let reference = self.pop_reference().ok_or(ErrorReason::NoMoreLeft)?;
         T::parse_fully(reference)
     }
 
@@ -55,14 +76,14 @@ impl<'a> CellParser<'a> {
     #[inline]
     pub fn load_bit(&mut self) -> Result<bool> {
         let bit;
-        (bit, self.data) = self.data.split_first().ok_or(Error::NoMoreLeft)?;
+        (bit, self.data) = self.data.split_first().ok_or(ErrorReason::NoMoreLeft)?;
         Ok(*bit)
     }
 
     #[inline]
     pub fn load_bits(&mut self, n: usize) -> Result<&BitSlice<u8, Msb0>> {
         if n > self.data.len() {
-            return Err(Error::NoMoreLeft);
+            return Err(ErrorReason::NoMoreLeft.into());
         }
         let loaded;
         (loaded, self.data) = self.data.split_at(n);
@@ -116,7 +137,7 @@ macro_rules! impl_tlb_deserialize_for_tuple {
             #[inline]
             fn parse(parser: &mut CellParser<'_>) -> Result<Self> {
                 Ok(($(
-                    parser.parse::<$t>()?,
+                    parser.parse::<$t>().map_err(|err| err.with_nth($n))?,
                 )+))
             }
         }

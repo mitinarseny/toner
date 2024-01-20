@@ -1,10 +1,10 @@
 mod boc;
 mod cell;
-mod serialize;
 mod deserialize;
 mod error;
 mod integer;
+mod serialize;
 // mod constructor;
 mod bits;
 
-pub use self::{boc::*, cell::*, error::*, bits::*, serialize::*, deserialize::*, integer::*};
+pub use self::{bits::*, boc::*, cell::*, deserialize::*, error::*, integer::*, serialize::*};

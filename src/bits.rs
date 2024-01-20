@@ -1,5 +1,6 @@
 use bitvec::{
-    array::BitArray, order::BitOrder, slice::BitSlice, store::BitStore, view::BitViewSized,
+    array::BitArray, order::BitOrder, slice::BitSlice, store::BitStore, vec::BitVec,
+    view::BitViewSized,
 };
 
 use crate::{CellBuilder, Result, TLBSerialize};
@@ -15,13 +16,22 @@ where
     }
 }
 
+impl<S, O> TLBSerialize for BitVec<S, O>
+where
+    S: BitStore,
+    O: BitOrder,
+{
+    fn store(&self, builder: &mut CellBuilder) -> Result<()> {
+        self.as_bitslice().store(builder)
+    }
+}
+
 impl<A, O> TLBSerialize for BitArray<A, O>
 where
     A: BitViewSized,
     O: BitOrder,
 {
     fn store(&self, builder: &mut CellBuilder) -> Result<()> {
-        builder.push_bits(self)?;
-        Ok(())
+        self.as_bitslice().store(builder)
     }
 }

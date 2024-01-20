@@ -1,6 +1,6 @@
 use core::{
-    fmt::Display,
-    hash::{Hash, Hasher},
+    fmt::{self, Debug},
+    hash::Hash,
     ops::Deref,
 };
 use std::sync::Arc;
@@ -15,12 +15,14 @@ use bitvec::{
 use impl_tools::autoimpl;
 use sha2::{Digest, Sha256};
 
-use crate::{serialize::TLBSerialize, CellBuilder, CellParser, Error, Result, TLBDeserialize};
+use crate::{
+    serialize::TLBSerialize, CellBuilder, CellParser, ErrorReason, Result, TLBDeserialize,
+};
 
 const MAX_BITS_LEN: usize = 1023;
 const MAX_REFS_COUNT: usize = 4;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Cell {
     data: BitVec<u8, Msb0>,
     references: Vec<Arc<Self>>,
@@ -57,6 +59,11 @@ impl Cell {
     }
 
     #[inline]
+    pub fn data_bytes(&self) -> (usize, &[u8]) {
+        (self.bits_len(), self.data.as_raw_slice())
+    }
+
+    #[inline]
     pub fn bits_len(&self) -> usize {
         self.data.len()
     }
@@ -72,9 +79,14 @@ impl Cell {
     }
 
     #[inline]
+    pub fn has_references(&self) -> bool {
+        !self.references().is_empty()
+    }
+
+    #[inline]
     pub fn push_bit(&mut self, bit: bool) -> Result<&mut Self> {
         if self.data.len() == MAX_BITS_LEN {
-            return Err(Error::TooLong);
+            return Err(ErrorReason::TooLong.into());
         }
         self.data.push(bit);
         Ok(self)
@@ -88,7 +100,7 @@ impl Cell {
     {
         let bits = bits.as_ref();
         if self.bits_len() + bits.len() > MAX_BITS_LEN {
-            return Err(Error::TooLong);
+            return Err(ErrorReason::TooLong.into());
         }
         self.data.extend_from_bitslice(bits);
         Ok(self)
@@ -120,7 +132,7 @@ impl Cell {
     ) -> Result<&mut Self> {
         for r in references {
             self.push_reference(r)
-                .map_err(|_| Error::TooManyReferences)?;
+                .map_err(|_| ErrorReason::TooManyReferences)?;
         }
         Ok(self)
     }
@@ -203,20 +215,13 @@ impl Cell {
     }
 
     pub fn serialize(&self) -> Vec<u8> {
-        // TODO
-        Vec::new()
+        todo!()
     }
 }
 
 impl Default for Cell {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl Hash for Cell {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.repr().hash(state)
     }
 }
 
@@ -229,18 +234,15 @@ impl TLBSerialize for Cell {
     }
 }
 
-impl Display for Cell {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}{:b}", self.bits_len(), self.data)?;
-        if self.references().is_empty() {
+impl Debug for Cell {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let (bits_len, data) = self.data_bytes();
+        write!(f, "{}[0x{}]", bits_len, hex::encode_upper(data))?;
+        if !self.has_references() {
             return Ok(());
         }
-        write!(f, " -> {{")?;
-        for r in self.references() {
-            r.fmt(f)?;
-        }
-        write!(f, "}}")?;
-        Ok(())
+        write!(f, " -> ")?;
+        f.debug_set().entries(self.references()).finish()
     }
 }
 
@@ -248,7 +250,7 @@ impl Display for Cell {
 #[autoimpl(DerefMut using self.0)]
 #[autoimpl(AsRef using self.0)]
 #[autoimpl(AsMut using self.0)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Ref<T>(pub T);
 
 impl<T> TLBSerialize for Ref<T>
@@ -267,7 +269,7 @@ where
     T: TLBDeserialize,
 {
     fn parse(parser: &mut CellParser<'_>) -> Result<Self> {
-        parser.parse_reference()
+        parser.parse_reference().map(Self)
     }
 }
 
@@ -277,7 +279,7 @@ mod tests {
     use hex_literal::hex;
 
     use super::*;
-    use crate::{Num, TLBSerializeExt};
+    use crate::{Num, TLBDeserializeExt, TLBSerializeExt};
 
     #[test]
     fn zero_depth() {
@@ -333,6 +335,22 @@ mod tests {
                 .into()
             },
         );
+    }
+
+    #[test]
+    fn tlb_serde() {
+        let cell = (
+            Num::<1, _>(0b1),
+            Ref(Num::<24, _>(0x0AAAAA)),
+            Ref((Num::<7, u8>(0x7F), Ref(Num::<24, _>(0x0AAAAA)))),
+        );
+
+        eprintln!("{:#?}", cell.to_cell().unwrap());
+
+        assert_eq!(
+            cell,
+            TLBDeserializeExt::parse_fully(&cell.to_cell().unwrap()).unwrap()
+        )
     }
 
     #[test]

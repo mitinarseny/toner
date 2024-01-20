@@ -1,4 +1,4 @@
-use core::iter;
+use core::{fmt::Debug, iter};
 use std::sync::Arc;
 
 use impl_tools::autoimpl;
@@ -9,7 +9,7 @@ pub type BoC = BagOfCells;
 
 #[autoimpl(Deref using self.0)]
 #[autoimpl(AsRef using self.0)]
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct BagOfCells(Vec<Arc<Cell>>);
 
 impl BagOfCells {
@@ -44,8 +44,7 @@ impl BagOfCells {
     }
 
     pub fn serialize(&self) -> Vec<u8> {
-        // TODO
-        Vec::new()
+        todo!()
     }
 }
 
@@ -73,6 +72,12 @@ where
     #[inline]
     fn extend<T: IntoIterator<Item = A>>(&mut self, iter: T) {
         self.0.extend(iter.into_iter().map(Into::into))
+    }
+}
+
+impl Debug for BagOfCells {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_set().entries(&self.0).finish()
     }
 }
 

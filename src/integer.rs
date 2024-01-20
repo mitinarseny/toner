@@ -7,7 +7,7 @@ use bitvec::{
 };
 use impl_tools::autoimpl;
 
-use crate::{CellBuilder, CellParser, Error, Result, TLBDeserialize, TLBSerialize};
+use crate::{CellBuilder, CellParser, ErrorReason, Result, TLBDeserialize, TLBSerialize};
 
 #[autoimpl(Deref using self.0)]
 #[autoimpl(DerefMut using self.0)]
@@ -50,7 +50,7 @@ macro_rules! impl_tlb_serialize_for_integers {
             fn store(&self, builder: &mut CellBuilder) -> Result<()> {
                 assert!(BITS <= Self::BITS_SIZE, "excessive bits for type");
                 if BITS < Self::BITS_SIZE - self.leading_zeros() {
-                    return Err(Error::TooShort);
+                    return Err(ErrorReason::TooShort.into());
                 }
                 let bytes = self.to_be_bytes();
                 let mut bits = bytes.as_bits::<Msb0>();

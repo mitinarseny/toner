@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 hex = "0.4"
 impl-tools = "0.10"
+itertools = "0.12"
 bitvec = "1"
 sha2 = "0.10"
 thiserror = "1"
