@@ -35,3 +35,10 @@ where
         self.as_bitslice().store(builder)
     }
 }
+
+impl TLBSerialize for str {
+    fn store(&self, builder: &mut CellBuilder) -> Result<()> {
+        builder.push_bytes(self)?;
+        Ok(())
+    }
+}
