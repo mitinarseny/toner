@@ -28,12 +28,7 @@ where
 
 pub trait TLBDeserializeExt: TLBDeserialize {
     fn parse_fully(cell: &Cell) -> Result<Self> {
-        let mut parser = cell.parser();
-        let v = parser.parse()?;
-        parser
-            .is_empty()
-            .then_some(v)
-            .ok_or(ErrorReason::MoreLeft.into())
+        cell.parser().parse_fully()
     }
 }
 
@@ -55,6 +50,17 @@ impl<'a> CellParser<'a> {
         T: TLBDeserialize,
     {
         T::parse(self)
+    }
+
+    #[inline]
+    pub fn parse_fully<T>(&mut self) -> Result<T>
+    where
+        T: TLBDeserialize,
+    {
+        let v = self.parse()?;
+        self.is_empty()
+            .then_some(v)
+            .ok_or(ErrorReason::MoreLeft.into())
     }
 
     #[inline]
