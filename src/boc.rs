@@ -18,6 +18,10 @@ impl BagOfCells {
         Self(Vec::new())
     }
 
+    pub fn from_root(root: impl Into<Arc<Cell>>) -> Self {
+        Self::from_iter(iter::once(root))
+    }
+
     #[inline]
     pub fn roots(&self) -> &[Arc<Cell>] {
         &self.0
@@ -34,8 +38,9 @@ impl BagOfCells {
     }
 
     #[inline]
-    pub fn single_root(root: impl Into<Arc<Cell>>) -> Self {
-        Self::from_iter(iter::once(root))
+    pub fn single_root(&self) -> Option<&Arc<Cell>> {
+        let [root]: &[_; 1] = self.0.as_slice().try_into().ok()?;
+        Some(root)
     }
 
     #[inline]
@@ -98,7 +103,7 @@ mod tests {
             .to_cell()
             .unwrap();
 
-        let boc = BoC::single_root(cell);
+        let boc = BoC::from_root(cell);
 
         assert_eq!(
             boc.serialize(),
