@@ -1,8 +1,8 @@
 use core::{fmt::Display, marker::PhantomData};
 
 use crate::{
-    CellBuilder, ErrorReason, Result, TLBDeserialize, TLBDeserializeAs, TLBSerialize,
-    TLBSerializeAs, CellParser,
+    CellBuilder, CellParser, ErrorReason, Result, TLBDeserialize, TLBDeserializeAs, TLBSerialize,
+    TLBSerializeAs,
 };
 
 pub struct FromInto<T>(PhantomData<T>);

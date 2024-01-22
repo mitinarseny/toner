@@ -1,3 +1,4 @@
+use core::mem::MaybeUninit;
 use std::{rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, slice::BitSlice};
@@ -52,9 +53,8 @@ impl<'a> CellParser<'a> {
         T: TLBDeserialize<'a>,
     {
         let v = self.parse()?;
-        self.is_empty()
-            .then_some(v)
-            .ok_or(ErrorReason::MoreLeft.into())
+        self.ensure_empty()?;
+        Ok(v)
     }
 
     #[inline]
@@ -71,15 +71,27 @@ impl<'a> CellParser<'a> {
     where
         T: TLBDeserialize<'a>,
     {
-        let reference = self.pop_reference().ok_or(ErrorReason::NoMoreLeft)?;
+        let reference = self.pop_reference()?;
         T::parse_fully(reference)
     }
 
     #[inline]
-    fn pop_reference(&mut self) -> Option<&'a Arc<Cell>> {
+    pub fn parse_reference_as<T, As>(&mut self) -> Result<T>
+    where
+        As: TLBDeserializeAs<'a, T>,
+    {
+        self.parse_reference::<TLBDeserializeAsWrap<T, As>>()
+            .map(TLBDeserializeAsWrap::into_inner)
+    }
+
+    #[inline]
+    pub fn pop_reference(&mut self) -> Result<&'a Arc<Cell>> {
         let reference;
-        (reference, self.references) = self.references.split_first()?;
-        Some(reference)
+        (reference, self.references) = self
+            .references
+            .split_first()
+            .ok_or(ErrorReason::NoMoreLeft)?;
+        Ok(reference)
     }
 
     #[inline]
@@ -107,6 +119,15 @@ impl<'a> CellParser<'a> {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.data.is_empty() && self.references.is_empty()
+    }
+
+    #[inline]
+    pub fn ensure_empty(&self) -> Result<()> {
+        if !self.is_empty() {
+            Err(ErrorReason::MoreLeft.into())
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -148,6 +169,19 @@ impl_tlb_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6);
 impl_tlb_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
 impl_tlb_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
 impl_tlb_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
+
+impl<'de, T, const N: usize> TLBDeserialize<'de> for [T; N]
+where
+    T: TLBDeserialize<'de>,
+{
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self> {
+        let mut arr: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
+        for a in &mut arr {
+            a.write(parser.parse()?);
+        }
+        Ok(unsafe { arr.as_ptr().cast::<[T; N]>().read() })
+    }
+}
 
 impl<'de, T> TLBDeserialize<'de> for Box<T>
 where

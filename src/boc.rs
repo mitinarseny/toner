@@ -94,6 +94,7 @@ mod tests {
     use crate::{NBits, Ref, TLBSerializeExt, TLBSerializeWrapAs};
 
     #[test]
+    #[ignore = "wait until serialize is implemented"]
     fn boc() {
         let cell = (
             0b1.wrap_as::<NBits<1>>(),

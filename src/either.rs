@@ -1,8 +1,8 @@
-use either::Either;
+pub use either::Either;
 
 use crate::{
-    CellBuilder, CellParser, Result, TLBDeserialize, TLBDeserializeAs, TLBDeserializeAsWrap,
-    TLBSerialize, TLBSerializeAs, TLBSerializeAsWrap,
+    CellBuilder, CellParser, Result, TLBDeserialize, TLBDeserializeAs,
+    TLBDeserializeAsWrap, TLBSerialize, TLBSerializeAs, TLBSerializeAsWrap,
 };
 
 impl<L, R> TLBSerialize for Either<L, R>

@@ -5,12 +5,34 @@ use bitvec::{
     order::Msb0,
     view::{AsBits, AsMutBits},
 };
-use num_bigint::BigUint;
+use num_bigint::{BigInt, BigUint};
 
 use crate::{
     CellBuilder, CellParser, ErrorReason, NBits, Result, TLBDeserialize, TLBDeserializeAs,
-    TLBSerialize, TLBSerializeAs, VarBytes,
+    TLBSerialize, TLBSerializeAs, TLBSerializeWrapAs, VarBytes,
 };
+
+pub struct ConstBit<const VALUE: bool>;
+
+impl<const VALUE: bool> TLBSerialize for ConstBit<VALUE> {
+    fn store(&self, builder: &mut CellBuilder) -> Result<()> {
+        VALUE.store(builder)
+    }
+}
+
+impl<'de, const VALUE: bool> TLBDeserialize<'de> for ConstBit<VALUE> {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self> {
+        if VALUE != parser.parse::<bool>()? {
+            Err(ErrorReason::custom(format!(
+                "expected {:#b}, got {:#b}",
+                VALUE as u8, !VALUE as u8
+            ))
+            .into())
+        } else {
+            Ok(Self)
+        }
+    }
+}
 
 macro_rules! impl_tlb_serialize_for_integers {
     ($($t:tt)+) => {$(
@@ -65,6 +87,26 @@ impl_tlb_serialize_for_integers! {
     i8 i16 i32 i64 i128 isize
 }
 
+pub struct ConstUint<const VALUE: u32, const BITS: usize>;
+
+impl<const VALUE: u32, const BITS: usize> TLBSerialize for ConstUint<VALUE, BITS> {
+    fn store(&self, builder: &mut CellBuilder) -> Result<()> {
+        VALUE.wrap_as::<NBits<BITS>>().store(builder)
+    }
+}
+
+impl<'de, const VALUE: u32, const BITS: usize> TLBDeserialize<'de> for ConstUint<VALUE, BITS> {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self> {
+        let v = parser.parse_as::<u32, NBits<BITS>>()?;
+        if v != VALUE {
+            return Err(
+                ErrorReason::custom(format!("expected const {VALUE:#b}, got: {v:#b}")).into(),
+            );
+        }
+        Ok(Self)
+    }
+}
+
 impl<const BITS: usize> TLBSerializeAs<BigUint> for NBits<BITS> {
     fn store_as(source: &BigUint, builder: &mut CellBuilder) -> Result<()> {
         let used_bits = source.bits() as usize;
@@ -92,9 +134,9 @@ impl<'de, const BITS: usize> TLBDeserializeAs<'de, BigUint> for NBits<BITS> {
     }
 }
 
-pub struct VarNum<const BITS_FOR_BYTES_LEN: usize>;
+pub struct VarUint<const BITS_FOR_BYTES_LEN: usize>;
 
-impl<const BITS_FOR_BYTES_LEN: usize> TLBSerializeAs<BigUint> for VarNum<BITS_FOR_BYTES_LEN> {
+impl<const BITS_FOR_BYTES_LEN: usize> TLBSerializeAs<BigUint> for VarUint<BITS_FOR_BYTES_LEN> {
     #[inline]
     fn store_as(source: &BigUint, builder: &mut CellBuilder) -> Result<()> {
         VarBytes::<BITS_FOR_BYTES_LEN>::store_as(&source.to_bytes_be(), builder)
@@ -102,7 +144,7 @@ impl<const BITS_FOR_BYTES_LEN: usize> TLBSerializeAs<BigUint> for VarNum<BITS_FO
 }
 
 impl<'de, const BITS_FOR_BYTES_LEN: usize> TLBDeserializeAs<'de, BigUint>
-    for VarNum<BITS_FOR_BYTES_LEN>
+    for VarUint<BITS_FOR_BYTES_LEN>
 {
     fn parse_as(parser: &mut CellParser<'de>) -> Result<BigUint> {
         let mut bits = parser
@@ -116,7 +158,31 @@ impl<'de, const BITS_FOR_BYTES_LEN: usize> TLBDeserializeAs<'de, BigUint>
     }
 }
 
-pub type Coins = VarNum<4>;
+pub struct VarInt<const BITS_FOR_BYTES_LEN: usize>;
+
+impl<const BITS_FOR_BYTES_LEN: usize> TLBSerializeAs<BigInt> for VarInt<BITS_FOR_BYTES_LEN> {
+    #[inline]
+    fn store_as(source: &BigInt, builder: &mut CellBuilder) -> Result<()> {
+        VarBytes::<BITS_FOR_BYTES_LEN>::store_as(&source.to_signed_bytes_be(), builder)
+    }
+}
+
+impl<'de, const BITS_FOR_BYTES_LEN: usize> TLBDeserializeAs<'de, BigInt>
+    for VarInt<BITS_FOR_BYTES_LEN>
+{
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<BigInt> {
+        let mut bits = parser
+            .parse_as::<_, VarBytes<BITS_FOR_BYTES_LEN>>()?
+            .to_bitvec();
+        let total_bits = (bits.len() + 7) & !7;
+        let shift = total_bits - bits.len();
+        bits.resize(total_bits, false);
+        bits.shift_right(shift);
+        Ok(BigInt::from_signed_bytes_be(bits.as_raw_slice()))
+    }
+}
+
+pub type Coins = VarUint<4>;
 
 #[cfg(test)]
 mod tests {
