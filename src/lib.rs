@@ -1,9 +1,13 @@
-mod bits;
+mod as_;
+
 mod boc;
 mod cell;
 mod deserialize;
+mod either;
 mod error;
-mod integer;
+mod numbers;
 mod serialize;
 
-pub use self::{bits::*, boc::*, cell::*, deserialize::*, error::*, integer::*, serialize::*};
+pub use self::{
+    as_::*, boc::*, cell::*, deserialize::*, either::*, error::*, numbers::*, serialize::*,
+};

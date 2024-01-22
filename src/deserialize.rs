@@ -1,38 +1,23 @@
-use std::sync::Arc;
+use std::{rc::Rc, sync::Arc};
 
-use bitvec::{mem::bits_of, order::Msb0, slice::BitSlice, vec::BitVec};
+use bitvec::{order::Msb0, slice::BitSlice};
 
-use crate::{Cell, ErrorReason, Result};
+use crate::{Cell, ErrorReason, Result, TLBDeserializeAs, TLBDeserializeAsWrap};
 
-pub trait TLBDeserialize: Sized {
-    fn parse(parser: &mut CellParser<'_>) -> Result<Self>;
+pub trait TLBDeserialize<'de>: Sized {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self>;
 }
 
-impl<T> TLBDeserialize for Box<T>
-where
-    T: TLBDeserialize,
-{
-    fn parse(parser: &mut CellParser<'_>) -> Result<Self> {
-        T::parse(parser).map(Box::new)
-    }
-}
+pub trait TLBDeserializeOwned: for<'de> TLBDeserialize<'de> {}
+impl<T> TLBDeserializeOwned for T where T: for<'de> TLBDeserialize<'de> {}
 
-impl<T> TLBDeserialize for Arc<T>
-where
-    T: TLBDeserialize,
-{
-    fn parse(parser: &mut CellParser<'_>) -> Result<Self> {
-        T::parse(parser).map(Arc::new)
-    }
-}
-
-pub trait TLBDeserializeExt: TLBDeserialize {
-    fn parse_fully(cell: &Cell) -> Result<Self> {
+pub trait TLBDeserializeExt<'de>: TLBDeserialize<'de> {
+    fn parse_fully(cell: &'de Cell) -> Result<Self> {
         cell.parser().parse_fully()
     }
 }
 
-impl<T> TLBDeserializeExt for T where T: TLBDeserialize {}
+impl<'de, T> TLBDeserializeExt<'de> for T where T: TLBDeserialize<'de> {}
 
 pub struct CellParser<'a> {
     data: &'a BitSlice<u8, Msb0>,
@@ -47,15 +32,24 @@ impl<'a> CellParser<'a> {
     #[inline]
     pub fn parse<T>(&mut self) -> Result<T>
     where
-        T: TLBDeserialize,
+        T: TLBDeserialize<'a>,
     {
         T::parse(self)
     }
 
     #[inline]
+    pub fn parse_as<T, As>(&mut self) -> Result<T>
+    where
+        As: TLBDeserializeAs<'a, T>,
+    {
+        self.parse::<TLBDeserializeAsWrap<T, As>>()
+            .map(TLBDeserializeAsWrap::into_inner)
+    }
+
+    #[inline]
     pub fn parse_fully<T>(&mut self) -> Result<T>
     where
-        T: TLBDeserialize,
+        T: TLBDeserialize<'a>,
     {
         let v = self.parse()?;
         self.is_empty()
@@ -64,16 +58,25 @@ impl<'a> CellParser<'a> {
     }
 
     #[inline]
+    pub fn parse_fully_as<T, As>(&mut self) -> Result<T>
+    where
+        As: TLBDeserializeAs<'a, T>,
+    {
+        self.parse_fully::<TLBDeserializeAsWrap<T, As>>()
+            .map(TLBDeserializeAsWrap::into_inner)
+    }
+
+    #[inline]
     pub fn parse_reference<T>(&mut self) -> Result<T>
     where
-        T: TLBDeserialize,
+        T: TLBDeserialize<'a>,
     {
         let reference = self.pop_reference().ok_or(ErrorReason::NoMoreLeft)?;
         T::parse_fully(reference)
     }
 
     #[inline]
-    fn pop_reference(&mut self) -> Option<&Arc<Cell>> {
+    fn pop_reference(&mut self) -> Option<&'a Arc<Cell>> {
         let reference;
         (reference, self.references) = self.references.split_first()?;
         Some(reference)
@@ -87,7 +90,7 @@ impl<'a> CellParser<'a> {
     }
 
     #[inline]
-    pub fn load_bits(&mut self, n: usize) -> Result<&BitSlice<u8, Msb0>> {
+    pub fn load_bits(&mut self, n: usize) -> Result<&'a BitSlice<u8, Msb0>> {
         if n > self.data.len() {
             return Err(ErrorReason::NoMoreLeft.into());
         }
@@ -97,22 +100,8 @@ impl<'a> CellParser<'a> {
     }
 
     #[inline]
-    pub(crate) fn load_bitvec(&mut self, n: usize) -> Result<BitVec<u8, Msb0>> {
-        Ok(self.load_bits(n)?.to_bitvec())
-    }
-
-    #[inline]
-    pub fn load_bytes(&mut self, n: usize) -> Result<Vec<u8>> {
-        Ok(self.load_bitvec(n * bits_of::<u8>())?.into_vec())
-    }
-
-    #[inline]
-    pub fn load_bytes_array<const N: usize>(&mut self) -> Result<[u8; N]> {
-        Ok(self
-            .load_bitvec(N * bits_of::<u8>())?
-            .as_raw_slice()
-            .try_into()
-            .unwrap())
+    pub fn load_bytes(&mut self, n: usize) -> Result<&'a BitSlice<u8, Msb0>> {
+        self.load_bits(n * 8)
     }
 
     #[inline]
@@ -121,27 +110,27 @@ impl<'a> CellParser<'a> {
     }
 }
 
-impl TLBDeserialize for () {
-    fn parse(_parser: &mut CellParser<'_>) -> Result<Self> {
+impl<'de> TLBDeserialize<'de> for () {
+    fn parse(_parser: &mut CellParser<'de>) -> Result<Self> {
         Ok(())
     }
 }
 
-impl TLBDeserialize for bool {
-    fn parse(parser: &mut CellParser<'_>) -> Result<Self> {
+impl<'de> TLBDeserialize<'de> for bool {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self> {
         parser.load_bit()
     }
 }
 
 macro_rules! impl_tlb_deserialize_for_tuple {
     ($($n:tt:$t:ident),+) => {
-        impl<$($t),+> TLBDeserialize for ($($t,)+)
+        impl<'de, $($t),+> TLBDeserialize<'de> for ($($t,)+)
         where $(
-            $t: TLBDeserialize,
+            $t: TLBDeserialize<'de>,
         )+
         {
             #[inline]
-            fn parse(parser: &mut CellParser<'_>) -> Result<Self> {
+            fn parse(parser: &mut CellParser<'de>) -> Result<Self> {
                 Ok(($(
                     parser.parse::<$t>().map_err(|err| err.with_nth($n))?,
                 )+))
@@ -160,16 +149,29 @@ impl_tlb_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
 impl_tlb_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
 impl_tlb_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
 
-/// [Maybe](https://docs.ton.org/develop/data-formats/tl-b-types#maybe)
-impl<T> TLBDeserialize for Option<T>
+impl<'de, T> TLBDeserialize<'de> for Box<T>
 where
-    T: TLBDeserialize,
+    T: TLBDeserialize<'de>,
 {
-    #[inline]
-    fn parse(parser: &mut CellParser<'_>) -> Result<Self> {
-        Ok(match parser.parse()? {
-            false => None,
-            true => Some(parser.parse()?),
-        })
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self> {
+        T::parse(parser).map(Box::new)
+    }
+}
+
+impl<'de, T> TLBDeserialize<'de> for Rc<T>
+where
+    T: TLBDeserialize<'de>,
+{
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self> {
+        T::parse(parser).map(Rc::new)
+    }
+}
+
+impl<'de, T> TLBDeserialize<'de> for Arc<T>
+where
+    T: TLBDeserialize<'de>,
+{
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self> {
+        T::parse(parser).map(Arc::new)
     }
 }

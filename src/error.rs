@@ -1,3 +1,5 @@
+use core::fmt::Display;
+
 use itertools::Itertools;
 use thiserror::Error as ThisError;
 
@@ -39,4 +41,15 @@ pub enum ErrorReason {
     MoreLeft,
     #[error("no more data left")]
     NoMoreLeft,
+    #[error("{0}")]
+    Custom(String),
+}
+
+impl ErrorReason {
+    pub fn custom<T>(msg: T) -> Self
+    where
+        T: Display,
+    {
+        Self::Custom(msg.to_string())
+    }
 }

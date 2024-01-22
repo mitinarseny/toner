@@ -12,12 +12,9 @@ use bitvec::{
     vec::BitVec,
     view::AsBits,
 };
-use impl_tools::autoimpl;
 use sha2::{Digest, Sha256};
 
-use crate::{
-    serialize::TLBSerialize, CellBuilder, CellParser, ErrorReason, Result, TLBDeserialize,
-};
+use crate::{serialize::TLBSerialize, CellBuilder, CellParser, ErrorReason, Result};
 
 const MAX_BITS_LEN: usize = 1023;
 const MAX_REFS_COUNT: usize = 4;
@@ -103,6 +100,15 @@ impl Cell {
             return Err(ErrorReason::TooLong.into());
         }
         self.data.extend_from_bitslice(bits);
+        Ok(self)
+    }
+
+    #[inline]
+    pub fn repeat_bit(&mut self, n: usize, bit: bool) -> Result<&mut Self> {
+        if self.bits_len() + n > MAX_BITS_LEN {
+            return Err(ErrorReason::TooLong.into());
+        }
+        self.data.resize(self.bits_len() + n, bit);
         Ok(self)
     }
 
@@ -246,40 +252,13 @@ impl Debug for Cell {
     }
 }
 
-#[autoimpl(Deref using self.0)]
-#[autoimpl(DerefMut using self.0)]
-#[autoimpl(AsRef using self.0)]
-#[autoimpl(AsMut using self.0)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Ref<T>(pub T);
-
-impl<T> TLBSerialize for Ref<T>
-where
-    T: TLBSerialize,
-{
-    #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<()> {
-        builder.store_reference(&self.0)?;
-        Ok(())
-    }
-}
-
-impl<T> TLBDeserialize for Ref<T>
-where
-    T: TLBDeserialize,
-{
-    fn parse(parser: &mut CellParser<'_>) -> Result<Self> {
-        parser.parse_reference().map(Self)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use bitvec::{bitvec, order::Msb0, view::BitViewSized};
     use hex_literal::hex;
 
     use super::*;
-    use crate::{Num, TLBDeserializeExt, TLBSerializeExt};
+    use crate::{NBits, Ref, TLBSerializeExt, TLBSerializeWrapAs};
 
     #[test]
     fn zero_depth() {
@@ -289,11 +268,8 @@ mod tests {
     #[test]
     fn max_depth() {
         assert_eq!(
-            (
-                Ref(()),
-                Ref(Ref((Ref(()), Ref(Ref(()))))),
-                Ref((Ref(()), Ref(Ref(())))),
-            )
+            ((), ((), ()), ((), ()))
+                .wrap_as::<(Ref, Ref<Ref<(Ref, Ref<Ref>)>>, Ref<(Ref, Ref<Ref>)>)>()
                 .to_cell()
                 .unwrap()
                 .max_depth(),
@@ -306,11 +282,12 @@ mod tests {
         assert_eq!(
             (
                 &hex!("80").as_bits::<Msb0>()[..1],
-                Ref(Num::<24, u32>(0x0AAAAA)),
-                Ref((
+                0x0AAAAA.wrap_as::<NBits<24>>().wrap_as::<Ref>(),
+                (
                     &hex!("FD").as_bits::<Msb0>()[..7],
-                    Ref(Num::<24, u32>(0x0AAAAA))
-                )),
+                    0x0AAAAA.wrap_as::<NBits<24>>().wrap_as::<Ref>(),
+                )
+                    .wrap_as::<Ref>(),
             )
                 .to_cell()
                 .unwrap(),
@@ -339,26 +316,30 @@ mod tests {
 
     #[test]
     fn tlb_serde() {
-        let cell = (
-            Num::<1, _>(0b1),
-            Ref(Num::<24, _>(0x0AAAAA)),
-            Ref((Num::<7, u8>(0x7F), Ref(Num::<24, _>(0x0AAAAA)))),
-        );
-
-        eprintln!("{:#?}", cell.to_cell().unwrap());
+        type As = (NBits<1>, Ref<NBits<24>>, Ref<(NBits<7>, Ref<NBits<24>>)>);
+        let cell = (0b1, 0x0AAAAA, (0x7F, 0x0AAAAA));
 
         assert_eq!(
             cell,
-            TLBDeserializeExt::parse_fully(&cell.to_cell().unwrap()).unwrap()
+            cell.wrap_as::<As>()
+                .to_cell()
+                .unwrap()
+                .parser()
+                .parse_fully_as::<_, As>()
+                .unwrap(),
         )
     }
 
     #[test]
     fn cell_serialize() {
         let cell = (
-            Num::<1, _>(0b1),
-            Ref(Num::<24, _>(0x0AAAAA)),
-            Ref((Num::<7, u8>(0x7F), Ref(Num::<24, _>(0x0AAAAA)))),
+            0b1.wrap_as::<NBits<1>>(),
+            0x0AAAAA.wrap_as::<NBits<24>>().wrap_as::<Ref>(),
+            (
+                0x7F.wrap_as::<NBits<7>>(),
+                0x0AAAAA.wrap_as::<NBits<24>>().wrap_as::<Ref>(),
+            )
+                .wrap_as::<Ref>(),
         )
             .to_cell()
             .unwrap();
@@ -367,7 +348,7 @@ mod tests {
 
     #[test]
     fn hash_no_refs() {
-        let cell = Num::<32, u32>(0x0000000F).to_cell().unwrap();
+        let cell = 0x0000000F.wrap_as::<NBits<32>>().to_cell().unwrap();
 
         assert_eq!(
             cell.hash(),
@@ -378,9 +359,9 @@ mod tests {
     #[test]
     fn hash_with_refs() {
         let cell = (
-            Num::<24, u32>(0x00000B),
-            Ref(0x0000000F_u32),
-            Ref(0x0000000F_u32),
+            0x00000B.wrap_as::<NBits<24>>(),
+            0x0000000F_u32.wrap_as::<Ref>(),
+            0x0000000F_u32.wrap_as::<Ref>(),
         )
             .to_cell()
             .unwrap();

@@ -91,14 +91,18 @@ mod tests {
     use hex_literal::hex;
 
     use super::*;
-    use crate::{Num, Ref, TLBSerializeExt};
+    use crate::{NBits, Ref, TLBSerializeExt, TLBSerializeWrapAs};
 
     #[test]
     fn boc() {
         let cell = (
-            Num::<1, u8>(0b1),
-            Ref(Num::<24, u32>(0x0AAAAA)),
-            Ref((Num::<7, u8>(0x7E), Ref(Num::<24, u32>(0x0AAAAA)))),
+            0b1.wrap_as::<NBits<1>>(),
+            0x0AAAAA.wrap_as::<NBits<24>>().wrap_as::<Ref>(),
+            (
+                0x7E.wrap_as::<NBits<7>>(),
+                0x0AAAAA.wrap_as::<NBits<24>>().wrap_as::<Ref>(),
+            )
+                .wrap_as::<Ref>(),
         )
             .to_cell()
             .unwrap();

@@ -3,7 +3,9 @@ use std::{rc::Rc, sync::Arc};
 use bitvec::{order::BitOrder, slice::BitSlice, store::BitStore};
 use impl_tools::autoimpl;
 
-use crate::{Cell, ErrorReason, Result};
+use crate::{
+    AsBytes, Cell, ErrorReason, Result, TLBSerializeAs, TLBSerializeAsWrap, TLBSerializeWrapAs,
+};
 
 #[autoimpl(for <T: trait + ?Sized> &T, &mut T, Box<T>, Rc<T>, Arc<T>)]
 pub trait TLBSerialize {
@@ -24,6 +26,7 @@ impl<T> TLBSerializeExt for T where T: TLBSerialize + ?Sized {}
 pub struct CellBuilder(Cell);
 
 impl CellBuilder {
+    #[inline]
     pub const fn new() -> Self {
         Self(Cell::new())
     }
@@ -38,12 +41,28 @@ impl CellBuilder {
     }
 
     #[inline]
+    pub fn store_as<T, As>(&mut self, value: T) -> Result<&mut Self>
+    where
+        As: TLBSerializeAs<T>,
+    {
+        self.store(TLBSerializeAsWrap::<T, As>::new(&value))
+    }
+
+    #[inline]
     pub fn with<T>(mut self, value: T) -> Result<Self>
     where
         T: TLBSerialize,
     {
         self.store(value)?;
         Ok(self)
+    }
+
+    #[inline]
+    pub fn with_as<T, As>(self, value: T) -> Result<Self>
+    where
+        As: TLBSerializeAs<T>,
+    {
+        self.with(TLBSerializeAsWrap::<T, As>::new(&value))
     }
 
     #[inline]
@@ -79,6 +98,12 @@ impl CellBuilder {
         O: BitOrder,
     {
         self.0.push_bits(bits)?;
+        Ok(self)
+    }
+
+    #[inline]
+    pub fn repeat_bit(&mut self, n: usize, bit: bool) -> Result<&mut Self> {
+        self.0.repeat_bit(n, bit)?;
         Ok(self)
     }
 
@@ -163,17 +188,19 @@ impl_tlb_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
 impl_tlb_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
 impl_tlb_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
 
-/// [Maybe](https://docs.ton.org/develop/data-formats/tl-b-types#maybe)
-impl<T> TLBSerialize for Option<T>
+impl<S, O> TLBSerialize for BitSlice<S, O>
 where
-    T: TLBSerialize,
+    S: BitStore,
+    O: BitOrder,
 {
-    #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<()> {
-        match self {
-            None => builder.store(false)?,
-            Some(v) => builder.store(true)?.store(v)?,
-        };
+        builder.push_bits(self)?;
         Ok(())
+    }
+}
+
+impl TLBSerialize for str {
+    fn store(&self, builder: &mut CellBuilder) -> Result<()> {
+        self.wrap_as::<AsBytes>().store(builder)
     }
 }
