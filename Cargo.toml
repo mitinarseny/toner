@@ -12,6 +12,7 @@ tlb.path = "./crates/tlb"
 tlbits.path = "./crates/bits"
 tlb-ton.path = "./crates/ton"
 
+base64 = "0.21"
 bitvec = "1"
 either = "1"
 hex = "0.4"

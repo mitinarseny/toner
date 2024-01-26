@@ -10,12 +10,18 @@ pub struct BagOfCells {
 }
 
 impl BagOfCells {
+    pub fn from_root(root: impl Into<Arc<Cell>>) -> Self {
+        Self {
+            roots: [root.into()].into(),
+        }
+    }
+
     pub fn add_root(&mut self, root: impl Into<Arc<Cell>>) {
         self.roots.push(root.into())
     }
 
     pub fn single_root(&self) -> Option<&Arc<Cell>> {
-        let &[ref root] = self.roots.as_slice().try_into().ok()?;
+        let [root]: &[_; 1] = self.roots.as_slice().try_into().ok()?;
         Some(root)
     }
 }

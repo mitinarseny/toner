@@ -1558,6 +1558,9 @@ dependencies = [
 name = "tlb-ton"
 version = "0.1.0"
 dependencies = [
+ "base64 0.21.7",
+ "crc",
+ "hex",
  "strum",
  "tlb",
  "tlbits",
