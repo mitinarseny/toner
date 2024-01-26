@@ -736,15 +736,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f518f335dce6725a761382244631d86cf0ccb2863413590b31338feb467f9c3"
 
 [[package]]
-name = "itertools"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25db6b064527c5d482d0423354fcd07a89a2dfe07b67892e62411946db7f07b0"
-dependencies = [
- "either",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1558,12 +1549,30 @@ dependencies = [
  "hex",
  "hex-literal",
  "impl-tools",
- "itertools",
- "num-bigint",
  "sha2",
- "strum",
- "thiserror",
+ "tlbits",
  "tonlib",
+]
+
+[[package]]
+name = "tlb-ton"
+version = "0.1.0"
+dependencies = [
+ "strum",
+ "tlb",
+ "tlbits",
+ "tonlib",
+]
+
+[[package]]
+name = "tlbits"
+version = "0.1.0"
+dependencies = [
+ "bitvec",
+ "either",
+ "impl-tools",
+ "num-bigint",
+ "thiserror",
 ]
 
 [[package]]

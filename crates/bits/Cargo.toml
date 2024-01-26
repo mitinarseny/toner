@@ -1,0 +1,11 @@
+[package]
+name = "tlbits"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bitvec.workspace = true
+either.workspace = true
+impl-tools.workspace = true
+num-bigint.workspace = true
+thiserror.workspace = true

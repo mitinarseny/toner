@@ -1,8 +1,6 @@
 use strum::Display;
-
-use crate::{
-    CellBuilder, CellParser, ErrorReason, NBits, Result, TLBDeserialize, TLBSerialize,
-    TLBSerializeWrapAs,
+use tlbits::{
+    BitPack, BitReader, BitReaderExt, BitUnpack, BitWriter, BitWriterExt, Error, NBits, ResultExt,
 };
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
@@ -23,35 +21,47 @@ impl MsgAddress {
     }
 }
 
-impl TLBSerialize for MsgAddress {
-    fn store(&self, builder: &mut CellBuilder) -> Result<()> {
+impl BitPack for MsgAddress {
+    #[inline]
+    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
         if self.is_null() {
-            builder.store_as::<_, NBits<2>>(MsgAddressTag::Null as u8)?;
+            writer
+                .pack_as::<_, NBits<2>>(MsgAddressTag::Null as u8)
+                .context("tag")?;
         } else {
-            builder
-                .store_as::<_, NBits<2>>(MsgAddressTag::Std as u8)?
-                .store(false)?
-                .store(self.workchain_id as i8)?
-                .store(self.address)?;
+            writer
+                .pack_as::<_, NBits<2>>(MsgAddressTag::Std as u8)
+                .context("tag")?
+                .pack(false)
+                .context("anycast")?
+                .pack(self.workchain_id as i8)
+                .context("workchain_id")?
+                .pack(self.address)
+                .context("address")?;
         }
         Ok(())
     }
 }
 
-impl<'de> TLBDeserialize<'de> for MsgAddress {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self> {
-        let typ = parser.parse()?;
-        match typ {
+impl BitUnpack for MsgAddress {
+    #[inline]
+    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+    where
+        R: BitReader,
+    {
+        match reader.unpack().context("tag")? {
             MsgAddressTag::Null => Ok(Self::NULL),
             MsgAddressTag::Std => {
-                // anycast
-                let _ = bool::parse(parser)?;
+                reader.skip(1).context("anycast")?;
                 Ok(Self {
-                    workchain_id: parser.parse::<i8>()? as i32,
-                    address: parser.parse()?,
+                    workchain_id: reader.unpack::<i8>().context("workchain_id")? as i32,
+                    address: reader.unpack().context("address")?,
                 })
             }
-            _ => Err(ErrorReason::custom(format!("unsupported address tag: {typ}")).into()),
+            tag => Err(Error::custom(format!("unsupported address tag: {tag}"))),
         }
     }
 }
@@ -69,15 +79,24 @@ enum MsgAddressTag {
     Var,
 }
 
-impl TLBSerialize for MsgAddressTag {
-    fn store(&self, builder: &mut CellBuilder) -> Result<()> {
-        (*self as u8).wrap_as::<NBits<2>>().store(builder)
+impl BitPack for MsgAddressTag {
+    #[inline]
+    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        writer.pack_as::<_, NBits<2>>(*self as u8)?;
+        Ok(())
     }
 }
 
-impl<'de> TLBDeserialize<'de> for MsgAddressTag {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self> {
-        Ok(match parser.parse_as::<u8, NBits<2>>()? {
+impl BitUnpack for MsgAddressTag {
+    #[inline]
+    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+    where
+        R: BitReader,
+    {
+        Ok(match reader.unpack_as::<u8, NBits<2>>()? {
             0b00 => Self::Null,
             0b01 => Self::Extern,
             0b10 => Self::Std,

@@ -1,0 +1,21 @@
+[package]
+name = "tlb"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tlbits.workspace = true
+
+bitvec.workspace = true
+either.workspace = true
+hex.workspace = true
+impl-tools.workspace = true
+sha2.workspace = true
+tonlib = { workspace = true, optional = true }
+
+[features]
+default = ["tonlib"]
+tonlib = ["dep:tonlib"]
+
+[dev-dependencies]
+hex-literal = "0.4"

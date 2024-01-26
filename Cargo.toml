@@ -1,9 +1,17 @@
-[package]
-name = "tlb"
+[workspace]
+members = ["./crates/*"]
+default-members = ["./crates/tlb"]
+resolver = "2"
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
 
-[dependencies]
+[workspace.dependencies]
+tlb.path = "./crates/tlb"
+tlbits.path = "./crates/bits"
+tlb-ton.path = "./crates/ton"
+
 bitvec = "1"
 either = "1"
 hex = "0.4"
@@ -14,11 +22,4 @@ sha2 = "0.10"
 strum = { version = "0.25", features = ["derive"] }
 thiserror = "1"
 
-tonlib = { version = "0.12", optional = true }
-
-[features]
-default = []
-tonlib = ["dep:tonlib"]
-
-[dev-dependencies]
-hex-literal = "0.4"
+tonlib = "0.12"

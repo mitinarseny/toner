@@ -1,0 +1,15 @@
+[package]
+name = "tlb-ton"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tlb.workspace = true
+tlbits.workspace = true
+
+strum.workspace = true
+
+tonlib = { workspace = true, optional = true }
+
+[features]
+tonlib = ["dep:tonlib"]
