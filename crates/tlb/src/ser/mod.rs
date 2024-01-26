@@ -7,7 +7,7 @@ use std::{rc::Rc, sync::Arc};
 use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
 use impl_tools::autoimpl;
 
-use crate::{BitWriter, Cell, Error, LimitWriter, ResultExt, MAX_BITS_LEN, MAX_REFS_COUNT};
+use crate::{BitWriter, Cell, Error, LimitWriter, ResultExt};
 
 #[autoimpl(for <T: trait + ?Sized> &T, &mut T, Box<T>, Rc<T>, Arc<T>)]
 pub trait CellSerialize {
@@ -78,6 +78,9 @@ pub struct CellBuilder {
     data: CellBitWriter,
     references: Vec<Arc<Cell>>,
 }
+
+const MAX_BITS_LEN: usize = 1023;
+const MAX_REFS_COUNT: usize = 4;
 
 impl CellBuilder {
     #[inline]
@@ -162,7 +165,7 @@ impl BitWriter for CellBuilder {
 
 pub trait CellSerializeExt: CellSerialize {
     #[inline]
-    fn to_cell(&self) -> Result<Cell, <CellBuilder as BitWriter>::Error> {
+    fn to_cell(&self) -> Result<Cell, CellBuilderError> {
         let mut builder = Cell::builder();
         self.store(&mut builder)?;
         Ok(builder.into_cell())

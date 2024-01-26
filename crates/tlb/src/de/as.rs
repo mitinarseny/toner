@@ -1,12 +1,10 @@
 use core::{marker::PhantomData, mem::MaybeUninit};
 use std::{rc::Rc, sync::Arc};
 
-use tlbits::{BitReader, StringError};
-
-use crate::{CellDeserialize, CellParser, ResultExt};
+use crate::{CellDeserialize, CellParser, CellParserError, ResultExt};
 
 pub trait CellDeserializeAs<'de, T> {
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, <CellParser<'de> as BitReader>::Error>;
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>>;
 }
 
 pub trait CellDeserializeAsOwned<T>: for<'de> CellDeserializeAs<'de, T> {}
@@ -36,7 +34,7 @@ where
     As: CellDeserializeAs<'de, T> + ?Sized,
 {
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, StringError> {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         As::parse_as(parser).map(|value| Self {
             value,
             _phanton: PhantomData,
@@ -49,9 +47,7 @@ where
     As: CellDeserializeAs<'de, T>,
 {
     #[inline]
-    fn parse_as(
-        parser: &mut CellParser<'de>,
-    ) -> Result<[T; N], <CellParser<'de> as BitReader>::Error> {
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<[T; N], CellParserError<'de>> {
         let mut arr: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
         for a in &mut arr {
             a.write(parser.parse_as::<T, As>()?);
@@ -68,7 +64,7 @@ macro_rules! impl_cell_deserialize_as_for_tuple {
         )+
         {
             #[inline]
-            fn parse_as(parser: &mut CellParser<'de>) -> Result<($($t,)+), StringError> {
+            fn parse_as(parser: &mut CellParser<'de>) -> Result<($($t,)+), CellParserError<'de>> {
                 Ok(($(
                     CellDeserializeAsWrap::<$t, $a>::parse(parser)
                         .context(concat!(".", stringify!($n)))?
@@ -94,7 +90,7 @@ where
     As: CellDeserializeAs<'de, T> + ?Sized,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<Box<T>, StringError> {
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<Box<T>, CellParserError<'de>> {
         CellDeserializeAsWrap::<T, As>::parse(parser)
             .map(CellDeserializeAsWrap::into_inner)
             .map(Box::new)
@@ -106,7 +102,7 @@ where
     As: CellDeserializeAs<'de, T> + ?Sized,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<Rc<T>, StringError> {
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<Rc<T>, CellParserError<'de>> {
         CellDeserializeAsWrap::<T, As>::parse(parser)
             .map(CellDeserializeAsWrap::into_inner)
             .map(Rc::new)
@@ -118,7 +114,7 @@ where
     As: CellDeserializeAs<'de, T> + ?Sized,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<Arc<T>, StringError> {
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<Arc<T>, CellParserError<'de>> {
         CellDeserializeAsWrap::<T, As>::parse(parser)
             .map(CellDeserializeAsWrap::into_inner)
             .map(Arc::new)
@@ -130,7 +126,7 @@ where
     As: CellDeserializeAs<'de, T>,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<Option<T>, StringError> {
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<Option<T>, CellParserError<'de>> {
         Ok(Option::<CellDeserializeAsWrap<T, As>>::parse(parser)?
             .map(CellDeserializeAsWrap::into_inner))
     }

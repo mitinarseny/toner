@@ -7,14 +7,11 @@ use std::sync::Arc;
 
 use bitvec::{order::Msb0, vec::BitVec};
 use sha2::{Digest, Sha256};
-use tlbits::{BitReader, BitWriterExt};
 
 use crate::{
-    BitWriter, CellBuilder, CellDeserialize, CellDeserializeAs, CellParser, CellSerialize,
+    BitReader, BitWriter, BitWriterExt, CellBuilder, CellDeserialize, CellDeserializeAs,
+    CellParser, CellSerialize,
 };
-
-pub(crate) const MAX_BITS_LEN: usize = 1023;
-pub(crate) const MAX_REFS_COUNT: usize = 4;
 
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct Cell {

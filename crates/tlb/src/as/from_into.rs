@@ -1,9 +1,8 @@
 use core::fmt::Display;
 
-use tlbits::{BitReader, BitWriter, Error, FromInto, FromIntoRef, TryFromInto};
-
 use crate::{
-    CellBuilder, CellDeserialize, CellDeserializeAs, CellParser, CellSerialize, CellSerializeAs,
+    BitReader, BitWriter, CellBuilder, CellDeserialize, CellDeserializeAs, CellParser,
+    CellSerialize, CellSerializeAs, Error, FromInto, FromIntoRef, TryFromInto,
 };
 
 impl<T, As> CellSerializeAs<T> for FromInto<As>

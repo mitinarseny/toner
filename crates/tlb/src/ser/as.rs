@@ -1,15 +1,10 @@
 use core::marker::PhantomData;
 use std::{rc::Rc, sync::Arc};
 
-use tlbits::{BitWriter, ResultExt};
-
-use crate::{CellBuilder, CellSerialize};
+use crate::{CellBuilder, CellBuilderError, CellSerialize, ResultExt};
 
 pub trait CellSerializeAs<T: ?Sized> {
-    fn store_as(
-        source: &T,
-        builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error>;
+    fn store_as(source: &T, builder: &mut CellBuilder) -> Result<(), CellBuilderError>;
 }
 
 pub struct CellSerializeAsWrap<'a, T, As>
@@ -42,7 +37,7 @@ where
     As: CellSerializeAs<T>,
 {
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         As::store_as(self.value, builder)
     }
 }
@@ -53,10 +48,7 @@ where
     T: ?Sized,
 {
     #[inline]
-    fn store_as(
-        source: &&T,
-        builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store_as(source: &&T, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         CellSerializeAsWrap::<T, As>::new(source).store(builder)
     }
 }
@@ -67,10 +59,7 @@ where
     T: ?Sized,
 {
     #[inline]
-    fn store_as(
-        source: &&mut T,
-        builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store_as(source: &&mut T, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         CellSerializeAsWrap::<T, As>::new(source).store(builder)
     }
 }
@@ -80,10 +69,7 @@ where
     As: CellSerializeAs<T>,
 {
     #[inline]
-    fn store_as(
-        source: &[T],
-        builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store_as(source: &[T], builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         for (i, v) in source.iter().enumerate() {
             builder
                 .store_as::<&T, &As>(v)
@@ -98,10 +84,7 @@ where
     As: CellSerializeAs<T>,
 {
     #[inline]
-    fn store_as(
-        source: &[T; N],
-        builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store_as(source: &[T; N], builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder.store_as::<&[T], &[As]>(source)?;
         Ok(())
     }
@@ -115,10 +98,7 @@ macro_rules! impl_cell_serialize_as_for_tuple {
         )+
         {
             #[inline]
-            fn store_as(
-                source: &($($t,)+),
-                builder: &mut CellBuilder,
-            ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+            fn store_as(source: &($($t,)+), builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
                 builder$(
                     .store_as::<&$t, &$a>(&source.$n)?)+;
                 Ok(())
@@ -141,10 +121,7 @@ impl<T, As> CellSerializeAs<Box<T>> for Box<As>
 where
     As: CellSerializeAs<T> + ?Sized,
 {
-    fn store_as(
-        source: &Box<T>,
-        builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store_as(source: &Box<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         CellSerializeAsWrap::<T, As>::new(source).store(builder)
     }
 }
@@ -153,10 +130,7 @@ impl<T, As> CellSerializeAs<Rc<T>> for Rc<As>
 where
     As: CellSerializeAs<T> + ?Sized,
 {
-    fn store_as(
-        source: &Rc<T>,
-        builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store_as(source: &Rc<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         CellSerializeAsWrap::<T, As>::new(source).store(builder)
     }
 }
@@ -165,10 +139,7 @@ impl<T, As> CellSerializeAs<Arc<T>> for Arc<As>
 where
     As: CellSerializeAs<T> + ?Sized,
 {
-    fn store_as(
-        source: &Arc<T>,
-        builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store_as(source: &Arc<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         CellSerializeAsWrap::<T, As>::new(source).store(builder)
     }
 }
@@ -178,10 +149,7 @@ where
     As: CellSerializeAs<T>,
 {
     #[inline]
-    fn store_as(
-        source: &Option<T>,
-        builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store_as(source: &Option<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         source
             .as_ref()
             .map(CellSerializeWrapAsExt::wrap_as::<As>)

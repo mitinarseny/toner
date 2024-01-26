@@ -14,7 +14,6 @@ sha2.workspace = true
 tonlib = { workspace = true, optional = true }
 
 [features]
-default = ["tonlib"]
 tonlib = ["dep:tonlib"]
 
 [dev-dependencies]

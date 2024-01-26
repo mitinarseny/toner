@@ -1,8 +1,8 @@
 use core::marker::PhantomData;
 
-use tlbits::{BitReader, BitWriter, Same};
-
-use crate::{CellBuilder, CellDeserializeAs, CellParser, CellSerializeAs};
+use crate::{
+    BitReader, BitWriter, CellBuilder, CellDeserializeAs, CellParser, CellSerializeAs, Same,
+};
 
 pub struct Ref<As: ?Sized = Same>(PhantomData<As>);
 

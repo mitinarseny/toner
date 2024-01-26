@@ -1,10 +1,9 @@
 use either::Either;
-use tlbits::{BitReaderExt, StringError};
 
 use crate::{
-    BitReader, BitWriter, BitWriterExt, CellBuilder, CellDeserialize, CellDeserializeAs,
-    CellDeserializeAsWrap, CellParser, CellSerialize, CellSerializeAs, CellSerializeAsWrap,
-    ResultExt,
+    BitReader, BitReaderExt, BitWriter, BitWriterExt, CellBuilder, CellDeserialize,
+    CellDeserializeAs, CellDeserializeAsWrap, CellParser, CellSerialize, CellSerializeAs,
+    CellSerializeAsWrap, ResultExt, StringError,
 };
 
 impl<L, R> CellSerialize for Either<L, R>

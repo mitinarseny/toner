@@ -1,5 +1,5 @@
 use strum::Display;
-use tlbits::{
+use tlb::{
     BitPack, BitReader, BitReaderExt, BitUnpack, BitWriter, BitWriterExt, Error, NBits, ResultExt,
 };
 

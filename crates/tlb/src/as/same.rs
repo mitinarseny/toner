@@ -1,7 +1,6 @@
-use tlbits::{BitReader, BitWriter, Same};
-
 use crate::{
-    CellBuilder, CellDeserialize, CellDeserializeAs, CellParser, CellSerialize, CellSerializeAs,
+    BitReader, BitWriter, CellBuilder, CellDeserialize, CellDeserializeAs, CellParser,
+    CellSerialize, CellSerializeAs, Same,
 };
 
 impl<T> CellSerializeAs<T> for Same

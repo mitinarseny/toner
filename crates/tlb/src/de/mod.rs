@@ -6,9 +6,8 @@ use core::mem::MaybeUninit;
 use std::sync::Arc;
 
 use bitvec::{order::Msb0, slice::BitSlice};
-use tlbits::BitReader;
 
-use crate::{Cell, Error, ResultExt};
+use crate::{BitReader, Cell, Error, ResultExt};
 
 pub trait CellDeserialize<'de>: Sized {
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, <CellParser<'de> as BitReader>::Error>;
@@ -66,6 +65,8 @@ impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
 impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
 impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
 
+pub type CellParserError<'de> = <CellParser<'de> as BitReader>::Error;
+
 pub struct CellParser<'de> {
     data: &'de BitSlice<u8, Msb0>,
     references: &'de [Arc<Cell>],
@@ -78,7 +79,7 @@ impl<'de> CellParser<'de> {
     }
 
     #[inline]
-    pub fn parse<T>(&mut self) -> Result<T, <Self as BitReader>::Error>
+    pub fn parse<T>(&mut self) -> Result<T, CellParserError<'de>>
     where
         T: CellDeserialize<'de>,
     {
@@ -86,7 +87,7 @@ impl<'de> CellParser<'de> {
     }
 
     #[inline]
-    pub fn parse_as<T, As>(&mut self) -> Result<T, <Self as BitReader>::Error>
+    pub fn parse_as<T, As>(&mut self) -> Result<T, CellParserError<'de>>
     where
         As: CellDeserializeAs<'de, T> + ?Sized,
     {
@@ -94,7 +95,7 @@ impl<'de> CellParser<'de> {
     }
 
     #[inline]
-    fn pop_reference(&mut self) -> Result<&'de Arc<Cell>, <Self as BitReader>::Error> {
+    fn pop_reference(&mut self) -> Result<&'de Arc<Cell>, CellParserError<'de>> {
         let (first, rest) = self
             .references
             .split_first()
@@ -104,7 +105,7 @@ impl<'de> CellParser<'de> {
     }
 
     #[inline]
-    pub(crate) fn parse_reference_as<T, As>(&mut self) -> Result<T, <Self as BitReader>::Error>
+    pub(crate) fn parse_reference_as<T, As>(&mut self) -> Result<T, CellParserError<'de>>
     where
         As: CellDeserializeAs<'de, T> + ?Sized,
     {
@@ -117,7 +118,7 @@ impl<'de> CellParser<'de> {
     }
 
     #[inline]
-    pub fn ensure_empty(&self) -> Result<(), <Self as BitReader>::Error> {
+    pub fn ensure_empty(&self) -> Result<(), CellParserError<'de>> {
         if !self.is_empty() {
             return Err(Error::custom(format!(
                 "more data left: {} bits, {} references",

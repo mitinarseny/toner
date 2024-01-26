@@ -1,8 +1,9 @@
 use core::marker::PhantomData;
 
-use tlbits::{BitPackAs, BitReader, BitUnpackAs, BitWriter, Same};
-
-use crate::{CellBuilder, CellDeserializeAs, CellParser, CellSerializeAs};
+use crate::{
+    BitPackAs, BitReader, BitUnpackAs, BitWriter, CellBuilder, CellDeserializeAs, CellParser,
+    CellSerializeAs, Same,
+};
 
 pub struct Data<As: ?Sized = Same>(PhantomData<As>);
 
