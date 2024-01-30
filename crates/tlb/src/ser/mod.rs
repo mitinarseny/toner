@@ -6,17 +6,18 @@ use std::{rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
 use impl_tools::autoimpl;
+use tlbits::BitWriterExt;
 
-use crate::{BitWriter, Cell, Error, LimitWriter, ResultExt};
+use crate::{BitWriter, Cell, Error, LimitWriter, Ref, ResultExt};
 
 #[autoimpl(for <T: trait + ?Sized> &T, &mut T, Box<T>, Rc<T>, Arc<T>)]
 pub trait CellSerialize {
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), <CellBuilder as BitWriter>::Error>;
+    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError>;
 }
 
 impl CellSerialize for () {
     #[inline]
-    fn store(&self, _builder: &mut CellBuilder) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store(&self, _builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         Ok(())
     }
 }
@@ -26,7 +27,7 @@ where
     T: CellSerialize,
 {
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         for (i, v) in self.iter().enumerate() {
             v.store(builder).with_context(|| format!("[{i}]"))?;
         }
@@ -39,7 +40,7 @@ where
     T: CellSerialize,
 {
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         self.as_slice().store(builder)
     }
 }
@@ -52,7 +53,7 @@ macro_rules! impl_cell_serialize_for_tuple {
         )+
         {
             #[inline]
-            fn store(&self, builder: &mut CellBuilder) -> Result<(), <CellBuilder as BitWriter>::Error>
+            fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError>
             {
                 $(self.$n.store(builder).context(concat!(".", stringify!($n)))?;)+
                 Ok(())
@@ -70,6 +71,17 @@ impl_cell_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6);
 impl_cell_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
 impl_cell_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
 impl_cell_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
+
+impl CellSerialize for Cell {
+    #[inline]
+    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+        builder.pack(self.data.as_bitslice())?;
+        for reference in &self.references {
+            builder.store_as::<_, Ref>(reference)?;
+        }
+        Ok(())
+    }
+}
 
 type CellBitWriter = LimitWriter<BitVec<u8, Msb0>>;
 pub type CellBuilderError = <CellBuilder as BitWriter>::Error;

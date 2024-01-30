@@ -2,7 +2,7 @@ mod r#as;
 
 pub use self::r#as::*;
 
-use core::mem::MaybeUninit;
+use core::mem::{self, MaybeUninit};
 use std::sync::Arc;
 
 use bitvec::{order::Msb0, slice::BitSlice};
@@ -10,7 +10,7 @@ use bitvec::{order::Msb0, slice::BitSlice};
 use crate::{BitReader, Cell, Error, ResultExt};
 
 pub trait CellDeserialize<'de>: Sized {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, <CellParser<'de> as BitReader>::Error>;
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>>;
 }
 
 pub trait CellDeserializeOwned: for<'de> CellDeserialize<'de> {}
@@ -18,7 +18,7 @@ impl<T> CellDeserializeOwned for T where T: for<'de> CellDeserialize<'de> {}
 
 impl<'de> CellDeserialize<'de> for () {
     #[inline]
-    fn parse(_parser: &mut CellParser<'de>) -> Result<Self, <CellParser<'de> as BitReader>::Error> {
+    fn parse(_parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(())
     }
 }
@@ -28,7 +28,7 @@ where
     T: CellDeserialize<'de>,
 {
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, <CellParser<'de> as BitReader>::Error> {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         let mut arr: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
         for a in &mut arr {
             a.write(T::parse(parser)?);
@@ -45,7 +45,7 @@ macro_rules! impl_cell_deserialize_for_tuple {
         )+
         {
             #[inline]
-            fn parse(parser: &mut CellParser<'de>) -> Result<Self, <CellParser<'de> as BitReader>::Error>
+            fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>>
             {
                 Ok(($(
                     $t::parse(parser).context(concat!(".", stringify!($n)))?,
@@ -64,6 +64,16 @@ impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6);
 impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
 impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
 impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
+
+impl<'de> CellDeserialize<'de> for Cell {
+    #[inline]
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        Ok(Self {
+            data: mem::take(&mut parser.data).to_bitvec(),
+            references: mem::take(&mut parser.references).to_vec(),
+        })
+    }
+}
 
 pub type CellParserError<'de> = <CellParser<'de> as BitReader>::Error;
 

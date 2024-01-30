@@ -1,8 +1,8 @@
 use core::marker::PhantomData;
 
 use crate::{
-    BitPackAs, BitReader, BitUnpackAs, BitWriter, CellBuilder, CellDeserializeAs, CellParser,
-    CellSerializeAs, Same,
+    BitPackAs, BitUnpackAs, CellBuilder, CellBuilderError, CellDeserializeAs, CellParser,
+    CellParserError, CellSerializeAs, Same,
 };
 
 pub struct Data<As: ?Sized = Same>(PhantomData<As>);
@@ -13,10 +13,7 @@ where
     T: ?Sized,
 {
     #[inline]
-    fn store_as(
-        source: &T,
-        builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store_as(source: &T, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         As::pack_as(source, builder)
     }
 }
@@ -26,7 +23,7 @@ where
     As: BitUnpackAs<T> + ?Sized,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, <CellParser<'de> as BitReader>::Error> {
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
         As::unpack_as(parser)
     }
 }

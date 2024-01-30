@@ -8,10 +8,7 @@ use std::sync::Arc;
 use bitvec::{order::Msb0, vec::BitVec};
 use sha2::{Digest, Sha256};
 
-use crate::{
-    BitReader, BitWriter, BitWriterExt, CellBuilder, CellDeserialize, CellDeserializeAs,
-    CellParser, CellSerialize,
-};
+use crate::{CellBuilder, CellDeserialize, CellDeserializeAs, CellParser, CellParserError};
 
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct Cell {
@@ -41,7 +38,7 @@ impl Cell {
     }
 
     #[inline]
-    pub fn parse_fully<'de, T>(&'de self) -> Result<T, <CellParser<'de> as BitReader>::Error>
+    pub fn parse_fully<'de, T>(&'de self) -> Result<T, CellParserError<'de>>
     where
         T: CellDeserialize<'de>,
     {
@@ -52,7 +49,7 @@ impl Cell {
     }
 
     #[inline]
-    pub fn parse_fully_as<'de, T, As>(&'de self) -> Result<T, <CellParser<'de> as BitReader>::Error>
+    pub fn parse_fully_as<'de, T, As>(&'de self) -> Result<T, CellParserError<'de>>
     where
         As: CellDeserializeAs<'de, T> + ?Sized,
     {
@@ -157,16 +154,6 @@ impl Cell {
     // }
 }
 
-impl CellSerialize for Cell {
-    #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), <CellBuilder as BitWriter>::Error> {
-        builder
-            .pack(self.data.as_bitslice())?
-            .store(self.references.as_slice())?;
-        Ok(())
-    }
-}
-
 impl Debug for Cell {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (bits_len, data) = self.data_bytes();
@@ -220,9 +207,8 @@ mod tonlib {
 
 #[cfg(test)]
 mod tests {
-    //     use bitvec::{bitvec, order::Msb0, view::BitViewSized};
+    use crate::{BitWriterExt, NBits};
     use hex_literal::hex;
-    use tlbits::NBits;
 
     use crate::{
         tests::assert_store_parse_as_eq, CellSerializeExt, CellSerializeWrapAsExt, Data, Ref,

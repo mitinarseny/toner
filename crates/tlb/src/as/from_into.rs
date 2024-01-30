@@ -1,7 +1,7 @@
 use core::fmt::Display;
 
 use crate::{
-    BitReader, BitWriter, CellBuilder, CellDeserialize, CellDeserializeAs, CellParser,
+    CellBuilder, CellBuilderError, CellDeserialize, CellDeserializeAs, CellParser, CellParserError,
     CellSerialize, CellSerializeAs, Error, FromInto, FromIntoRef, TryFromInto,
 };
 
@@ -11,10 +11,7 @@ where
     As: CellSerialize,
 {
     #[inline]
-    fn store_as(
-        source: &T,
-        builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store_as(source: &T, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         source.clone().into().store(builder)
     }
 }
@@ -24,7 +21,7 @@ where
     As: Into<T> + CellDeserialize<'de>,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, <CellParser<'de> as BitReader>::Error> {
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
         As::parse(parser).map(Into::into)
     }
 }
@@ -35,10 +32,7 @@ where
     As: CellSerialize,
 {
     #[inline]
-    fn store_as(
-        source: &T,
-        builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store_as(source: &T, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         source.into().store(builder)
     }
 }
@@ -48,7 +42,7 @@ where
     As: Into<T> + CellDeserialize<'de>,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, <CellParser<'de> as BitReader>::Error> {
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
         As::parse(parser).map(Into::into)
     }
 }
@@ -60,10 +54,7 @@ where
     As: CellSerialize,
 {
     #[inline]
-    fn store_as(
-        source: &T,
-        builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store_as(source: &T, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         source
             .clone()
             .try_into()
@@ -78,7 +69,7 @@ where
     <As as TryInto<T>>::Error: Display,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, <CellParser<'de> as BitReader>::Error> {
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
         As::parse(parser)?.try_into().map_err(Error::custom)
     }
 }

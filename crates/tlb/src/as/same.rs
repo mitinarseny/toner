@@ -1,5 +1,5 @@
 use crate::{
-    BitReader, BitWriter, CellBuilder, CellDeserialize, CellDeserializeAs, CellParser,
+    CellBuilder, CellBuilderError, CellDeserialize, CellDeserializeAs, CellParser, CellParserError,
     CellSerialize, CellSerializeAs, Same,
 };
 
@@ -8,10 +8,7 @@ where
     T: CellSerialize,
 {
     #[inline]
-    fn store_as(
-        source: &T,
-        builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store_as(source: &T, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         source.store(builder)
     }
 }
@@ -21,7 +18,7 @@ where
     T: CellDeserialize<'de>,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, <CellParser<'de> as BitReader>::Error> {
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
         T::parse(parser)
     }
 }

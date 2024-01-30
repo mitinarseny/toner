@@ -1,8 +1,8 @@
 use either::Either;
 
 use crate::{
-    BitReader, BitReaderExt, BitWriter, BitWriterExt, CellBuilder, CellDeserialize,
-    CellDeserializeAs, CellDeserializeAsWrap, CellParser, CellSerialize, CellSerializeAs,
+    BitReaderExt, BitWriterExt, CellBuilder, CellBuilderError, CellDeserialize, CellDeserializeAs,
+    CellDeserializeAsWrap, CellParser, CellParserError, CellSerialize, CellSerializeAs,
     CellSerializeAsWrap, ResultExt, StringError,
 };
 
@@ -12,7 +12,7 @@ where
     R: CellSerialize,
 {
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         match self {
             Self::Left(l) => builder
                 .pack(false)
@@ -35,7 +35,7 @@ where
     Right: CellDeserialize<'de>,
 {
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, <CellParser<'de> as BitReader>::Error> {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         match parser.unpack().context("tag")? {
             false => parser.parse().map(Either::Left).context("left"),
             true => parser.parse().map(Either::Right).context("right"),
@@ -52,7 +52,7 @@ where
     fn store_as(
         source: &Either<Left, Right>,
         builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    ) -> Result<(), CellBuilderError> {
         source
             .as_ref()
             .map_either(
@@ -70,9 +70,7 @@ where
     AsRight: CellDeserializeAs<'de, Right>,
 {
     #[inline]
-    fn parse_as(
-        parser: &mut CellParser<'de>,
-    ) -> Result<Either<Left, Right>, <CellParser<'de> as BitReader>::Error> {
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<Either<Left, Right>, CellParserError<'de>> {
         Ok(
             Either::<CellDeserializeAsWrap<Left, AsLeft>, CellDeserializeAsWrap<Right, AsRight>>::parse(
                 parser,
@@ -87,10 +85,7 @@ where
     T: CellSerialize,
 {
     #[inline]
-    fn store_as(
-        source: &Option<T>,
-        builder: &mut CellBuilder,
-    ) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store_as(source: &Option<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         match source.as_ref() {
             None => Either::Left(()),
             Some(v) => Either::Right(v),
@@ -115,7 +110,7 @@ where
     T: CellSerialize,
 {
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), <CellBuilder as BitWriter>::Error> {
+    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder.store_as::<_, Either<(), &T>>(self.as_ref())?;
         Ok(())
     }
