@@ -3,11 +3,11 @@ mod r#as;
 pub use self::r#as::*;
 
 use core::mem::{self, MaybeUninit};
-use std::sync::Arc;
+use std::{rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, slice::BitSlice};
 
-use crate::{BitReader, Cell, Error, ResultExt};
+use crate::{BitReader, Cell, Error, FromInto, ResultExt};
 
 pub trait CellDeserialize<'de>: Sized {
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>>;
@@ -64,6 +64,36 @@ impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6);
 impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
 impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
 impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
+
+impl<'de, T> CellDeserialize<'de> for Box<T>
+where
+    T: CellDeserialize<'de>,
+{
+    #[inline]
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        parser.parse_as::<_, FromInto<T>>()
+    }
+}
+
+impl<'de, T> CellDeserialize<'de> for Rc<T>
+where
+    T: CellDeserialize<'de>,
+{
+    #[inline]
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        parser.parse_as::<_, FromInto<T>>()
+    }
+}
+
+impl<'de, T> CellDeserialize<'de> for Arc<T>
+where
+    T: CellDeserialize<'de>,
+{
+    #[inline]
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        parser.parse_as::<_, FromInto<T>>()
+    }
+}
 
 impl<'de> CellDeserialize<'de> for Cell {
     #[inline]
