@@ -21,7 +21,7 @@ pub struct MsgAddress {
 }
 
 impl MsgAddress {
-    const NULL: Self = Self {
+    pub const NULL: Self = Self {
         workchain_id: 0,
         address: [0; 32],
     };
