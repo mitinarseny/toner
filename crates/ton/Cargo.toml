@@ -2,6 +2,11 @@
 name = "tlb-ton"
 version.workspace = true
 edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "TL-B types for TON blockchain"
 
 [dependencies]
 tlb.workspace = true

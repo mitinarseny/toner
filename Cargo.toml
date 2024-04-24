@@ -6,6 +6,10 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
+repository = "https://github.com/mitinarseny/tlb"
+keywords = ["ton", "tl-b", "boc"]
+categories = ["encoding"]
+license-file = "LICENSE.txt"
 
 [workspace.dependencies]
 tlb.path = "./crates/tlb"

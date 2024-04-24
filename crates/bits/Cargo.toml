@@ -2,6 +2,11 @@
 name = "tlbits"
 version.workspace = true
 edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "TL-B serialization (bits only)"
 
 [dependencies]
 bitvec.workspace = true
