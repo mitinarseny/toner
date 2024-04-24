@@ -20,5 +20,4 @@ strum.workspace = true
 tonlib = { workspace = true, optional = true }
 
 [features]
-default = ["tonlib"]
 tonlib = ["dep:tonlib", "tlb/tonlib"]
