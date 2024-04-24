@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tlb::Cell;
 
-type BoC = BagOfCells;
+pub type BoC = BagOfCells;
 
 #[derive(Debug, Clone)]
 pub struct BagOfCells {
