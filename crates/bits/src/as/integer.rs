@@ -139,5 +139,3 @@ impl<const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<BigInt> for VarInt<BITS_FOR_BY
         Ok(BigInt::from_signed_bytes_be(bits.as_raw_slice()))
     }
 }
-
-pub type Coins = VarUint<4>;
