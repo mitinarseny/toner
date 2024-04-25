@@ -256,28 +256,3 @@ impl BitUnpack for MsgAddressTag {
         })
     }
 }
-
-#[cfg(feature = "tonlib")]
-mod tonlib {
-    use tonlib::address::TonAddress;
-
-    use crate::MsgAddress;
-
-    impl From<TonAddress> for MsgAddress {
-        fn from(address: TonAddress) -> Self {
-            Self {
-                workchain_id: address.workchain,
-                address: address.hash_part,
-            }
-        }
-    }
-
-    impl From<MsgAddress> for TonAddress {
-        fn from(address: MsgAddress) -> Self {
-            Self {
-                workchain: address.workchain_id,
-                hash_part: address.address,
-            }
-        }
-    }
-}

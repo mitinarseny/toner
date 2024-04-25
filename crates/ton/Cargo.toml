@@ -12,12 +12,8 @@ description = "TL-B types for TON blockchain"
 tlb.workspace = true
 tlbits.workspace = true
 
+bitvec.workspace = true
 crc = "3"
 base64.workspace = true
 hex.workspace = true
 strum.workspace = true
-
-tonlib = { workspace = true, optional = true }
-
-[features]
-tonlib = ["dep:tonlib", "tlb/tonlib"]

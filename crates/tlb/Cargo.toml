@@ -16,10 +16,6 @@ either.workspace = true
 hex.workspace = true
 impl-tools.workspace = true
 sha2.workspace = true
-tonlib = { workspace = true, optional = true }
-
-[features]
-tonlib = ["dep:tonlib"]
 
 [dev-dependencies]
 hex-literal = "0.4"

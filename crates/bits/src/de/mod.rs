@@ -96,8 +96,8 @@ where
         R: BitReader,
     {
         let mut arr: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
-        for a in &mut arr {
-            a.write(T::unpack(&mut reader)?);
+        for (i, a) in arr.iter_mut().enumerate() {
+            a.write(T::unpack(&mut reader).with_context(|| format!("[{i}]"))?);
         }
         Ok(unsafe { arr.as_ptr().cast::<[T; N]>().read() })
     }

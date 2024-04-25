@@ -14,9 +14,9 @@ impl<const BITS: usize> BitPackAs<BigUint> for NBits<BITS> {
     {
         let used_bits = source.bits() as usize;
         if BITS < used_bits {
-            return Err(Error::custom(
-                "{source:#b} cannot be packed into {BITS} bits",
-            ));
+            return Err(Error::custom(format!(
+                "{source:#b} cannot be packed into {BITS} bits"
+            )));
         }
 
         writer.repeat_bit(BITS - used_bits, false)?;
@@ -51,9 +51,9 @@ impl<const BITS: usize> BitPackAs<BigInt> for NBits<BITS> {
     {
         let used_bits = source.bits() as usize;
         if BITS < used_bits {
-            return Err(Error::custom(
-                "{source:#b} cannot be packed into {BITS} bits",
-            ));
+            return Err(Error::custom(format!(
+                "{source:#b} cannot be packed into {BITS} bits"
+            )));
         }
 
         writer.repeat_bit(BITS - used_bits, false)?;

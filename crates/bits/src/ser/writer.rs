@@ -1,4 +1,6 @@
-use crate::{BitPack, BitPackAs, Error, StringError};
+use core::mem::size_of;
+
+use crate::{BitPack, BitPackAs, Error, ResultExt, StringError};
 
 use ::bitvec::{order::Msb0, slice::BitSlice, store::BitStore, vec::BitVec, view::AsBits};
 use impl_tools::autoimpl;
@@ -64,11 +66,62 @@ pub trait BitWriterExt: BitWriter {
     }
 
     #[inline]
+    fn pack_many<T>(
+        &mut self,
+        values: impl IntoIterator<Item = T>,
+    ) -> Result<&mut Self, Self::Error>
+    where
+        T: BitPack,
+    {
+        for (i, v) in values.into_iter().enumerate() {
+            self.pack(v).with_context(|| format!("[{i}]"))?;
+        }
+        Ok(self)
+    }
+
+    #[inline]
     fn pack_as<T, As>(&mut self, value: T) -> Result<&mut Self, Self::Error>
     where
         As: BitPackAs<T> + ?Sized,
     {
         As::pack_as::<&mut Self>(&value, self)?;
+        Ok(self)
+    }
+
+    #[inline]
+    fn pack_many_as<T, As>(
+        &mut self,
+        values: impl IntoIterator<Item = T>,
+    ) -> Result<&mut Self, Self::Error>
+    where
+        As: BitPackAs<T> + ?Sized,
+    {
+        for (i, v) in values.into_iter().enumerate() {
+            self.pack_as::<_, As>(v).with_context(|| format!("[{i}]"))?;
+        }
+        Ok(self)
+    }
+
+    #[inline]
+    fn pack_usize_as_bytes(
+        &mut self,
+        value: usize,
+        num_bytes: usize,
+    ) -> Result<&mut Self, Self::Error> {
+        const SIZE_BYTES: usize = size_of::<usize>();
+        let leading_zeroes = value.leading_zeros() as usize;
+        let used_bytes = SIZE_BYTES - (leading_zeroes + 7) / 8;
+        if num_bytes < used_bytes {
+            return Err(Error::custom(format!(
+                "{value:#x} cannot be packed into {num_bytes} bytes",
+            )));
+        }
+
+        let arr = value.to_be_bytes();
+        let mut bytes = arr.as_slice();
+        bytes = &bytes[bytes.len() - used_bytes..];
+        self.write_bitslice(bytes.as_bits())?;
+
         Ok(self)
     }
 

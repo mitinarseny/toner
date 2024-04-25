@@ -1,7 +1,9 @@
+use core::{iter, mem::size_of};
+
 use ::bitvec::{order::Msb0, slice::BitSlice, vec::BitVec, view::AsMutBits};
 use impl_tools::autoimpl;
 
-use crate::{BitUnpack, BitUnpackAs, Error, StringError};
+use crate::{BitUnpack, BitUnpackAs, BitWriter, Error, MapErr, ResultExt, StringError};
 
 #[autoimpl(for <R: trait + ?Sized> &mut R, Box<R>)]
 pub trait BitReader {
@@ -63,15 +65,104 @@ pub trait BitReaderExt: BitReader {
     }
 
     #[inline]
+    fn unpack_iter<T>(&mut self) -> impl Iterator<Item = Result<T, Self::Error>> + '_
+    where
+        T: BitUnpack,
+    {
+        iter::repeat_with(move || self.unpack::<T>())
+            .enumerate()
+            .map(|(i, v)| v.with_context(|| format!("[{i}]")))
+    }
+
+    #[inline]
     fn unpack_as<T, As>(&mut self) -> Result<T, Self::Error>
     where
         As: BitUnpackAs<T> + ?Sized,
     {
         As::unpack_as(self)
     }
+
+    #[inline]
+    fn unpack_iter_as<T, As>(&mut self) -> impl Iterator<Item = Result<T, Self::Error>> + '_
+    where
+        As: BitUnpackAs<T> + ?Sized,
+    {
+        iter::repeat_with(|| self.unpack_as::<_, As>())
+            .enumerate()
+            .map(|(i, v)| v.with_context(|| format!("[{i}]")))
+    }
+
+    #[inline]
+    fn unpack_usize_as_bytes(&mut self, num_bytes: usize) -> Result<usize, Self::Error> {
+        const SIZE_BYTES: usize = size_of::<usize>();
+        if num_bytes > SIZE_BYTES {
+            return Err(Error::custom("excessive bits for type"));
+        }
+        let mut v: usize = 0;
+        for byte in self.unpack_iter::<u8>().take(num_bytes) {
+            v <<= 8;
+            v |= byte? as usize;
+        }
+        Ok(v)
+    }
+
+    fn map_err<F>(self, f: F) -> MapErr<Self, F>
+    where
+        Self: Sized,
+    {
+        MapErr { inner: self, f }
+    }
+
+    fn tee<W>(self, writer: W) -> TeeReader<Self, W>
+    where
+        Self: Sized,
+        W: BitWriter,
+    {
+        TeeReader {
+            inner: self,
+            writer,
+        }
+    }
 }
 
 impl<T> BitReaderExt for T where T: BitReader {}
+
+pub struct TeeReader<R, W> {
+    inner: R,
+    writer: W,
+}
+
+impl<R, W> TeeReader<R, W> {
+    pub fn into_inner(self) -> R {
+        self.inner
+    }
+}
+
+impl<R, W> BitReader for TeeReader<R, W>
+where
+    R: BitReader,
+    W: BitWriter,
+{
+    type Error = R::Error;
+
+    fn read_bit(&mut self) -> Result<bool, Self::Error> {
+        let bit = self.inner.read_bit()?;
+        self.writer
+            .write_bit(bit)
+            .map_err(<R::Error>::custom)
+            .context("writer")?;
+        Ok(bit)
+    }
+
+    #[inline]
+    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
+        self.inner.read_bits_into(dst)?;
+        self.writer
+            .write_bitslice(dst)
+            .map_err(|err| <R::Error>::custom(err).context("writer"))?;
+        Ok(())
+    }
+}
 
 impl BitReader for &BitSlice<u8, Msb0> {
     type Error = StringError;

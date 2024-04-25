@@ -4,7 +4,7 @@ default-members = ["./crates/tlb"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 repository = "https://github.com/mitinarseny/tlb"
 keywords = ["ton", "tl-b", "boc"]
@@ -12,9 +12,9 @@ categories = ["encoding"]
 license-file = "LICENSE.txt"
 
 [workspace.dependencies]
-tlb = { path = "./crates/tlb", version = "0.1.1" }
-tlbits = { path = "./crates/bits", version = "0.1.1" }
-tlb-ton = { path = "./crates/ton", version = "0.1.1" }
+tlb = { path = "./crates/tlb", version = "0.2.0" }
+tlbits = { path = "./crates/bits", version = "0.2.0" }
+tlb-ton = { path = "./crates/ton", version = "0.2.0" }
 
 base64 = "0.21"
 bitvec = "1"
@@ -26,5 +26,3 @@ num-bigint = "0.4"
 sha2 = "0.10"
 strum = { version = "0.25", features = ["derive"] }
 thiserror = "1"
-
-tonlib = "0.12"

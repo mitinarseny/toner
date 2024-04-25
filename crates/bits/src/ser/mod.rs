@@ -56,9 +56,7 @@ where
     where
         W: BitWriter,
     {
-        for (i, v) in self.iter().enumerate() {
-            v.pack(&mut writer).with_context(|| format!("[{i}]"))?;
-        }
+        writer.pack_many(self)?;
         Ok(())
     }
 }

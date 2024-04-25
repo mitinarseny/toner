@@ -71,7 +71,7 @@ impl Cell {
 
     /// See [Cell level](https://docs.ton.org/develop/data-formats/cell-boc#cell-level)
     #[inline]
-    fn level(&self) -> u8 {
+    pub fn level(&self) -> u8 {
         self.references
             .iter()
             .map(Deref::deref)
@@ -108,7 +108,6 @@ impl Cell {
     /// [Standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#standard-cell-representation-hash-calculation)
     fn repr(&self) -> Vec<u8> {
         let mut buf = Vec::new();
-        // buf.pack(self.refs_descriptor())
         buf.push(self.refs_descriptor());
         buf.push(self.bits_descriptor());
 
@@ -148,10 +147,6 @@ impl Cell {
         hasher.update(self.repr());
         hasher.finalize().into()
     }
-
-    // pub fn serialize(&self) -> Vec<u8> {
-    //     todo!()
-    // }
 }
 
 impl Debug for Cell {
@@ -163,45 +158,6 @@ impl Debug for Cell {
         }
         write!(f, " -> ")?;
         f.debug_set().entries(&self.references).finish()
-    }
-}
-
-#[cfg(feature = "tonlib")]
-mod tonlib {
-    use ::tonlib::cell::Cell as TonlibCell;
-    use bitvec::view::AsBits;
-
-    use super::*;
-
-    impl From<&Cell> for TonlibCell {
-        fn from(cell: &Cell) -> Self {
-            Self {
-                data: cell.data.clone().into_vec(),
-                bit_len: cell.data.len(),
-                references: cell
-                    .references
-                    .iter()
-                    .map(Deref::deref)
-                    .map(Into::into)
-                    .map(Arc::new)
-                    .collect(),
-            }
-        }
-    }
-
-    impl From<&TonlibCell> for Cell {
-        fn from(cell: &TonlibCell) -> Self {
-            Self {
-                data: BitVec::from_bitslice(&cell.data.as_bits()[..cell.bit_len]),
-                references: cell
-                    .references
-                    .iter()
-                    .map(Deref::deref)
-                    .map(Into::into)
-                    .map(Arc::new)
-                    .collect(),
-            }
-        }
     }
 }
 
