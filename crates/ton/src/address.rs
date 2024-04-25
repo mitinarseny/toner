@@ -6,7 +6,6 @@ use core::{
 use base64::{
     engine::general_purpose::STANDARD_NO_PAD, engine::general_purpose::URL_SAFE_NO_PAD, Engine,
 };
-use bitvec::view::AsBits;
 use crc::Crc;
 use strum::Display;
 use tlb::{
@@ -95,24 +94,24 @@ impl MsgAddress {
         {
             return Err(Error::custom("invalid length"));
         };
-        let mut reader = bytes.as_bits();
 
-        let (non_production, non_bounceable) = match reader.unpack::<u8>()? {
+        let (non_production, non_bounceable) = match bytes[0] {
             0x11 => (false, false),
             0x51 => (false, true),
             0x91 => (true, false),
             0xD1 => (true, true),
             flags => return Err(Error::custom(format!("unsupported flags: {flags:#x}"))),
         };
-        let workchain_id = reader.unpack::<i8>()?;
-        let crc = reader.unpack::<u16>()?;
+        let workchain_id = bytes[1] as i8 as i32;
+        let crc = ((bytes[34] as u16) << 8) | bytes[35] as u16;
         if crc != CRC_16_XMODEM.checksum(&bytes[0..34]) {
             return Err(Error::custom("CRC mismatch"));
         }
-        let address = reader.unpack()?;
+        let mut address = [0_u8; 32];
+        address.clone_from_slice(&bytes[2..34]);
         Ok((
             Self {
-                workchain_id: workchain_id as i32,
+                workchain_id,
                 address,
             },
             non_bounceable,
@@ -258,5 +257,17 @@ impl BitUnpack for MsgAddressTag {
             0b11 => Self::Var,
             _ => unreachable!(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_address() {
+        let _: MsgAddress = "EQBGXZ9ddZeWypx8EkJieHJX75ct0bpkmu0Y4YoYr3NM0Z9e"
+            .parse()
+            .unwrap();
     }
 }
