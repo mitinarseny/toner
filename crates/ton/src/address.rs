@@ -6,10 +6,12 @@ use core::{
 use base64::{
     engine::general_purpose::STANDARD_NO_PAD, engine::general_purpose::URL_SAFE_NO_PAD, Engine,
 };
+use bitvec::view::AsBits;
 use crc::Crc;
 use strum::Display;
 use tlb::{
     BitPack, BitReader, BitReaderExt, BitUnpack, BitWriter, BitWriterExt, Error, NBits, ResultExt,
+    StringError,
 };
 
 const CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
@@ -26,12 +28,14 @@ impl MsgAddress {
         address: [0; 32],
     };
 
-    pub fn from_hex(s: impl AsRef<str>) -> Result<Self, String> {
+    pub fn from_hex(s: impl AsRef<str>) -> Result<Self, StringError> {
         let s = s.as_ref();
-        let (workchain, addr) = s.split_once(':').ok_or("wrong format".to_string())?;
-        let workchain_id = workchain.parse::<i32>().map_err(|err| err.to_string())?;
+        let (workchain, addr) = s
+            .split_once(':')
+            .ok_or_else(|| Error::custom("wrong format"))?;
+        let workchain_id = workchain.parse::<i32>().map_err(Error::custom)?;
         let mut address = [0; 32];
-        hex::decode_to_slice(addr, &mut address).map_err(|err| err.to_string())?;
+        hex::decode_to_slice(addr, &mut address).map_err(Error::custom)?;
         Ok(Self {
             workchain_id,
             address,
@@ -42,19 +46,19 @@ impl MsgAddress {
         format!("{}:{}", self.workchain_id, hex::encode(self.address))
     }
 
-    pub fn from_base64_url(s: impl AsRef<str>) -> Result<Self, String> {
+    pub fn from_base64_url(s: impl AsRef<str>) -> Result<Self, StringError> {
         Self::from_base64_url_flags(s).map(|(addr, _, _)| addr)
     }
 
-    pub fn from_base64_url_flags(s: impl AsRef<str>) -> Result<(Self, bool, bool), String> {
+    pub fn from_base64_url_flags(s: impl AsRef<str>) -> Result<(Self, bool, bool), StringError> {
         Self::from_base64_repr(URL_SAFE_NO_PAD, s)
     }
 
-    pub fn from_base64_std(s: impl AsRef<str>) -> Result<Self, String> {
+    pub fn from_base64_std(s: impl AsRef<str>) -> Result<Self, StringError> {
         Self::from_base64_std_flags(s).map(|(addr, _, _)| addr)
     }
 
-    pub fn from_base64_std_flags(s: impl AsRef<str>) -> Result<(Self, bool, bool), String> {
+    pub fn from_base64_std_flags(s: impl AsRef<str>) -> Result<(Self, bool, bool), StringError> {
         Self::from_base64_repr(STANDARD_NO_PAD, s)
     }
 
@@ -81,34 +85,34 @@ impl MsgAddress {
     fn from_base64_repr(
         engine: impl Engine,
         s: impl AsRef<str>,
-    ) -> Result<(Self, bool, bool), String> {
-        let s = s.as_ref();
-        if s.len() != 48 {
-            return Err("invalid length".to_string());
-        }
+    ) -> Result<(Self, bool, bool), StringError> {
         let mut bytes = [0; 36];
-        engine
-            .decode_slice(s, &mut bytes)
-            .map_err(|err| err.to_string())?;
+        if engine
+            .decode_slice(s.as_ref(), &mut bytes)
+            .map_err(Error::custom)
+            .context("base64")?
+            != bytes.len()
+        {
+            return Err(Error::custom("invalid length"));
+        };
+        let mut reader = bytes.as_bits();
 
-        let (non_production, non_bounceable) = match bytes[0] {
+        let (non_production, non_bounceable) = match reader.unpack::<u8>()? {
             0x11 => (false, false),
             0x51 => (false, true),
             0x91 => (true, false),
             0xD1 => (true, true),
-            _ => return Err("Invalid base64src address: Wrong tag byte".to_string()),
+            flags => return Err(Error::custom(format!("unsupported flags: {flags:#x}"))),
         };
-        let workchain_id = bytes[1] as i8 as i32;
-        let calc_crc = CRC_16_XMODEM.checksum(&bytes[0..34]);
-        let addr_crc = ((bytes[34] as u16) << 8) | bytes[35] as u16;
-        if calc_crc != addr_crc {
-            return Err("Invalid base64src address: CRC mismatch".to_string());
+        let workchain_id = reader.unpack::<i8>()?;
+        let crc = reader.unpack::<u16>()?;
+        if crc != CRC_16_XMODEM.checksum(&bytes[0..34]) {
+            return Err(Error::custom("CRC mismatch"));
         }
-        let mut address = [0; 32];
-        address.copy_from_slice(&bytes[2..34]);
+        let address = reader.unpack()?;
         Ok((
             Self {
-                workchain_id,
+                workchain_id: workchain_id as i32,
                 address,
             },
             non_bounceable,
@@ -157,7 +161,7 @@ impl Display for MsgAddress {
 }
 
 impl FromStr for MsgAddress {
-    type Err = String;
+    type Err = StringError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() == 48 {

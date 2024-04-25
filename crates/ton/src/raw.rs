@@ -164,7 +164,7 @@ impl BitUnpack for RawBagOfCells {
             // crc32c:has_crc32c?uint32
             let cs: u32 = reader.unpack()?;
             if cs != CRC_32_ISCSI.checksum(buff.as_raw_slice()) {
-                return Err(Error::custom("checksum failed"));
+                return Err(Error::custom("CRC mismatch"));
             }
         }
 

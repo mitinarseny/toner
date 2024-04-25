@@ -310,7 +310,7 @@ dependencies = [
 
 [[package]]
 name = "tlb"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "bitvec",
  "either",
@@ -323,7 +323,7 @@ dependencies = [
 
 [[package]]
 name = "tlb-ton"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "base64",
  "bitvec",
@@ -336,7 +336,7 @@ dependencies = [
 
 [[package]]
 name = "tlbits"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "bitvec",
  "either",

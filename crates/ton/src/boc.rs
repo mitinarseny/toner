@@ -3,6 +3,7 @@ use std::{
     sync::Arc,
 };
 
+use bitvec::view::AsBits;
 use tlb::{BitReader, BitUnpack, Cell, Error, StringError};
 
 use crate::{RawBagOfCells, RawCell};
@@ -110,6 +111,11 @@ impl BagOfCells {
             }
         }
         Ok(())
+    }
+
+    pub fn parse_hex(s: impl AsRef<[u8]>) -> Result<Self, StringError> {
+        let bytes = hex::decode(s).map_err(Error::custom)?;
+        Self::unpack(bytes.as_bits())
     }
 }
 
