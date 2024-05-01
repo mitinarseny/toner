@@ -16,6 +16,10 @@ use tlb::{
 const CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "serde",
+    derive(::serde_with::SerializeDisplay, ::serde_with::DeserializeFromStr)
+)]
 pub struct MsgAddress {
     pub workchain_id: i32,
     pub address: [u8; 32],
@@ -269,5 +273,15 @@ mod tests {
         let _: MsgAddress = "EQBGXZ9ddZeWypx8EkJieHJX75ct0bpkmu0Y4YoYr3NM0Z9e"
             .parse()
             .unwrap();
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde() {
+        use serde_json::json;
+
+        let _: MsgAddress =
+            serde_json::from_value(json!("EQBGXZ9ddZeWypx8EkJieHJX75ct0bpkmu0Y4YoYr3NM0Z9e"))
+                .unwrap();
     }
 }
