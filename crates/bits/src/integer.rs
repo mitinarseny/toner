@@ -138,11 +138,11 @@ macro_rules! const_uint {
 }
 
 const_uint! {
-    ConstU8  <u8,   8>
-    ConstU16 <u16,  16>
-    ConstU32 <u32,  32>
-    ConstU64 <u64,  64>
-    ConstU128<u128, 128>
+    pub ConstU8  <u8,   8>
+    pub ConstU16 <u16,  16>
+    pub ConstU32 <u32,  32>
+    pub ConstU64 <u64,  64>
+    pub ConstU128<u128, 128>
 }
 
 #[cfg(test)]
