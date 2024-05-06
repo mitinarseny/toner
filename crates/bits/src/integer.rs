@@ -104,33 +104,45 @@ impl_bit_serde_for_integers! {
     i8 i16 i32 i64 i128 isize
 }
 
-pub struct ConstUint<const VALUE: u32, const BITS: usize>;
+macro_rules! const_uint {
+    ($($vis:vis $name:ident<$typ:tt, $bits:literal>)+) => {$(
+        $vis struct $name<const VALUE: $typ, const BITS: usize = $bits>;
 
-impl<const VALUE: u32, const BITS: usize> BitPack for ConstUint<VALUE, BITS> {
-    #[inline]
-    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
-    where
-        W: BitWriter,
-    {
-        writer.pack_as::<_, NBits<BITS>>(VALUE)?;
-        Ok(())
-    }
+        impl<const VALUE: $typ, const BITS: usize> BitPack for $name<VALUE, BITS> {
+            #[inline]
+            fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+            where
+                W: BitWriter,
+            {
+                writer.pack_as::<_, NBits<BITS>>(VALUE)?;
+                Ok(())
+            }
+        }
+
+        impl<const VALUE: $typ, const BITS: usize> BitUnpack for $name<VALUE, BITS> {
+            #[inline]
+            fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+            where
+                R: BitReader,
+            {
+                let v = reader.unpack_as::<$typ, NBits<BITS>>()?;
+                if v != VALUE {
+                    return Err(Error::custom(format!(
+                        "expected {VALUE:#b}, got: {v:#b}"
+                    )));
+                }
+                Ok(Self)
+            }
+        }
+    )+};
 }
 
-impl<const VALUE: u32, const BITS: usize> BitUnpack for ConstUint<VALUE, BITS> {
-    #[inline]
-    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
-    where
-        R: BitReader,
-    {
-        let v = reader.unpack_as::<u32, NBits<BITS>>()?;
-        if v != VALUE {
-            return Err(Error::custom(format!(
-                "expected const {VALUE:#b}, got: {v:#b}"
-            )));
-        }
-        Ok(Self)
-    }
+const_uint! {
+    ConstU8  <u8,   8>
+    ConstU16 <u16,  16>
+    ConstU32 <u32,  32>
+    ConstU64 <u64,  64>
+    ConstU128<u128, 128>
 }
 
 #[cfg(test)]
