@@ -2,7 +2,7 @@ use num_bigint::BigUint;
 use tlb::{
     BitPack, BitReader, BitReaderExt, BitUnpack, BitWriter, BitWriterExt, Cell, CellBuilder,
     CellBuilderError, CellDeserialize, CellParser, CellParserError, CellSerialize, Either, NBits,
-    Ref,
+    Ref, Same,
 };
 
 use crate::{CurrencyCollection, Grams, MsgAddress};
@@ -13,7 +13,7 @@ use crate::{CurrencyCollection, Grams, MsgAddress};
 pub struct Message<T = Cell, IC = Cell, ID = Cell, IL = Cell> {
     pub info: CommonMsgInfo,
     pub init: Option<StateInit<IC, ID, IL>>,
-    pub body: Option<T>,
+    pub body: T,
 }
 
 impl<T, IC, ID, IL> CellSerialize for Message<T, IC, ID, IL>
@@ -27,8 +27,28 @@ where
         builder
             .pack(&self.info)?
             .store_as::<_, Option<Either<(), Ref>>>(self.init.as_ref().map(Some))?
-            .store_as::<_, Either<(), Ref>>(self.body.as_ref())?;
+            .store_as::<_, Ref>(&self.body)?;
         Ok(())
+    }
+}
+
+impl<'de, T, IC, ID, IL> CellDeserialize<'de> for Message<T, IC, ID, IL>
+where
+    T: CellDeserialize<'de>,
+    IC: CellDeserialize<'de>,
+    ID: CellDeserialize<'de>,
+    IL: CellDeserialize<'de>,
+{
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        Ok(Self {
+            info: parser.unpack()?,
+            init: parser
+                .parse_as::<_, Option<Either<Same, Ref>>>()?
+                .map(Either::into_inner),
+            body: parser
+                .parse_as::<Either<T, T>, Either<Same, Ref>>()?
+                .into_inner(),
+        })
     }
 }
 
@@ -221,6 +241,7 @@ impl BitUnpack for ExternalOutMsgInfo {
     }
 }
 
+/// tick_tock$_ tick:Bool tock:Bool = TickTock;
 #[derive(Debug, Clone, Copy)]
 pub struct TickTock {
     tick: bool,
@@ -249,6 +270,9 @@ impl BitUnpack for TickTock {
     }
 }
 
+/// _ split_depth:(Maybe (## 5)) special:(Maybe TickTock)
+/// code:(Maybe ^Cell) data:(Maybe ^Cell)
+/// library:(Maybe ^Cell) = StateInit;
 pub struct StateInit<C = Cell, D = Cell, L = Cell> {
     pub split_depth: Option<u8>,
     pub special: Option<TickTock>,
