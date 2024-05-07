@@ -2,7 +2,7 @@ use either::Either;
 
 use crate::{
     BitPack, BitPackAs, BitPackAsWrap, BitReader, BitReaderExt, BitUnpack, BitUnpackAs,
-    BitUnpackAsWrap, BitWriter, BitWriterExt, ResultExt,
+    BitUnpackAsWrap, BitWriter, BitWriterExt, ResultExt, Same,
 };
 
 impl<L, R> BitPack for Either<L, R>
@@ -79,9 +79,9 @@ where
     }
 }
 
-impl<T> BitPackAs<Option<T>> for Either<(), T>
+impl<T, As> BitPackAs<Option<T>> for Either<(), As>
 where
-    T: BitPack,
+    As: BitPackAs<T>,
 {
     #[inline]
     fn pack_as<W>(source: &Option<T>, writer: W) -> Result<(), W::Error>
@@ -90,22 +90,24 @@ where
     {
         match source.as_ref() {
             None => Either::Left(()),
-            Some(v) => Either::Right(v),
+            Some(v) => Either::Right(BitPackAsWrap::<T, As>::new(v)),
         }
         .pack(writer)
     }
 }
 
-impl<T> BitUnpackAs<Option<T>> for Either<(), T>
+impl<T, As> BitUnpackAs<Option<T>> for Either<(), As>
 where
-    T: BitUnpack,
+    As: BitUnpackAs<T>,
 {
     #[inline]
     fn unpack_as<R>(reader: R) -> Result<Option<T>, R::Error>
     where
         R: BitReader,
     {
-        Self::unpack(reader).map(Either::right)
+        Ok(Either::<(), BitUnpackAsWrap<T, As>>::unpack(reader)?
+            .map_right(BitUnpackAsWrap::into_inner)
+            .right())
     }
 }
 
@@ -119,7 +121,7 @@ where
     where
         W: BitWriter,
     {
-        writer.pack_as::<_, Either<(), &T>>(self.as_ref())?;
+        writer.pack_as::<_, Either<(), Same>>(self.as_ref())?;
         Ok(())
     }
 }
@@ -134,7 +136,7 @@ where
     where
         R: BitReader,
     {
-        reader.unpack_as::<_, Either<(), T>>()
+        reader.unpack_as::<_, Either<(), Same>>()
     }
 }
 

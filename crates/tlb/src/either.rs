@@ -1,4 +1,5 @@
 use either::Either;
+use tlbits::Same;
 
 use crate::{
     BitReaderExt, BitWriterExt, CellBuilder, CellBuilderError, CellDeserialize, CellDeserializeAs,
@@ -80,27 +81,29 @@ where
     }
 }
 
-impl<T> CellSerializeAs<Option<T>> for Either<(), T>
+impl<T, As> CellSerializeAs<Option<T>> for Either<(), As>
 where
-    T: CellSerialize,
+    As: CellSerializeAs<T>,
 {
     #[inline]
     fn store_as(source: &Option<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         match source.as_ref() {
             None => Either::Left(()),
-            Some(v) => Either::Right(v),
+            Some(v) => Either::Right(CellSerializeAsWrap::<T, As>::new(v)),
         }
         .store(builder)
     }
 }
 
-impl<'de, T> CellDeserializeAs<'de, Option<T>> for Either<(), T>
+impl<'de, T, As> CellDeserializeAs<'de, Option<T>> for Either<(), As>
 where
-    T: CellDeserialize<'de>,
+    As: CellDeserializeAs<'de, T>,
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<Option<T>, StringError> {
-        Self::parse(parser).map(Either::right)
+        Ok(Either::<(), CellDeserializeAsWrap<T, As>>::parse(parser)?
+            .map_right(CellDeserializeAsWrap::into_inner)
+            .right())
     }
 }
 
@@ -111,7 +114,7 @@ where
 {
     #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.store_as::<_, Either<(), &T>>(self.as_ref())?;
+        builder.store_as::<_, Either<(), Same>>(self.as_ref())?;
         Ok(())
     }
 }
@@ -123,6 +126,6 @@ where
 {
     #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, StringError> {
-        parser.parse_as::<_, Either<(), T>>()
+        parser.parse_as::<_, Either<(), Same>>()
     }
 }
