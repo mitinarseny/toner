@@ -625,7 +625,7 @@ dependencies = [
 
 [[package]]
 name = "tlb"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "bitvec",
  "either",
@@ -638,7 +638,7 @@ dependencies = [
 
 [[package]]
 name = "tlb-ton"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "base64 0.21.7",
  "bitvec",
@@ -655,7 +655,7 @@ dependencies = [
 
 [[package]]
 name = "tlbits"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "bitvec",
  "either",

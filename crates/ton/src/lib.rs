@@ -1,7 +1,6 @@
 mod address;
 mod boc;
-mod raw;
+mod message;
 mod types;
 
-pub(crate) use self::raw::*;
-pub use self::{address::*, boc::*, types::*};
+pub use self::{address::*, boc::*, message::*, types::*};
