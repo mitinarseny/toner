@@ -114,11 +114,40 @@ impl CellBuilder {
     }
 
     #[inline]
+    pub fn store_many<T>(
+        &mut self,
+        values: impl IntoIterator<Item = T>,
+    ) -> Result<&mut Self, CellBuilderError>
+    where
+        T: CellSerialize,
+    {
+        for (i, v) in values.into_iter().enumerate() {
+            self.store(v).with_context(|| format!("[{i}]"))?;
+        }
+        Ok(self)
+    }
+
+    #[inline]
     pub fn store_as<T, As>(&mut self, value: T) -> Result<&mut Self, CellBuilderError>
     where
         As: CellSerializeAs<T> + ?Sized,
     {
         As::store_as(&value, self)?;
+        Ok(self)
+    }
+
+    #[inline]
+    pub fn store_many_as<T, As>(
+        &mut self,
+        values: impl IntoIterator<Item = T>,
+    ) -> Result<&mut Self, CellBuilderError>
+    where
+        As: CellSerializeAs<T> + ?Sized,
+    {
+        for (i, v) in values.into_iter().enumerate() {
+            self.store_as::<T, As>(v)
+                .with_context(|| format!("[{i}]"))?;
+        }
         Ok(self)
     }
 

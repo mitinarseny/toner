@@ -4,6 +4,7 @@ use std::{
     sync::Arc,
 };
 
+use base64::{engine::general_purpose::STANDARD, Engine};
 use bitvec::{order::Msb0, vec::BitVec, view::AsBits};
 use crc::Crc;
 use tlb::{
@@ -118,6 +119,11 @@ impl BagOfCells {
 
     pub fn parse_hex(s: impl AsRef<[u8]>) -> Result<Self, StringError> {
         let bytes = hex::decode(s).map_err(Error::custom)?;
+        Self::unpack(bytes.as_bits())
+    }
+
+    pub fn parse_base64(s: impl AsRef<[u8]>) -> Result<Self, StringError> {
+        let bytes = STANDARD.decode(s).map_err(Error::custom)?;
         Self::unpack(bytes.as_bits())
     }
 }

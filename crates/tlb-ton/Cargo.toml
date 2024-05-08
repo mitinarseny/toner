@@ -6,7 +6,7 @@ repository.workspace = true
 license-file.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "TL-B types for TON blockchain"
+description = "Common TL-B types for TON blockchain"
 
 [dependencies]
 tlb.workspace = true
@@ -16,6 +16,7 @@ base64.workspace = true
 bitvec.workspace = true
 crc = "3"
 either.workspace = true
+impl-tools.workspace = true
 hex.workspace = true
 num-bigint.workspace = true
 serde_with = { workspace = true, optional = true }

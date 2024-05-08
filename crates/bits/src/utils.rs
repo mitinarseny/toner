@@ -16,7 +16,7 @@ where
     type Error = E;
 
     fn read_bit(&mut self) -> Result<bool, Self::Error> {
-        todo!()
+        self.inner.read_bit().map_err(&mut self.f)
     }
 
     #[inline]

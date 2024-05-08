@@ -1,3 +1,4 @@
+use impl_tools::autoimpl;
 use num_bigint::BigUint;
 use tlb::{
     BitPack, BitReader, BitReaderExt, BitUnpack, BitWriter, BitWriterExt, Cell, CellBuilder,
@@ -270,6 +271,8 @@ impl BitUnpack for TickTock {
     }
 }
 
+#[derive(Debug, Clone)]
+#[autoimpl(Default)]
 /// _ split_depth:(Maybe (## 5)) special:(Maybe TickTock)
 /// code:(Maybe ^Cell) data:(Maybe ^Cell)
 /// library:(Maybe ^Cell) = StateInit;

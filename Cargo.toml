@@ -1,27 +1,31 @@
 [workspace]
 members = ["./crates/*"]
-default-members = ["./crates/tlb"]
+default-members = ["./crates/toner"]
 resolver = "2"
 
 [workspace.package]
-version = "0.2.6"
+version = "0.2.7"
 edition = "2021"
-repository = "https://github.com/mitinarseny/tlb"
+repository = "https://github.com/mitinarseny/toner"
 keywords = ["ton", "tl-b", "boc"]
 categories = ["encoding"]
 license-file = "LICENSE.txt"
 
 [workspace.dependencies]
-tlb = { path = "./crates/tlb", version = "0.2.6" }
-tlbits = { path = "./crates/bits", version = "0.2.6" }
-tlb-ton = { path = "./crates/ton", version = "0.2.6" }
+tlb = { path = "./crates/tlb", version = "0.2.7" }
+tlbits = { path = "./crates/bits", version = "0.2.7" }
+tlb-ton = { path = "./crates/tlb-ton", version = "0.2.7" }
+ton-contracts = { path = "./crates/contracts", version = "0.2.7" }
+toner = { path = "./crates/toner", version = "0.2.7" }
 
+anyhow = "1"
 base64 = "0.21"
 bitvec = "1"
 either = "1"
 hex = "0.4"
 impl-tools = "0.10"
 itertools = "0.12"
+lazy_static = "1.4"
 num-bigint = "0.4"
 serde_with = { version = "3.8", features = ["macros"] }
 sha2 = "0.10"

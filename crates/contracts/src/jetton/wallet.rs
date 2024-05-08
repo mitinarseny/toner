@@ -3,8 +3,7 @@ use tlb::{
     BitReaderExt, BitWriterExt, Cell, CellBuilder, CellBuilderError, CellDeserialize, CellParser,
     CellParserError, CellSerialize, ConstU32, Either, Ref, Same, VarUint,
 };
-
-use crate::MsgAddress;
+use tlb_ton::MsgAddress;
 
 /// transfer#0f8a7ea5 query_id:uint64 amount:(VarUInteger 16) destination:MsgAddress
 /// response_destination:MsgAddress custom_payload:(Maybe ^Cell)
