@@ -50,11 +50,24 @@ where
         expire_at: u32,
         seqno: u32,
         msgs: impl IntoIterator<Item = WalletOpSendMessage>,
-    ) -> V::Message {
+        state_init: bool,
+    ) -> anyhow::Result<Message<SignedMessage, Arc<Cell>, V::Data, ()>> {
+        let body = self.create_external_body(expire_at, seqno, msgs);
+        let signed = self.sign_body(body)?;
+        let wrapped = self.wrap_signed(signed, state_init);
+        Ok(wrapped)
+    }
+
+    pub fn create_external_body(
+        &self,
+        expire_at: u32,
+        seqno: u32,
+        msgs: impl IntoIterator<Item = WalletOpSendMessage>,
+    ) -> V::MessageBody {
         V::create_external_body(self.wallet_id, expire_at, seqno, msgs)
     }
 
-    pub fn sign_message(&self, msg: V::Message) -> anyhow::Result<SignedMessage> {
+    pub fn sign_body(&self, msg: V::MessageBody) -> anyhow::Result<SignedMessage> {
         let msg = msg.to_cell()?;
         Ok(SignedMessage {
             sig: signature(msg.hash().as_slice(), self.key_pair.skey.as_slice())
@@ -101,7 +114,7 @@ where
 
 pub trait WalletVersion {
     type Data: CellSerialize;
-    type Message: CellSerialize;
+    type MessageBody: CellSerialize;
 
     fn code() -> Arc<Cell>;
 
@@ -112,10 +125,11 @@ pub trait WalletVersion {
         expire_at: u32,
         seqno: u32,
         msgs: impl IntoIterator<Item = WalletOpSendMessage>,
-    ) -> Self::Message;
+    ) -> Self::MessageBody;
 }
 
 pub struct WalletOpSendMessage<T = Cell, IC = Cell, ID = Cell, IL = Cell> {
+    /// See https://docs.ton.org/develop/func/stdlib#send_raw_message
     pub mode: u8,
     pub message: Message<T, IC, ID, IL>,
 }

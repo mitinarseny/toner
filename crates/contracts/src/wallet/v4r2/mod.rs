@@ -21,13 +21,13 @@ pub struct V4R2;
 
 impl WalletVersion for V4R2 {
     type Data = WalletV4R2Data;
-    type Message = WalletV4R2Message;
+    type MessageBody = WalletV4R2Message;
 
     fn code() -> Arc<Cell> {
         WALLET_V4R2_CODE.clone()
     }
 
-    fn init_data(wallet_id: u32, pubkey: [u8; 32]) -> Self::Data {
+    fn init_data(wallet_id: u32, pubkey: [u8; PUBLIC_KEY_LENGTH]) -> Self::Data {
         WalletV4R2Data {
             seqno: 0,
             wallet_id,
@@ -40,7 +40,7 @@ impl WalletVersion for V4R2 {
         expire_at: u32,
         seqno: u32,
         msgs: impl IntoIterator<Item = WalletOpSendMessage>,
-    ) -> Self::Message {
+    ) -> Self::MessageBody {
         WalletV4R2Message {
             wallet_id,
             expire_at,
