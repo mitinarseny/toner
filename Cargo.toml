@@ -4,7 +4,6 @@ default-members = ["./crates/toner"]
 resolver = "2"
 
 [workspace.package]
-version = "0.2.8"
 edition = "2021"
 repository = "https://github.com/mitinarseny/toner"
 keywords = ["ton", "tl-b", "boc"]
@@ -12,11 +11,11 @@ categories = ["encoding"]
 license-file = "LICENSE.txt"
 
 [workspace.dependencies]
-tlb = { path = "./crates/tlb", version = "0.2.8" }
-tlbits = { path = "./crates/bits", version = "0.2.8" }
-tlb-ton = { path = "./crates/tlb-ton", version = "0.2.8" }
-ton-contracts = { path = "./crates/contracts", version = "0.2.8" }
-toner = { path = "./crates/toner", version = "0.2.8" }
+tlb = { path = "./crates/tlb", version = "0.2.9" }
+tlbits = { path = "./crates/bits", version = "0.2.9" }
+tlb-ton = { path = "./crates/tlb-ton", version = "0.2.9" }
+ton-contracts = { path = "./crates/contracts", version = "0.2.9" }
+toner = { path = "./crates/toner", version = "0.2.9" }
 
 anyhow = "1"
 base64 = "0.21"

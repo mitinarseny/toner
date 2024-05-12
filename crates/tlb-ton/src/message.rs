@@ -12,6 +12,7 @@ use crate::{Grams, MsgAddress, UnixTimestamp};
 /// message$_ {X:Type} info:CommonMsgInfo
 /// init:(Maybe (Either StateInit ^StateInit))
 /// body:(Either X ^X) = Message X;
+#[derive(Debug, Clone)]
 pub struct Message<T = Cell, IC = Cell, ID = Cell, IL = Cell> {
     pub info: CommonMsgInfo,
     pub init: Option<StateInit<IC, ID, IL>>,
@@ -54,6 +55,7 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum CommonMsgInfo {
     /// int_msg_info$0
     Internal(InternalMsgInfo),
@@ -108,6 +110,7 @@ impl BitUnpack for CommonMsgInfo {
 /// src:MsgAddressInt dest:MsgAddressInt
 /// value:CurrencyCollection ihr_fee:Grams fwd_fee:Grams
 /// created_lt:uint64 created_at:uint32 = CommonMsgInfo;
+#[derive(Debug, Clone)]
 pub struct InternalMsgInfo {
     /// Hyper cube routing flag.
     pub ihr_disabled: bool,
@@ -174,6 +177,7 @@ impl BitUnpack for InternalMsgInfo {
 
 /// ext_in_msg_info$10 src:MsgAddressExt dest:MsgAddressInt
 /// import_fee:Grams = CommonMsgInfo;
+#[derive(Debug, Clone)]
 pub struct ExternalInMsgInfo {
     pub src: MsgAddress,
     pub dst: MsgAddress,
@@ -208,6 +212,7 @@ impl BitUnpack for ExternalInMsgInfo {
 
 /// ext_out_msg_info$11 src:MsgAddressInt dest:MsgAddressExt
 /// created_lt:uint64 created_at:uint32 = CommonMsgInfo;
+#[derive(Debug, Clone)]
 pub struct ExternalOutMsgInfo {
     pub src: MsgAddress,
     pub dst: MsgAddress,

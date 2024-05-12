@@ -1,6 +1,6 @@
 [package]
 name = "tlb"
-version.workspace = true
+version = "0.2.9"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
