@@ -1,9 +1,11 @@
 use core::mem::size_of;
+use std::fmt::Binary;
 
 use crate::{BitPack, BitPackAs, Error, ResultExt, StringError};
 
 use ::bitvec::{order::Msb0, slice::BitSlice, store::BitStore, vec::BitVec, view::AsBits};
 use impl_tools::autoimpl;
+use num_traits::{PrimInt, ToBytes};
 
 #[autoimpl(for <W: trait + ?Sized> &mut W, Box<W>)]
 pub trait BitWriter {
@@ -103,25 +105,22 @@ pub trait BitWriterExt: BitWriter {
     }
 
     #[inline]
-    fn pack_usize_as_bytes(
-        &mut self,
-        value: usize,
-        num_bytes: usize,
-    ) -> Result<&mut Self, Self::Error> {
-        const SIZE_BYTES: usize = size_of::<usize>();
-        let leading_zeroes = value.leading_zeros() as usize;
-        let used_bytes = SIZE_BYTES - (leading_zeroes + 7) / 8;
+    fn pack_as_n_bytes<T>(&mut self, value: T, num_bytes: u32) -> Result<&mut Self, Self::Error>
+    where
+        T: PrimInt + Binary + ToBytes,
+    {
+        let size_bytes: u32 = size_of::<T>() as u32;
+        let leading_zeroes = value.leading_zeros();
+        let used_bytes = size_bytes - (leading_zeroes + 7) / 8;
         if num_bytes < used_bytes {
             return Err(Error::custom(format!(
-                "{value:#x} cannot be packed into {num_bytes} bytes",
+                "{value:0b} cannot be packed into {num_bytes} bytes",
             )));
         }
-
         let arr = value.to_be_bytes();
-        let mut bytes = arr.as_slice();
-        bytes = &bytes[bytes.len() - used_bytes..];
+        let mut bytes = arr.as_ref();
+        bytes = &bytes[bytes.len() - used_bytes as usize..];
         self.write_bitslice(bytes.as_bits())?;
-
         Ok(self)
     }
 

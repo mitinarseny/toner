@@ -2,6 +2,7 @@ use core::{iter, mem::size_of};
 
 use ::bitvec::{order::Msb0, slice::BitSlice, vec::BitVec, view::AsMutBits};
 use impl_tools::autoimpl;
+use num_traits::PrimInt;
 
 use crate::{BitUnpack, BitUnpackAs, BitWriter, Error, MapErr, ResultExt, StringError};
 
@@ -93,15 +94,18 @@ pub trait BitReaderExt: BitReader {
     }
 
     #[inline]
-    fn unpack_usize_as_bytes(&mut self, num_bytes: usize) -> Result<usize, Self::Error> {
-        const SIZE_BYTES: usize = size_of::<usize>();
-        if num_bytes > SIZE_BYTES {
+    fn unpack_as_n_bytes<T>(&mut self, num_bytes: u32) -> Result<T, Self::Error>
+    where
+        T: PrimInt,
+    {
+        let size_bytes: u32 = size_of::<T>() as u32;
+        if num_bytes > size_bytes {
             return Err(Error::custom("excessive bits for type"));
         }
-        let mut v: usize = 0;
-        for byte in self.unpack_iter::<u8>().take(num_bytes) {
-            v <<= 8;
-            v |= byte? as usize;
+        let mut v: T = T::zero();
+        for byte in self.unpack_iter::<u8>().take(num_bytes as usize) {
+            v = v << 8;
+            v = v | T::from(byte?).unwrap();
         }
         Ok(v)
     }

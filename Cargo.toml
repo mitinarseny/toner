@@ -27,6 +27,7 @@ impl-tools = "0.10"
 itertools = "0.12"
 lazy_static = "1.4"
 num-bigint = "0.4"
+num-traits = "0.2"
 serde_with = { version = "3.8", features = ["macros"] }
 sha2 = "0.10"
 strum = { version = "0.25", features = ["derive"] }

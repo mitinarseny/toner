@@ -1,6 +1,6 @@
 [package]
 name = "tlbits"
-version = "0.2.9"
+version = "0.2.10"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -13,4 +13,5 @@ bitvec.workspace = true
 either.workspace = true
 impl-tools.workspace = true
 num-bigint.workspace = true
+num-traits.workspace = true
 thiserror.workspace = true

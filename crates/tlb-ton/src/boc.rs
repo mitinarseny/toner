@@ -186,18 +186,18 @@ impl RawBagOfCells {
         if self.roots.len() > 1 {
             return Err(Error::custom("only single root cell supported"));
         }
-        let size_bits: usize = 32 - self.cells.len().leading_zeros() as usize;
-        let size: usize = (size_bits + 7) / 8;
+        let size_bits: u32 = 32 - (self.cells.len() as u32).leading_zeros();
+        let size_bytes: u32 = (size_bits + 7) / 8;
 
-        let mut tot_cells_size: usize = 0;
-        let mut index = Vec::<usize>::with_capacity(self.cells.len());
+        let mut tot_cells_size: u32 = 0;
+        let mut index = Vec::<u32>::with_capacity(self.cells.len());
         for cell in &self.cells {
             index.push(tot_cells_size);
-            tot_cells_size += cell.size(size);
+            tot_cells_size += cell.size(size_bytes);
         }
 
-        let off_bits: usize = 32 - tot_cells_size.leading_zeros() as usize;
-        let off_bytes: usize = (off_bits + 7) / 8;
+        let off_bits: u32 = 32 - tot_cells_size.leading_zeros();
+        let off_bytes: u32 = (off_bits + 7) / 8;
 
         let mut writer: BitVec<u8, Msb0> = BitVec::new();
         writer
@@ -212,28 +212,28 @@ impl RawBagOfCells {
             // flags:(## 2) { flags = 0 }
             .pack_as::<u8, NBits<2>>(0)?
             // size:(## 3) { size <= 4 }
-            .pack_as::<_, NBits<3>>(size)?
+            .pack_as::<_, NBits<3>>(size_bytes)?
             // off_bytes:(## 8) { off_bytes <= 8 }
             .pack_as::<_, NBits<8>>(off_bytes)?
             // cells:(##(size * 8))
-            .pack_usize_as_bytes(size, self.cells.len())?
+            .pack_as_n_bytes(self.cells.len() as u32, size_bytes)?
             // roots:(##(size * 8)) { roots >= 1 }
-            .pack_usize_as_bytes(size, 1)? // single root
+            .pack_as_n_bytes(1u32, size_bytes)? // single root
             // absent:(##(size * 8)) { roots + absent <= cells }
-            .pack_usize_as_bytes(size, 0)? // complete BoCs only
+            .pack_as_n_bytes(0u32, size_bytes)? // complete BoCs only
             // tot_cells_size:(##(off_bytes * 8))
-            .pack_usize_as_bytes(off_bytes, tot_cells_size)?
+            .pack_as_n_bytes(tot_cells_size, off_bytes)?
             // root_list:(roots * ##(size * 8))
-            .pack_usize_as_bytes(size, 0)?; // root should have index 0
+            .pack_as_n_bytes(0u32, size_bytes)?; // root should have index 0
         if has_idx {
             // index:has_idx?(cells * ##(off_bytes * 8))
             for id in index {
-                writer.pack_usize_as_bytes(id, off_bytes)?;
+                writer.pack_as_n_bytes(id, off_bytes)?;
             }
         }
         // cell_data:(tot_cells_size * [ uint8 ])
         for (i, cell) in self.cells.iter().enumerate() {
-            cell.pack(&mut writer, size)
+            cell.pack(&mut writer, size_bytes)
                 .with_context(|| format!("[{i}]"))?;
         }
 
@@ -272,47 +272,48 @@ impl BitUnpack for RawBagOfCells {
             _ => return Err(Error::custom(format!("invalid BoC tag: {tag:#x}"))),
         };
         // size:(## 3) { size <= 4 }
-        let size: usize = reader.unpack_as::<_, NBits<3>>()?;
-        if size > 4 {
-            return Err(Error::custom(format!("invalid size: {size}")));
+        let size_bytes: u32 = reader.unpack_as::<_, NBits<3>>()?;
+        if size_bytes > 4 {
+            return Err(Error::custom(format!("invalid size: {size_bytes}")));
         }
         // off_bytes:(## 8) { off_bytes <= 8 }
-        let off_bytes: usize = reader.unpack_as::<_, NBits<8>>()?;
-        if size > 8 {
+        let off_bytes: u32 = reader.unpack_as::<_, NBits<8>>()?;
+        if size_bytes > 8 {
             return Err(Error::custom(format!("invalid off_bytes: {off_bytes}")));
         }
         // cells:(##(size * 8))
-        let cells: usize = reader.unpack_usize_as_bytes(size)?;
+        let cells: u32 = reader.unpack_as_n_bytes(size_bytes)?;
         // roots:(##(size * 8)) { roots >= 1 }
-        let roots: usize = reader.unpack_usize_as_bytes(size)?;
+        let roots: u32 = reader.unpack_as_n_bytes(size_bytes)?;
         // absent:(##(size * 8)) { roots + absent <= cells }
-        let absent: usize = reader.unpack_usize_as_bytes(size)?;
+        let absent: u32 = reader.unpack_as_n_bytes(size_bytes)?;
         if roots + absent > cells {
             return Err(Error::custom("roots + absent > cells"));
         }
         // tot_cells_size:(##(off_bytes * 8))
-        let _tot_cells_size: usize = reader.unpack_usize_as_bytes(off_bytes)?;
+        let _tot_cells_size: usize = reader.unpack_as_n_bytes(off_bytes)?;
         let root_list = if tag == Self::GENERIC_BOC_TAG {
             // root_list:(roots * ##(size * 8))
-            iter::repeat_with(|| reader.unpack_usize_as_bytes(size))
-                .take(roots)
+            iter::repeat_with(|| reader.unpack_as_n_bytes(size_bytes))
+                .take(roots as usize)
                 .collect::<Result<_, _>>()?
         } else {
             Vec::new()
         };
         if has_idx {
             // index:has_idx?(cells * ##(off_bytes * 8))
-            let _index: Vec<usize> = iter::repeat_with(|| reader.unpack_usize_as_bytes(off_bytes))
-                .take(cells)
+            let _index: Vec<usize> = iter::repeat_with(|| reader.unpack_as_n_bytes(off_bytes))
+                .take(cells as usize)
                 .collect::<Result<_, _>>()?;
         }
         // cell_data:(tot_cells_size * [ uint8 ])
-        let cell_data: Vec<RawCell> = iter::repeat_with(|| RawCell::unpack(&mut reader, size))
-            .take(cells)
-            .enumerate()
-            .map(|(i, v)| v.with_context(|| format!("[{i}]")))
-            .collect::<Result<_, _>>()
-            .context("cell_data")?;
+        let cell_data: Vec<RawCell> =
+            iter::repeat_with(|| RawCell::unpack(&mut reader, size_bytes))
+                .take(cells as usize)
+                .enumerate()
+                .map(|(i, v)| v.with_context(|| format!("[{i}]")))
+                .collect::<Result<_, _>>()
+                .context("cell_data")?;
 
         let mut reader = reader.into_inner();
         if buff.len() % 8 != 0 {
@@ -341,7 +342,7 @@ pub(crate) struct RawCell {
 }
 
 impl RawCell {
-    fn unpack<R>(mut reader: R, size: usize) -> Result<Self, R::Error>
+    fn unpack<R>(mut reader: R, size_bytes: u32) -> Result<Self, R::Error>
     where
         R: BitReader,
     {
@@ -363,7 +364,7 @@ impl RawCell {
             data.truncate(data.len() - trailing_zeros - 1);
         }
 
-        let references: Vec<usize> = iter::repeat_with(|| reader.unpack_usize_as_bytes(size))
+        let references: Vec<usize> = iter::repeat_with(|| reader.unpack_as_n_bytes(size_bytes))
             .take(ref_num)
             .collect::<Result<_, _>>()?;
 
@@ -374,7 +375,7 @@ impl RawCell {
         })
     }
 
-    fn pack<W>(&self, mut writer: W, ref_size_bytes: usize) -> Result<(), W::Error>
+    fn pack<W>(&self, mut writer: W, ref_size_bytes: u32) -> Result<(), W::Error>
     where
         W: BitWriter,
     {
@@ -391,14 +392,14 @@ impl RawCell {
         }
 
         for r in &self.references {
-            writer.pack_usize_as_bytes(*r, ref_size_bytes)?;
+            writer.pack_as_n_bytes(*r, ref_size_bytes)?;
         }
 
         Ok(())
     }
 
-    fn size(&self, ref_size_bytes: usize) -> usize {
-        let data_len = (self.data.len() + 7) / 8;
-        2 + data_len + self.references.len() * ref_size_bytes
+    fn size(&self, ref_size_bytes: u32) -> u32 {
+        let data_len: u32 = (self.data.len() as u32 + 7) / 8;
+        2 + data_len + self.references.len() as u32 * ref_size_bytes
     }
 }
