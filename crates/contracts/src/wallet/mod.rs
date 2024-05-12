@@ -12,10 +12,12 @@ use tlb::{
 };
 use tlb_ton::{ExternalInMsgInfo, Message, MsgAddress, StateInit};
 
+pub const DEFAULT_WALLET_ID: u32 = 0x29a9a317;
+
 pub struct Wallet<V> {
-    pub address: MsgAddress,
-    pub wallet_id: u32,
-    pub key_pair: Keypair,
+    address: MsgAddress,
+    wallet_id: u32,
+    key_pair: Keypair,
     _phantom: PhantomData<V>,
 }
 
@@ -24,13 +26,14 @@ where
     V: WalletVersion,
 {
     pub fn derive(workchain_id: i32, key_pair: Keypair, wallet_id: u32) -> anyhow::Result<Self> {
-        let state_init_hash = StateInit::<_, _, ()> {
+        let state_init = StateInit::<_, _, ()> {
             code: Some(V::code()),
             data: Some(V::init_data(wallet_id, key_pair.pkey)),
             ..Default::default()
         }
-        .to_cell()?
-        .hash();
+        .to_cell()?;
+
+        let state_init_hash = state_init.hash();
         Ok(Self {
             address: MsgAddress {
                 workchain_id,
@@ -43,7 +46,15 @@ where
     }
 
     pub fn derive_default(key_pair: Keypair) -> anyhow::Result<Self> {
-        Self::derive(0, key_pair, 0)
+        Self::derive(0, key_pair, DEFAULT_WALLET_ID)
+    }
+
+    pub fn address(&self) -> MsgAddress {
+        self.address
+    }
+
+    pub fn wallet_id(&self) -> u32 {
+        self.wallet_id
     }
 
     pub fn create_external_message(
@@ -145,5 +156,31 @@ where
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder.pack(self.mode)?.store_as::<_, Ref>(&self.message)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tlb_ton::MsgAddress;
+
+    use crate::{mnemonic::Mnemonic, v4r2::V4R2, Wallet};
+
+    #[test]
+    fn derive() {
+        const MNEMONIC: &str = "jewel loop vast intact snack drip fatigue lunch erode green indoor balance together scrub hen monster hour narrow banner warfare increase panel sound spell";
+
+        let expected_address: MsgAddress = "UQA7RMTgzvcyxNNLmK2HdklOvFE8_KNMa-btKZ0dPU1UsqfC"
+            .parse()
+            .unwrap();
+
+        let key_pair = MNEMONIC
+            .parse::<Mnemonic>()
+            .unwrap()
+            .generate_keypair(None)
+            .unwrap();
+
+        let wallet = Wallet::<V4R2>::derive_default(key_pair).unwrap();
+
+        assert_eq!(wallet.address, expected_address)
     }
 }

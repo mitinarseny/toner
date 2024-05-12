@@ -1,6 +1,6 @@
 [package]
 name = "ton-contracts"
-version = "0.2.12"
+version = "0.2.13"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -28,3 +28,6 @@ sha2 = { version = "0.10", optional = true }
 default = ["wallet", "jetton"]
 wallet = ["dep:nacl", "dep:hmac", "dep:sha2", "dep:pbkdf2"]
 jetton = []
+
+[dev-dependencies]
+hex-literal.workspace = true

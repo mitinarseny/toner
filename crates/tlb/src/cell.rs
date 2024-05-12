@@ -118,7 +118,8 @@ impl Cell {
         } else {
             let (last, data) = self.data.as_raw_slice().split_last().unwrap();
             buf.extend(data);
-            let mut last = last & !(!0u8 << rest_bits); // clear the rest
+            let mut last = last & (!0u8 << (8 - rest_bits)); // clear the rest
+                                                             // let mut last = last;
             last |= 1 << (8 - rest_bits - 1); // put stop-bit
             buf.push(last)
         }

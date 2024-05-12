@@ -60,10 +60,10 @@ impl BagOfCells {
             }
         }
         let mut ordered_cells: Vec<Arc<Cell>> = Vec::new();
-        let mut indices: HashMap<Arc<Cell>, usize> = HashMap::new();
+        let mut indices: HashMap<Arc<Cell>, u32> = HashMap::new();
         while let Some(cell) = no_in_refs.iter().next().cloned() {
             ordered_cells.push(cell.clone());
-            indices.insert(cell.clone(), indices.len());
+            indices.insert(cell.clone(), indices.len() as u32);
             for child in &cell.references {
                 if let Some(refs) = in_refs.get_mut(child) {
                     refs.remove(&cell);
@@ -136,7 +136,7 @@ impl BitUnpack for BagOfCells {
         let raw = RawBagOfCells::unpack(reader)?;
         let num_cells = raw.cells.len();
         let mut cells: Vec<Arc<Cell>> = Vec::new();
-        for (i, raw_cell) in raw.cells.into_iter().enumerate() {
+        for (i, raw_cell) in raw.cells.into_iter().enumerate().rev() {
             cells.push(
                 Cell {
                     data: raw_cell.data,
@@ -144,12 +144,12 @@ impl BitUnpack for BagOfCells {
                         .references
                         .into_iter()
                         .map(|r| {
-                            if r <= i {
+                            if r <= i as u32 {
                                 return Err(Error::custom(format!(
                                     "references to previous cells are not supported: [{i}] -> [{r}]"
                                 )));
                             }
-                            Ok(cells[num_cells - 1 - r].clone())
+                            Ok(cells[num_cells - 1 - r as usize].clone())
                         })
                         .collect::<Result<_, _>>()?,
                 }
@@ -160,7 +160,7 @@ impl BitUnpack for BagOfCells {
             roots: raw
                 .roots
                 .into_iter()
-                .map(|r| cells[num_cells - 1 - r].clone())
+                .map(|r| cells[num_cells - 1 - r as usize].clone())
                 .collect(),
         })
     }
@@ -171,7 +171,7 @@ const CRC_32_ISCSI: Crc<u32> = Crc::<u32>::new(&crc::CRC_32_ISCSI);
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub(crate) struct RawBagOfCells {
     pub cells: Vec<RawCell>,
-    pub roots: Vec<usize>,
+    pub roots: Vec<u32>,
 }
 
 impl RawBagOfCells {
@@ -338,7 +338,7 @@ impl BitUnpack for RawBagOfCells {
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub(crate) struct RawCell {
     pub data: BitVec<u8, Msb0>,
-    pub references: Vec<usize>,
+    pub references: Vec<u32>,
     pub level: u8,
 }
 
@@ -365,7 +365,7 @@ impl RawCell {
             data.truncate(data.len() - trailing_zeros - 1);
         }
 
-        let references: Vec<usize> = iter::repeat_with(|| reader.unpack_as_n_bytes(size_bytes))
+        let references: Vec<u32> = iter::repeat_with(|| reader.unpack_as_n_bytes(size_bytes))
             .take(ref_num)
             .collect::<Result<_, _>>()?;
 
