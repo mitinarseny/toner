@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use nacl::sign::PUBLIC_KEY_LENGTH;
 use tlb::{BitWriterExt, Cell, CellBuilder, CellBuilderError, CellSerialize};
-use tlb_ton::BagOfCells;
+use tlb_ton::{BagOfCells, UnixTimestamp};
 
 use crate::{WalletOpSendMessage, WalletVersion};
 
@@ -37,7 +38,7 @@ impl WalletVersion for V4R2 {
 
     fn create_external_body(
         wallet_id: u32,
-        expire_at: u32,
+        expire_at: DateTime<Utc>,
         seqno: u32,
         msgs: impl IntoIterator<Item = WalletOpSendMessage>,
     ) -> Self::MessageBody {
@@ -70,7 +71,7 @@ impl CellSerialize for WalletV4R2Data {
 
 pub struct WalletV4R2Message {
     pub wallet_id: u32,
-    pub expire_at: u32,
+    pub expire_at: DateTime<Utc>,
     pub seqno: u32,
     pub op: WalletV4R2Op,
 }
@@ -79,7 +80,7 @@ impl CellSerialize for WalletV4R2Message {
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder
             .pack(self.wallet_id)?
-            .pack(self.expire_at)?
+            .pack_as::<_, UnixTimestamp>(self.expire_at)?
             .pack(self.seqno)?
             .store(&self.op)?;
         Ok(())

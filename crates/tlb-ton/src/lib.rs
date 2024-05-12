@@ -1,6 +1,7 @@
 mod address;
 mod boc;
+mod coins;
 mod message;
-mod types;
+mod timestamp;
 
-pub use self::{address::*, boc::*, message::*, types::*};
+pub use self::{address::*, boc::*, coins::*, message::*, timestamp::*};

@@ -14,6 +14,7 @@ tlb-ton.workspace = true
 
 anyhow.workspace = true
 bitvec.workspace = true
+chrono.workspace = true
 lazy_static.workspace = true
 num-bigint.workspace = true
 

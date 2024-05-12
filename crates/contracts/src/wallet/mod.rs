@@ -5,6 +5,7 @@ use std::{marker::PhantomData, sync::Arc};
 
 use anyhow::anyhow;
 use bitvec::view::AsBits;
+use chrono::{DateTime, Utc};
 use nacl::sign::{signature, Keypair};
 use tlb::{
     BitWriterExt, Cell, CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt, Ref,
@@ -47,7 +48,7 @@ where
 
     pub fn create_external_message(
         &self,
-        expire_at: u32,
+        expire_at: DateTime<Utc>,
         seqno: u32,
         msgs: impl IntoIterator<Item = WalletOpSendMessage>,
         state_init: bool,
@@ -60,7 +61,7 @@ where
 
     pub fn create_external_body(
         &self,
-        expire_at: u32,
+        expire_at: DateTime<Utc>,
         seqno: u32,
         msgs: impl IntoIterator<Item = WalletOpSendMessage>,
     ) -> V::MessageBody {
@@ -122,7 +123,7 @@ pub trait WalletVersion {
 
     fn create_external_body(
         wallet_id: u32,
-        expire_at: u32,
+        expire_at: DateTime<Utc>,
         seqno: u32,
         msgs: impl IntoIterator<Item = WalletOpSendMessage>,
     ) -> Self::MessageBody;

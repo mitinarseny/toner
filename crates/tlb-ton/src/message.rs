@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use impl_tools::autoimpl;
 use num_bigint::BigUint;
 use tlb::{
@@ -6,7 +7,7 @@ use tlb::{
     Ref, Same,
 };
 
-use crate::{CurrencyCollection, Grams, MsgAddress};
+use crate::{Grams, MsgAddress, UnixTimestamp};
 
 /// message$_ {X:Type} info:CommonMsgInfo
 /// init:(Maybe (Either StateInit ^StateInit))
@@ -128,7 +129,7 @@ pub struct InternalMsgInfo {
     /// Logic time of sending message assigned by validator. Using for odering actions in smart contract.
     pub created_lt: u64,
     /// Unix time
-    pub created_at: u32,
+    pub created_at: DateTime<Utc>,
 }
 
 impl BitPack for InternalMsgInfo {
@@ -146,7 +147,7 @@ impl BitPack for InternalMsgInfo {
             .pack_as::<_, &Grams>(&self.ihr_fee)?
             .pack_as::<_, &Grams>(&self.fwd_fee)?
             .pack(self.created_lt)?
-            .pack(self.created_at)?;
+            .pack_as::<_, UnixTimestamp>(self.created_at)?;
         Ok(())
     }
 }
@@ -166,7 +167,7 @@ impl BitUnpack for InternalMsgInfo {
             ihr_fee: reader.unpack_as::<_, Grams>()?,
             fwd_fee: reader.unpack_as::<_, Grams>()?,
             created_lt: reader.unpack()?,
-            created_at: reader.unpack()?,
+            created_at: reader.unpack_as::<_, UnixTimestamp>()?,
         })
     }
 }
@@ -211,7 +212,7 @@ pub struct ExternalOutMsgInfo {
     pub src: MsgAddress,
     pub dst: MsgAddress,
     pub created_lt: u64,
-    pub created_at: u32,
+    pub created_at: DateTime<Utc>,
 }
 
 impl BitPack for ExternalOutMsgInfo {
@@ -223,7 +224,7 @@ impl BitPack for ExternalOutMsgInfo {
             .pack(self.src)?
             .pack(self.dst)?
             .pack(self.created_lt)?
-            .pack(self.created_at)?;
+            .pack_as::<_, UnixTimestamp>(self.created_at)?;
         Ok(())
     }
 }
@@ -237,7 +238,7 @@ impl BitUnpack for ExternalOutMsgInfo {
             src: reader.unpack()?,
             dst: reader.unpack()?,
             created_lt: reader.unpack()?,
-            created_at: reader.unpack()?,
+            created_at: reader.unpack_as::<_, UnixTimestamp>()?,
         })
     }
 }
@@ -315,5 +316,60 @@ where
             data: parser.parse_as::<_, Option<Ref>>()?,
             library: parser.parse_as::<_, Option<Ref>>()?,
         })
+    }
+}
+
+/// currencies$_ grams:Grams other:ExtraCurrencyCollection = CurrencyCollection;
+#[derive(Debug, Clone)]
+pub struct CurrencyCollection {
+    pub grams: BigUint,
+    pub other: ExtraCurrencyCollection,
+}
+
+impl BitPack for CurrencyCollection {
+    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        writer
+            .pack_as::<_, &Grams>(&self.grams)?
+            .pack(&self.other)?;
+        Ok(())
+    }
+}
+
+impl BitUnpack for CurrencyCollection {
+    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+    where
+        R: BitReader,
+    {
+        Ok(Self {
+            grams: reader.unpack_as::<_, Grams>()?,
+            other: reader.unpack()?,
+        })
+    }
+}
+
+/// extra_currencies$_ dict:(HashmapE 32 (VarUInteger 32)) = ExtraCurrencyCollection;
+#[derive(Debug, Clone)]
+pub struct ExtraCurrencyCollection;
+
+impl BitPack for ExtraCurrencyCollection {
+    fn pack<W>(&self, writer: W) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        // TODO
+        false.pack(writer)
+    }
+}
+
+impl BitUnpack for ExtraCurrencyCollection {
+    fn unpack<R>(_reader: R) -> Result<Self, R::Error>
+    where
+        R: BitReader,
+    {
+        // TODO
+        Ok(Self)
     }
 }

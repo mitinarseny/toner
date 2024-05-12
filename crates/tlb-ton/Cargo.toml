@@ -14,6 +14,7 @@ tlbits.workspace = true
 
 base64.workspace = true
 bitvec.workspace = true
+chrono.workspace = true
 crc = "3"
 either.workspace = true
 impl-tools.workspace = true
