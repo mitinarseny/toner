@@ -262,12 +262,13 @@ impl BitUnpack for RawBagOfCells {
             Self::INDEXED_BOC_TAG => (true, false),
             Self::INDEXED_CRC32_TAG => (true, true),
             Self::GENERIC_BOC_TAG => {
+                // has_idx:(## 1) has_crc32c:(## 1)
+                let (has_idx, has_crc32c) = reader.unpack()?;
                 // has_cache_bits:(## 1)
                 let _has_cache_bits: bool = reader.unpack()?;
                 // flags:(## 2) { flags = 0 }
                 let _flags: u8 = reader.unpack_as::<_, NBits<2>>()?;
-                // has_idx:(## 1) has_crc32c:(## 1)
-                (reader.unpack()?, reader.unpack()?)
+                (has_idx, has_crc32c)
             }
             _ => return Err(Error::custom(format!("invalid BoC tag: {tag:#x}"))),
         };
@@ -321,7 +322,7 @@ impl BitUnpack for RawBagOfCells {
         }
         if has_crc32c {
             // crc32c:has_crc32c?uint32
-            let cs: u32 = reader.unpack()?;
+            let cs = u32::from_le_bytes(reader.unpack()?);
             if cs != CRC_32_ISCSI.checksum(buff.as_raw_slice()) {
                 return Err(Error::custom("CRC mismatch"));
             }
@@ -348,7 +349,7 @@ impl RawCell {
     {
         let refs_descriptor: u8 = reader.unpack()?;
         let level: u8 = refs_descriptor >> 5;
-        let _is_exotic: bool = refs_descriptor & 8 == 0;
+        let _is_exotic: bool = refs_descriptor >> 3 & 0b1 == 1;
         let ref_num: usize = refs_descriptor as usize & 0b111;
 
         let bits_descriptor: u8 = reader.unpack()?;
@@ -379,12 +380,17 @@ impl RawCell {
     where
         W: BitWriter,
     {
-        let level = 0u8;
-        let is_exotic = 0u8;
-        writer.pack(self.references.len() as u8 + is_exotic + level * 32)?;
+        let level: u8 = 0;
+        let is_exotic: u8 = 0;
+        let refs_descriptor: u8 = self.references.len() as u8 + is_exotic * 8 + level * 32;
+        writer.pack(refs_descriptor)?;
 
         let padding_bits = self.data.len() % 8;
         let full_bytes = padding_bits == 0;
+        let data_bytes = (self.data.len() + 7) / 8;
+        let bits_descriptor: u8 = data_bytes as u8 * 2 - if full_bytes { 0 } else { 1 }; // subtract 1 if the last byte is not full
+        writer.pack(bits_descriptor)?;
+
         writer.pack(self.data.as_bitslice())?;
         if !full_bytes {
             writer.write_bit(true)?;
@@ -401,5 +407,25 @@ impl RawCell {
     fn size(&self, ref_size_bytes: u32) -> u32 {
         let data_len: u32 = (self.data.len() as u32 + 7) / 8;
         2 + data_len + self.references.len() as u32 * ref_size_bytes
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tlb::CellSerializeExt;
+
+    use super::*;
+
+    #[test]
+    fn boc_serde() {
+        let packed = BoC::from_root(().to_cell().unwrap()).pack(true).unwrap();
+        packed
+            .as_bits()
+            .unpack::<BoC>()
+            .unwrap()
+            .single_root()
+            .unwrap()
+            .parse_fully::<()>()
+            .unwrap();
     }
 }

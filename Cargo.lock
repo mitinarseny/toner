@@ -694,7 +694,7 @@ dependencies = [
 
 [[package]]
 name = "tlb"
-version = "0.2.10"
+version = "0.2.11"
 dependencies = [
  "bitvec",
  "either",
@@ -707,7 +707,7 @@ dependencies = [
 
 [[package]]
 name = "tlb-ton"
-version = "0.2.10"
+version = "0.2.11"
 dependencies = [
  "base64 0.21.7",
  "bitvec",
@@ -726,7 +726,7 @@ dependencies = [
 
 [[package]]
 name = "tlbits"
-version = "0.2.10"
+version = "0.2.11"
 dependencies = [
  "bitvec",
  "either",
@@ -738,7 +738,7 @@ dependencies = [
 
 [[package]]
 name = "ton-contracts"
-version = "0.2.10"
+version = "0.2.11"
 dependencies = [
  "anyhow",
  "bitvec",
@@ -755,7 +755,7 @@ dependencies = [
 
 [[package]]
 name = "toner"
-version = "0.2.10"
+version = "0.2.11"
 
 [[package]]
 name = "typenum"

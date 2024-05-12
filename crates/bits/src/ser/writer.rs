@@ -111,7 +111,7 @@ pub trait BitWriterExt: BitWriter {
     {
         let size_bytes: u32 = size_of::<T>() as u32;
         let leading_zeroes = value.leading_zeros();
-        let used_bytes = size_bytes - (leading_zeroes + 7) / 8;
+        let used_bytes = size_bytes - leading_zeroes / 8;
         if num_bytes < used_bytes {
             return Err(Error::custom(format!(
                 "{value:0b} cannot be packed into {num_bytes} bytes",
@@ -119,7 +119,7 @@ pub trait BitWriterExt: BitWriter {
         }
         let arr = value.to_be_bytes();
         let mut bytes = arr.as_ref();
-        bytes = &bytes[bytes.len() - used_bytes as usize..];
+        bytes = &bytes[bytes.len() - num_bytes as usize..];
         self.write_bitslice(bytes.as_bits())?;
         Ok(self)
     }
