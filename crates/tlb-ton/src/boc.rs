@@ -394,7 +394,7 @@ impl RawCell {
         writer.pack(self.data.as_bitslice())?;
         if !full_bytes {
             writer.write_bit(true)?;
-            writer.repeat_bit(padding_bits - 1, false)?;
+            writer.repeat_bit(8 - padding_bits - 1, false)?;
         }
 
         for r in &self.references {
