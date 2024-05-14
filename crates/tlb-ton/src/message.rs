@@ -2,8 +2,8 @@ use chrono::{DateTime, Utc};
 use num_bigint::BigUint;
 use tlb::{
     BitPack, BitReader, BitReaderExt, BitUnpack, BitWriter, BitWriterExt, Cell, CellBuilder,
-    CellBuilderError, CellDeserialize, CellParser, CellParserError, CellSerialize, Either, NBits,
-    Ref, Same,
+    CellBuilderError, CellDeserialize, CellParser, CellParserError, CellSerialize,
+    CellSerializeExt, Either, NBits, Ref, Same,
 };
 
 use crate::{CurrencyCollection, Grams, MsgAddress, StateInit, UnixTimestamp};
@@ -15,7 +15,23 @@ use crate::{CurrencyCollection, Grams, MsgAddress, StateInit, UnixTimestamp};
 pub struct Message<T = Cell, IC = Cell, ID = Cell, IL = Cell> {
     pub info: CommonMsgInfo,
     pub init: Option<StateInit<IC, ID, IL>>,
-    pub body: Option<T>,
+    pub body: T,
+}
+
+impl<T, IC, ID, IL> Message<T, IC, ID, IL>
+where
+    T: CellSerialize,
+    IC: CellSerialize,
+    ID: CellSerialize,
+    IL: CellSerialize,
+{
+    pub fn normalize(&self) -> Result<Message, CellBuilderError> {
+        Ok(Message {
+            info: self.info.clone(),
+            init: self.init.as_ref().map(StateInit::normalize).transpose()?,
+            body: self.body.to_cell()?,
+        })
+    }
 }
 
 impl<T, IC, ID, IL> CellSerialize for Message<T, IC, ID, IL>
@@ -29,7 +45,11 @@ where
         builder
             .pack(&self.info)?
             .store_as::<_, Option<Either<(), Ref>>>(self.init.as_ref().map(Some))?
-            .store_as::<_, Option<Ref>>(self.body.as_ref())?;
+            .store_as::<_, Either<(), Ref>>(
+                Some(self.body.to_cell()?)
+                    // store empty cell inline
+                    .filter(|cell| !cell.is_empty()),
+            )?;
         Ok(())
     }
 }
@@ -47,11 +67,9 @@ where
             init: parser
                 .parse_as::<_, Option<Either<Same, Ref>>>()?
                 .map(Either::into_inner),
-            body: Some(
-                parser
-                    .parse_as::<Either<T, T>, Either<Same, Ref>>()?
-                    .into_inner(),
-            ),
+            body: parser
+                .parse_as::<Either<T, T>, Either<Same, Ref>>()?
+                .into_inner(),
         })
     }
 }
@@ -275,7 +293,7 @@ mod tests {
                 created_at: None,
             }),
             init: None,
-            body: Some(()),
+            body: (),
         };
 
         let cell = msg.to_cell().unwrap();

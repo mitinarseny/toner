@@ -3,13 +3,16 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use nacl::sign::PUBLIC_KEY_LENGTH;
-use tlb::{BitWriterExt, Cell, CellBuilder, CellBuilderError, CellSerialize};
+use tlb::{
+    BitReaderExt, BitWriterExt, Cell, CellBuilder, CellBuilderError, CellDeserialize, CellParser,
+    CellParserError, CellSerialize, ConstBit,
+};
 use tlb_ton::{BagOfCells, UnixTimestamp};
 
 use crate::{WalletOpSendMessage, WalletVersion};
 
 lazy_static! {
-    static ref WALLET_V4R2_CODE: Arc<Cell> = {
+    static ref WALLET_V4R2_CODE_CELL: Arc<Cell> = {
         BagOfCells::parse_base64(include_str!("./wallet_v4r2.code"))
             .unwrap()
             .single_root()
@@ -25,7 +28,7 @@ impl WalletVersion for V4R2 {
     type MessageBody = WalletV4R2Message;
 
     fn code() -> Arc<Cell> {
-        WALLET_V4R2_CODE.clone()
+        WALLET_V4R2_CODE_CELL.clone()
     }
 
     fn init_data(wallet_id: u32, pubkey: [u8; PUBLIC_KEY_LENGTH]) -> Self::Data {
@@ -51,6 +54,7 @@ impl WalletVersion for V4R2 {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WalletV4R2Data {
     pub seqno: u32,
     pub wallet_id: u32,
@@ -66,6 +70,19 @@ impl CellSerialize for WalletV4R2Data {
             // TODO: handle plugins dict
             .pack(false)?;
         Ok(())
+    }
+}
+
+impl<'de> CellDeserialize<'de> for WalletV4R2Data {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        let d = Self {
+            seqno: parser.unpack()?,
+            wallet_id: parser.unpack()?,
+            pubkey: parser.unpack()?,
+        };
+        // TODO: plugins
+        let _plugins: ConstBit<false> = parser.unpack()?;
+        Ok(d)
     }
 }
 
@@ -98,5 +115,25 @@ impl CellSerialize for WalletV4R2Op {
             Self::Send(msgs) => builder.pack(0u8)?.store_many(msgs)?,
         };
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tlb::unpack_bytes_fully;
+    use tlb_ton::BoC;
+
+    use super::*;
+
+    #[test]
+    fn check_code() {
+        let packed = BoC::from_root(WALLET_V4R2_CODE_CELL.clone())
+            .pack(true)
+            .unwrap();
+        let unpacked: BoC = unpack_bytes_fully(packed).unwrap();
+
+        let got: Cell = unpacked.single_root().unwrap().parse_fully().unwrap();
+
+        assert_eq!(&got, WALLET_V4R2_CODE_CELL.as_ref());
     }
 }

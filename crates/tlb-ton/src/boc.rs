@@ -412,22 +412,16 @@ impl RawCell {
 
 #[cfg(test)]
 mod tests {
-    use tlb::CellSerializeExt;
+    use tlb::{unpack_bytes_fully, CellSerializeExt};
 
     use super::*;
 
     #[test]
     fn boc_serde() {
         let packed = BoC::from_root(().to_cell().unwrap()).pack(true).unwrap();
-        let unpacked = packed
-            .as_bits()
-            .unpack::<BoC>()
-            .unwrap()
-            .single_root()
-            .unwrap()
-            .clone();
+        let unpacked: BoC = unpack_bytes_fully(packed).unwrap();
 
-        let got: () = unpacked.parse_fully().unwrap();
+        let got: () = unpacked.single_root().unwrap().parse_fully().unwrap();
         assert_eq!(got, ());
     }
 }

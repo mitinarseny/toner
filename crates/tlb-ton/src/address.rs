@@ -186,19 +186,16 @@ impl BitPack for MsgAddress {
         W: BitWriter,
     {
         if self.is_null() {
-            writer
-                .pack_as::<_, NBits<2>>(MsgAddressTag::Null as u8)
-                .context("tag")?;
+            writer.pack(MsgAddressTag::Null)?;
         } else {
             writer
-                .pack_as::<_, NBits<2>>(MsgAddressTag::Std as u8)
-                .context("tag")?
-                .pack(false)
-                .context("anycast")?
-                .pack(self.workchain_id as i8)
-                .context("workchain_id")?
-                .pack(self.address)
-                .context("address")?;
+                .pack(MsgAddressTag::Std)?
+                // anycast:(Maybe Anycast)
+                .pack(false)?
+                // workchain_id:int8
+                .pack(self.workchain_id as i8)?
+                // address:bits256
+                .pack(self.address)?;
         }
         Ok(())
     }
@@ -210,13 +207,15 @@ impl BitUnpack for MsgAddress {
     where
         R: BitReader,
     {
-        match reader.unpack().context("tag")? {
+        match reader.unpack()? {
             MsgAddressTag::Null => Ok(Self::NULL),
             MsgAddressTag::Std => {
-                reader.skip(1).context("anycast")?;
+                reader.skip(1)?; // anycast:(Maybe Anycast)
                 Ok(Self {
-                    workchain_id: reader.unpack::<i8>().context("workchain_id")? as i32,
-                    address: reader.unpack().context("address")?,
+                    // workchain_id:int8
+                    workchain_id: reader.unpack::<i8>()? as i32,
+                    // address:bits256
+                    address: reader.unpack()?,
                 })
             }
             tag => Err(Error::custom(format!("unsupported address tag: {tag}"))),

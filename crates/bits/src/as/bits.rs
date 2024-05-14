@@ -1,8 +1,6 @@
 use bitvec::{order::Msb0, slice::BitSlice, view::AsBits};
 
-use crate::{
-    BitPack, BitPackAs, BitReader, BitReaderExt, BitUnpackAs, BitWriter, BitWriterExt, ResultExt,
-};
+use crate::{BitPack, BitPackAs, BitReader, BitReaderExt, BitUnpackAs, BitWriter, BitWriterExt};
 
 pub struct AsBitSlice;
 
@@ -49,8 +47,7 @@ where
     {
         let source = source.as_ref();
         writer
-            .pack_as::<_, NBits<BITS_FOR_BYTES_LEN>>(source.len())
-            .context("length")?
+            .pack_as::<_, NBits<BITS_FOR_BYTES_LEN>>(source.len())?
             .pack_as::<_, AsBytes>(source)?;
         Ok(())
     }
@@ -62,9 +59,7 @@ impl<const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<Vec<u8>> for VarBytes<BITS_FOR
     where
         R: BitReader,
     {
-        let num_bytes = reader
-            .unpack_as::<_, NBits<BITS_FOR_BYTES_LEN>>()
-            .context("length")?;
+        let num_bytes = reader.unpack_as::<_, NBits<BITS_FOR_BYTES_LEN>>()?;
         reader.read_bytes_vec(num_bytes)
     }
 }

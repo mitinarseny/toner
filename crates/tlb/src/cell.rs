@@ -192,43 +192,6 @@ mod tests {
         assert_eq!(cell.max_depth(), 4)
     }
 
-    // #[test]
-    // fn cell_serialize() {
-    //     assert_eq!(
-    //         (
-    //             &hex!("80").as_bits::<Msb0>()[..1],
-    //             0x0AAAAA.wrap_as::<NBits<24>>().wrap_as::<Ref>(),
-    //             (
-    //                 &hex!("FD").as_bits::<Msb0>()[..7],
-    //                 0x0AAAAA.wrap_as::<NBits<24>>().wrap_as::<Ref>(),
-    //             )
-    //                 .wrap_as::<Ref>(),
-    //         )
-    //             .to_cell()
-    //             .unwrap(),
-    //         Cell {
-    //             data: bitvec![u8, Msb0; 1],
-    //             references: [
-    //                 Cell {
-    //                     data: hex!("0AAAAA").into_bitarray().into(),
-    //                     references: [].into()
-    //                 },
-    //                 Cell {
-    //                     data: bitvec![u8, Msb0; 1, 1, 1, 1, 1, 1, 0],
-    //                     references: [Cell {
-    //                         data: hex!("0AAAAA").into_bitarray().into(),
-    //                         references: [].into()
-    //                     }]
-    //                     .map(Into::into)
-    //                     .into(),
-    //                 }
-    //             ]
-    //             .map(Into::into)
-    //             .into()
-    //         },
-    //     );
-    // }
-
     #[test]
     fn cell_serde() {
         assert_store_parse_as_eq::<
@@ -270,21 +233,4 @@ mod tests {
             hex!("f345277cc6cfa747f001367e1e873dcfa8a936b8492431248b7a3eeafa8030e7")
         );
     }
-
-    //     #[test]
-    //     #[ignore = "wait until serialize is implemented"]
-    //     fn cell_serialize() {
-    //         let cell = (
-    //             0b1.wrap_as::<NBits<1>>(),
-    //             0x0AAAAA.wrap_as::<NBits<24>>().wrap_as::<Ref>(),
-    //             (
-    //                 0x7F.wrap_as::<NBits<7>>(),
-    //                 0x0AAAAA.wrap_as::<NBits<24>>().wrap_as::<Ref>(),
-    //             )
-    //                 .wrap_as::<Ref>(),
-    //         )
-    //             .to_cell()
-    //             .unwrap();
-    //         assert_eq!(cell.serialize(), hex!("0201c002010101ff0200060aaaaa"));
-    //     }
 }

@@ -1,7 +1,8 @@
 use impl_tools::autoimpl;
 use tlb::{
     BitPack, BitReader, BitReaderExt, BitUnpack, BitWriter, BitWriterExt, Cell, CellBuilder,
-    CellBuilderError, CellDeserialize, CellParser, CellParserError, CellSerialize, NBits, Ref,
+    CellBuilderError, CellDeserialize, CellParser, CellParserError, CellSerialize,
+    CellSerializeExt, NBits, Ref,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,6 +16,35 @@ pub struct StateInit<C = Cell, D = Cell, L = Cell> {
     pub code: Option<C>,
     pub data: Option<D>,
     pub library: Option<L>,
+}
+
+impl<IC, ID, IL> StateInit<IC, ID, IL>
+where
+    IC: CellSerialize,
+    ID: CellSerialize,
+    IL: CellSerialize,
+{
+    pub fn normalize(&self) -> Result<StateInit, CellBuilderError> {
+        Ok(StateInit {
+            split_depth: self.split_depth,
+            special: self.special,
+            code: self
+                .code
+                .as_ref()
+                .map(CellSerializeExt::to_cell)
+                .transpose()?,
+            data: self
+                .data
+                .as_ref()
+                .map(CellSerializeExt::to_cell)
+                .transpose()?,
+            library: self
+                .library
+                .as_ref()
+                .map(CellSerializeExt::to_cell)
+                .transpose()?,
+        })
+    }
 }
 
 impl<C, D, L> CellSerialize for StateInit<C, D, L>

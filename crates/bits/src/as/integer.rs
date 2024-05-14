@@ -88,7 +88,13 @@ impl<const BITS_FOR_BYTES_LEN: usize> BitPackAs<BigUint> for VarUint<BITS_FOR_BY
     where
         W: BitWriter,
     {
-        writer.pack_as::<_, VarBytes<BITS_FOR_BYTES_LEN>>(source.to_bytes_be())?;
+        let bytes = if source != &BigUint::ZERO {
+            source.to_bytes_be()
+        } else {
+            // BigUint::to_bytes_be() returns [0] instead of []
+            Vec::new()
+        };
+        writer.pack_as::<_, VarBytes<BITS_FOR_BYTES_LEN>>(bytes)?;
         Ok(())
     }
 }
