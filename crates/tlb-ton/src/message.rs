@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use impl_tools::autoimpl;
 use num_bigint::BigUint;
 use tlb::{
     BitPack, BitReader, BitReaderExt, BitUnpack, BitWriter, BitWriterExt, Cell, CellBuilder,
@@ -7,16 +6,16 @@ use tlb::{
     Ref, Same,
 };
 
-use crate::{Grams, MsgAddress, UnixTimestamp};
+use crate::{CurrencyCollection, Grams, MsgAddress, StateInit, UnixTimestamp};
 
 /// message$_ {X:Type} info:CommonMsgInfo
 /// init:(Maybe (Either StateInit ^StateInit))
 /// body:(Either X ^X) = Message X;
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Message<T = Cell, IC = Cell, ID = Cell, IL = Cell> {
     pub info: CommonMsgInfo,
     pub init: Option<StateInit<IC, ID, IL>>,
-    pub body: T,
+    pub body: Option<T>,
 }
 
 impl<T, IC, ID, IL> CellSerialize for Message<T, IC, ID, IL>
@@ -30,7 +29,7 @@ where
         builder
             .pack(&self.info)?
             .store_as::<_, Option<Either<(), Ref>>>(self.init.as_ref().map(Some))?
-            .store_as::<_, Ref>(&self.body)?;
+            .store_as::<_, Option<Ref>>(self.body.as_ref())?;
         Ok(())
     }
 }
@@ -48,14 +47,16 @@ where
             init: parser
                 .parse_as::<_, Option<Either<Same, Ref>>>()?
                 .map(Either::into_inner),
-            body: parser
-                .parse_as::<Either<T, T>, Either<Same, Ref>>()?
-                .into_inner(),
+            body: Some(
+                parser
+                    .parse_as::<Either<T, T>, Either<Same, Ref>>()?
+                    .into_inner(),
+            ),
         })
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommonMsgInfo {
     /// int_msg_info$0
     Internal(InternalMsgInfo),
@@ -110,7 +111,7 @@ impl BitUnpack for CommonMsgInfo {
 /// src:MsgAddressInt dest:MsgAddressInt
 /// value:CurrencyCollection ihr_fee:Grams fwd_fee:Grams
 /// created_lt:uint64 created_at:uint32 = CommonMsgInfo;
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InternalMsgInfo {
     /// Hyper cube routing flag.
     pub ihr_disabled: bool,
@@ -132,7 +133,7 @@ pub struct InternalMsgInfo {
     /// Logic time of sending message assigned by validator. Using for odering actions in smart contract.
     pub created_lt: u64,
     /// Unix time
-    pub created_at: DateTime<Utc>,
+    pub created_at: Option<DateTime<Utc>>,
 }
 
 impl BitPack for InternalMsgInfo {
@@ -150,7 +151,7 @@ impl BitPack for InternalMsgInfo {
             .pack_as::<_, &Grams>(&self.ihr_fee)?
             .pack_as::<_, &Grams>(&self.fwd_fee)?
             .pack(self.created_lt)?
-            .pack_as::<_, UnixTimestamp>(self.created_at)?;
+            .pack_as::<_, UnixTimestamp>(self.created_at.unwrap_or(DateTime::UNIX_EPOCH))?;
         Ok(())
     }
 }
@@ -170,14 +171,15 @@ impl BitUnpack for InternalMsgInfo {
             ihr_fee: reader.unpack_as::<_, Grams>()?,
             fwd_fee: reader.unpack_as::<_, Grams>()?,
             created_lt: reader.unpack()?,
-            created_at: reader.unpack_as::<_, UnixTimestamp>()?,
+            created_at: Some(reader.unpack_as::<_, UnixTimestamp>()?)
+                .filter(|dt| *dt != DateTime::UNIX_EPOCH),
         })
     }
 }
 
 /// ext_in_msg_info$10 src:MsgAddressExt dest:MsgAddressInt
 /// import_fee:Grams = CommonMsgInfo;
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExternalInMsgInfo {
     pub src: MsgAddress,
     pub dst: MsgAddress,
@@ -212,7 +214,7 @@ impl BitUnpack for ExternalInMsgInfo {
 
 /// ext_out_msg_info$11 src:MsgAddressInt dest:MsgAddressExt
 /// created_lt:uint64 created_at:uint32 = CommonMsgInfo;
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExternalOutMsgInfo {
     pub src: MsgAddress,
     pub dst: MsgAddress,
@@ -248,133 +250,90 @@ impl BitUnpack for ExternalOutMsgInfo {
     }
 }
 
-/// tick_tock$_ tick:Bool tock:Bool = TickTock;
-#[derive(Debug, Clone, Copy)]
-pub struct TickTock {
-    tick: bool,
-    tock: bool,
-}
+#[cfg(test)]
+mod tests {
+    use tlb::{pack, unpack_fully, CellSerializeExt};
 
-impl BitPack for TickTock {
-    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
-    where
-        W: BitWriter,
-    {
-        writer.pack(self.tick)?.pack(self.tock)?;
-        Ok(())
+    use super::*;
+
+    #[test]
+    fn message_serde() {
+        let msg = Message::<(), (), (), ()> {
+            info: CommonMsgInfo::Internal(InternalMsgInfo {
+                ihr_disabled: true,
+                bounce: true,
+                bounced: false,
+                src: MsgAddress::NULL,
+                dst: MsgAddress::NULL,
+                value: CurrencyCollection {
+                    grams: BigUint::ZERO,
+                    other: crate::ExtraCurrencyCollection,
+                },
+                ihr_fee: BigUint::ZERO,
+                fwd_fee: BigUint::ZERO,
+                created_lt: 0,
+                created_at: None,
+            }),
+            init: None,
+            body: Some(()),
+        };
+
+        let cell = msg.to_cell().unwrap();
+        let got: Message<(), (), (), ()> = cell.parse_fully().unwrap();
+
+        assert_eq!(got, msg);
     }
-}
 
-impl BitUnpack for TickTock {
-    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
-    where
-        R: BitReader,
-    {
-        Ok(Self {
-            tick: reader.unpack()?,
-            tock: reader.unpack()?,
-        })
+    #[test]
+    fn internal_msg_info_serde() {
+        let info = CommonMsgInfo::Internal(InternalMsgInfo {
+            ihr_disabled: true,
+            bounce: true,
+            bounced: false,
+            src: MsgAddress::NULL,
+            dst: MsgAddress::NULL,
+            value: CurrencyCollection {
+                grams: BigUint::ZERO,
+                other: crate::ExtraCurrencyCollection,
+            },
+            ihr_fee: BigUint::ZERO,
+            fwd_fee: BigUint::ZERO,
+            created_lt: 0,
+            created_at: None,
+        });
+
+        let packed = pack(info.clone()).unwrap();
+        let got: CommonMsgInfo = unpack_fully(packed).unwrap();
+
+        assert_eq!(got, info);
     }
-}
 
-#[derive(Debug, Clone)]
-#[autoimpl(Default)]
-/// _ split_depth:(Maybe (## 5)) special:(Maybe TickTock)
-/// code:(Maybe ^Cell) data:(Maybe ^Cell)
-/// library:(Maybe ^Cell) = StateInit;
-pub struct StateInit<C = Cell, D = Cell, L = Cell> {
-    pub split_depth: Option<u8>,
-    pub special: Option<TickTock>,
-    pub code: Option<C>,
-    pub data: Option<D>,
-    pub library: Option<L>,
-}
+    #[test]
+    fn external_in_msg_info_serde() {
+        let info = CommonMsgInfo::ExternalIn(ExternalInMsgInfo {
+            src: MsgAddress::NULL,
+            dst: MsgAddress::NULL,
+            import_fee: BigUint::ZERO,
+        });
 
-impl<C, D, L> CellSerialize for StateInit<C, D, L>
-where
-    C: CellSerialize,
-    D: CellSerialize,
-    L: CellSerialize,
-{
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder
-            .pack_as::<_, Option<NBits<5>>>(self.split_depth)?
-            .pack(self.special)?
-            .store_as::<_, Option<Ref>>(self.code.as_ref())?
-            .store_as::<_, Option<Ref>>(self.data.as_ref())?
-            .store_as::<_, Option<Ref>>(self.library.as_ref())?;
-        Ok(())
+        let packed = pack(info.clone()).unwrap();
+        let got: CommonMsgInfo = unpack_fully(packed).unwrap();
+
+        assert_eq!(got, info);
     }
-}
 
-impl<'de, C, D, L> CellDeserialize<'de> for StateInit<C, D, L>
-where
-    C: CellDeserialize<'de>,
-    D: CellDeserialize<'de>,
-    L: CellDeserialize<'de>,
-{
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        Ok(Self {
-            split_depth: parser.unpack_as::<_, Option<NBits<5>>>()?,
-            special: parser.unpack()?,
-            code: parser.parse_as::<_, Option<Ref>>()?,
-            data: parser.parse_as::<_, Option<Ref>>()?,
-            library: parser.parse_as::<_, Option<Ref>>()?,
-        })
-    }
-}
+    #[test]
+    fn external_out_msg_info_serde() {
+        let info = CommonMsgInfo::ExternalOut(ExternalOutMsgInfo {
+            src: MsgAddress::NULL,
+            dst: MsgAddress::NULL,
+            created_lt: 0,
+            created_at: DateTime::UNIX_EPOCH,
+        });
 
-/// currencies$_ grams:Grams other:ExtraCurrencyCollection = CurrencyCollection;
-#[derive(Debug, Clone)]
-pub struct CurrencyCollection {
-    pub grams: BigUint,
-    pub other: ExtraCurrencyCollection,
-}
+        let packed = pack(info.clone()).unwrap();
+        let got: CommonMsgInfo = unpack_fully(packed).unwrap();
 
-impl BitPack for CurrencyCollection {
-    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
-    where
-        W: BitWriter,
-    {
-        writer
-            .pack_as::<_, &Grams>(&self.grams)?
-            .pack(&self.other)?;
-        Ok(())
-    }
-}
-
-impl BitUnpack for CurrencyCollection {
-    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
-    where
-        R: BitReader,
-    {
-        Ok(Self {
-            grams: reader.unpack_as::<_, Grams>()?,
-            other: reader.unpack()?,
-        })
-    }
-}
-
-/// extra_currencies$_ dict:(HashmapE 32 (VarUInteger 32)) = ExtraCurrencyCollection;
-#[derive(Debug, Clone)]
-pub struct ExtraCurrencyCollection;
-
-impl BitPack for ExtraCurrencyCollection {
-    fn pack<W>(&self, writer: W) -> Result<(), W::Error>
-    where
-        W: BitWriter,
-    {
-        // TODO
-        false.pack(writer)
-    }
-}
-
-impl BitUnpack for ExtraCurrencyCollection {
-    fn unpack<R>(_reader: R) -> Result<Self, R::Error>
-    where
-        R: BitReader,
-    {
-        // TODO
-        Ok(Self)
+        assert_eq!(got, info);
     }
 }

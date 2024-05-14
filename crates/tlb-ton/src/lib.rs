@@ -1,7 +1,8 @@
 mod address;
 mod boc;
-mod coins;
+mod currency;
 mod message;
+mod state_init;
 mod timestamp;
 
-pub use self::{address::*, boc::*, coins::*, message::*, timestamp::*};
+pub use self::{address::*, boc::*, currency::*, message::*, state_init::*, timestamp::*};

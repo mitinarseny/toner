@@ -104,7 +104,7 @@ where
                 data: Some(V::init_data(self.wallet_id, self.key_pair.pkey)),
                 ..Default::default()
             }),
-            body: msg,
+            body: Some(msg),
         }
     }
 }

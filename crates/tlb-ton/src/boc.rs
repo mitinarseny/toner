@@ -419,13 +419,15 @@ mod tests {
     #[test]
     fn boc_serde() {
         let packed = BoC::from_root(().to_cell().unwrap()).pack(true).unwrap();
-        packed
+        let unpacked = packed
             .as_bits()
             .unpack::<BoC>()
             .unwrap()
             .single_root()
             .unwrap()
-            .parse_fully::<()>()
-            .unwrap();
+            .clone();
+
+        let got: () = unpacked.parse_fully().unwrap();
+        assert_eq!(got, ());
     }
 }

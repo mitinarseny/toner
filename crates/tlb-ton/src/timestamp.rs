@@ -22,3 +22,20 @@ impl BitUnpackAs<DateTime<Utc>> for UnixTimestamp {
         Ok(DateTime::from_timestamp(timestamp as i64, 0).unwrap())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use tlb::{pack_as, unpack_fully_as};
+
+    use super::*;
+
+    #[test]
+    fn unix_timestamp_serde() {
+        let ts = DateTime::UNIX_EPOCH;
+
+        let packed = pack_as::<_, UnixTimestamp>(ts).unwrap();
+        let got: DateTime<Utc> = unpack_fully_as::<_, UnixTimestamp>(packed).unwrap();
+
+        assert_eq!(got, ts);
+    }
+}
