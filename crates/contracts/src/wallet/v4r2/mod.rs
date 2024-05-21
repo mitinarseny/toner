@@ -9,7 +9,7 @@ use tlb::{
 };
 use tlb_ton::{BagOfCells, UnixTimestamp};
 
-use crate::{WalletOpSendMessage, WalletVersion};
+use super::{WalletOpSendMessage, WalletVersion};
 
 lazy_static! {
     static ref WALLET_V4R2_CODE_CELL: Arc<Cell> = {

@@ -199,7 +199,7 @@ where
 mod tests {
     use tlb_ton::MsgAddress;
 
-    use crate::{mnemonic::Mnemonic, v4r2::V4R2, Wallet};
+    use crate::wallet::{mnemonic::Mnemonic, v4r2::V4R2, Wallet};
 
     #[test]
     fn derive() {
