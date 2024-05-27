@@ -33,22 +33,6 @@ where
 }
 
 #[inline]
-pub fn unpack_as<T, As>(bits: impl AsRef<BitSlice<u8, Msb0>>) -> Result<T, StringError>
-where
-    As: BitUnpackAs<T>,
-{
-    bits.as_ref().unpack_as::<T, As>()
-}
-
-#[inline]
-pub fn unpack_bytes_as<T, As>(bytes: impl AsRef<[u8]>) -> Result<T, StringError>
-where
-    As: BitUnpackAs<T>,
-{
-    unpack_as::<_, As>(bytes.as_bits())
-}
-
-#[inline]
 pub fn unpack_fully<T>(bits: impl AsRef<BitSlice<u8, Msb0>>) -> Result<T, StringError>
 where
     T: BitUnpack,
@@ -67,27 +51,6 @@ where
     T: BitUnpack,
 {
     unpack_fully(bytes.as_bits())
-}
-
-#[inline]
-pub fn unpack_fully_as<T, As>(bits: impl AsRef<BitSlice<u8, Msb0>>) -> Result<T, StringError>
-where
-    As: BitUnpackAs<T>,
-{
-    let mut bits = bits.as_ref();
-    let v = bits.unpack_as::<T, As>()?;
-    if !bits.is_empty() {
-        return Err(Error::custom("more data left"));
-    }
-    Ok(v)
-}
-
-#[inline]
-pub fn unpack_bytes_fully_as<T, As>(bytes: impl AsRef<[u8]>) -> Result<T, StringError>
-where
-    As: BitUnpackAs<T>,
-{
-    unpack_fully_as::<_, As>(bytes.as_bits())
 }
 
 impl BitUnpack for () {
