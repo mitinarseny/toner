@@ -1,14 +1,16 @@
 use num_bigint::BigUint;
 use tlb::{
     BitReaderExt, BitWriterExt, Cell, CellBuilder, CellBuilderError, CellDeserialize, CellParser,
-    CellParserError, CellSerialize, ConstU32, Either, Ref, Same, VarUint,
+    CellParserError, CellSerialize, ConstU32, Either, ParseFully, Ref, Same, VarUint,
 };
 use tlb_ton::MsgAddress;
 
+/// ```tlb
 /// transfer#0f8a7ea5 query_id:uint64 amount:(VarUInteger 16) destination:MsgAddress
 /// response_destination:MsgAddress custom_payload:(Maybe ^Cell)
 /// forward_ton_amount:(VarUInteger 16) forward_payload:(Either Cell ^Cell)
 /// = InternalMsgBody;
+/// ```
 pub struct JettonTransfer<P = Cell, F = Cell> {
     pub query_id: u64,
     pub amount: BigUint,
@@ -52,18 +54,20 @@ where
             amount: parser.unpack_as::<_, VarUint<4>>()?,
             dst: parser.unpack()?,
             response_dst: parser.unpack()?,
-            custom_payload: parser.parse_as::<_, Option<Ref>>()?,
+            custom_payload: parser.parse_as::<_, Option<Ref<ParseFully>>>()?,
             forward_ton_amount: parser.unpack_as::<_, VarUint<4>>()?,
             forward_payload: parser
-                .parse_as::<Either<F, F>, Either<Same, Ref>>()?
+                .parse_as::<Either<F, F>, Either<Same, Ref<ParseFully>>>()?
                 .into_inner(),
         })
     }
 }
 
+/// ```tlb
 /// transfer_notification#7362d09c query_id:uint64 amount:(VarUInteger 16)
 /// sender:MsgAddress forward_payload:(Either Cell ^Cell)
 /// = InternalMsgBody;
+/// ```
 pub struct JettonTransferNotification<P = Cell> {
     pub query_id: u64,
     pub amount: BigUint,
@@ -99,15 +103,17 @@ where
             amount: parser.unpack_as::<_, VarUint<4>>()?,
             sender: parser.unpack()?,
             forward_payload: parser
-                .parse_as::<Either<P, P>, Either<Same, Ref>>()?
+                .parse_as::<Either<P, P>, Either<Same, Ref<ParseFully>>>()?
                 .into_inner(),
         })
     }
 }
 
+/// ```tlb
 /// burn#595f07bc query_id:uint64 amount:(VarUInteger 16)
 /// response_destination:MsgAddress custom_payload:(Maybe ^Cell)
 /// = InternalMsgBody;
+/// ```
 pub struct JettonBurn<P> {
     pub query_id: u64,
     pub amount: BigUint,
@@ -141,7 +147,7 @@ where
             query_id: parser.unpack()?,
             amount: parser.unpack_as::<_, VarUint<4>>()?,
             response_dst: parser.unpack()?,
-            custom_payload: parser.parse_as::<_, Option<Ref>>()?,
+            custom_payload: parser.parse_as::<_, Option<Ref<ParseFully>>>()?,
         })
     }
 }

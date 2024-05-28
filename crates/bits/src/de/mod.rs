@@ -1,12 +1,12 @@
 mod r#as;
 mod reader;
 
-use bitvec::{order::Msb0, slice::BitSlice, view::AsBits};
-
 pub use self::{r#as::*, reader::*};
 
 use core::mem::MaybeUninit;
 use std::{rc::Rc, sync::Arc};
+
+use bitvec::{order::Msb0, slice::BitSlice, view::AsBits};
 
 use crate::{Error, FromInto, ResultExt, StringError};
 

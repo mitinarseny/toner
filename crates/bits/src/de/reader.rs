@@ -1,6 +1,7 @@
 use core::{iter, mem::size_of};
 
 use ::bitvec::{order::Msb0, slice::BitSlice, vec::BitVec, view::AsMutBits};
+use bitvec::mem::bits_of;
 use impl_tools::autoimpl;
 use num_traits::PrimInt;
 
@@ -91,6 +92,23 @@ pub trait BitReaderExt: BitReader {
         iter::repeat_with(|| self.unpack_as::<_, As>())
             .enumerate()
             .map(|(i, v)| v.with_context(|| format!("[{i}]")))
+    }
+
+    #[inline]
+    fn unpack_as_n_bits<T>(&mut self, num_bits: u32) -> Result<T, Self::Error>
+    where
+        T: PrimInt,
+    {
+        let size_bits: u32 = bits_of::<T>() as u32;
+        if num_bits > size_bits {
+            return Err(Error::custom("excessive bits for the type"));
+        }
+        let mut v: T = T::zero();
+        for bit in self.unpack_iter::<bool>().take(num_bits as usize) {
+            v = v << 1;
+            v = v | if bit? { T::one() } else { T::zero() };
+        }
+        Ok(v)
     }
 
     #[inline]

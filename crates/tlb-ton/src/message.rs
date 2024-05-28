@@ -8,9 +8,11 @@ use tlb::{
 
 use crate::{CurrencyCollection, Grams, MsgAddress, StateInit, UnixTimestamp};
 
+/// ```tlb
 /// message$_ {X:Type} info:CommonMsgInfo
 /// init:(Maybe (Either StateInit ^StateInit))
 /// body:(Either X ^X) = Message X;
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Message<T = Cell, IC = Cell, ID = Cell, IL = Cell> {
     pub info: CommonMsgInfo,
@@ -76,11 +78,19 @@ where
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommonMsgInfo {
+    /// ```tlb
     /// int_msg_info$0
+    /// ```
     Internal(InternalMsgInfo),
+
+    /// ```tlb
     /// ext_in_msg_info$10
+    /// ```
     ExternalIn(ExternalInMsgInfo),
+
+    /// ```tlb
     /// ext_out_msg_info$11
+    /// ```
     ExternalOut(ExternalOutMsgInfo),
 }
 
@@ -125,10 +135,12 @@ impl BitUnpack for CommonMsgInfo {
     }
 }
 
+/// ```tlb
 /// int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
 /// src:MsgAddressInt dest:MsgAddressInt
 /// value:CurrencyCollection ihr_fee:Grams fwd_fee:Grams
 /// created_lt:uint64 created_at:uint32 = CommonMsgInfo;
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InternalMsgInfo {
     /// Hyper cube routing flag.
@@ -195,8 +207,10 @@ impl BitUnpack for InternalMsgInfo {
     }
 }
 
+/// ```tlb
 /// ext_in_msg_info$10 src:MsgAddressExt dest:MsgAddressInt
 /// import_fee:Grams = CommonMsgInfo;
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExternalInMsgInfo {
     pub src: MsgAddress,
@@ -230,8 +244,10 @@ impl BitUnpack for ExternalInMsgInfo {
     }
 }
 
+/// ```tlb
 /// ext_out_msg_info$11 src:MsgAddressInt dest:MsgAddressExt
 /// created_lt:uint64 created_at:uint32 = CommonMsgInfo;
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExternalOutMsgInfo {
     pub src: MsgAddress,

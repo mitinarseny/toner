@@ -2,14 +2,16 @@ use impl_tools::autoimpl;
 use tlb::{
     BitPack, BitReader, BitReaderExt, BitUnpack, BitWriter, BitWriterExt, Cell, CellBuilder,
     CellBuilderError, CellDeserialize, CellParser, CellParserError, CellSerialize,
-    CellSerializeExt, NBits, Ref,
+    CellSerializeExt, NBits, ParseFully, Ref,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[autoimpl(Default)]
+/// ```tlb
 /// _ split_depth:(Maybe (## 5)) special:(Maybe TickTock)
 /// code:(Maybe ^Cell) data:(Maybe ^Cell)
 /// library:(Maybe ^Cell) = StateInit;
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[autoimpl(Default)]
 pub struct StateInit<C = Cell, D = Cell, L = Cell> {
     pub split_depth: Option<u8>,
     pub special: Option<TickTock>,
@@ -74,14 +76,16 @@ where
         Ok(Self {
             split_depth: parser.unpack_as::<_, Option<NBits<5>>>()?,
             special: parser.unpack()?,
-            code: parser.parse_as::<_, Option<Ref>>()?,
-            data: parser.parse_as::<_, Option<Ref>>()?,
-            library: parser.parse_as::<_, Option<Ref>>()?,
+            code: parser.parse_as::<_, Option<Ref<ParseFully>>>()?,
+            data: parser.parse_as::<_, Option<Ref<ParseFully>>>()?,
+            library: parser.parse_as::<_, Option<Ref<ParseFully>>>()?,
         })
     }
 }
 
+/// ```tlb
 /// tick_tock$_ tick:Bool tock:Bool = TickTock;
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TickTock {
     tick: bool,

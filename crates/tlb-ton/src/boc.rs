@@ -175,11 +175,19 @@ pub(crate) struct RawBagOfCells {
 }
 
 impl RawBagOfCells {
-    // serialized_boc_idx#68ff65f3
+    ///```tlb
+    /// serialized_boc_idx#68ff65f3
+    /// ```
     const INDEXED_BOC_TAG: u32 = 0x68ff65f3;
-    // serialized_boc_idx_crc32c#acc3a728
+
+    /// ```tlb
+    /// serialized_boc_idx_crc32c#acc3a728
+    /// ```
     const INDEXED_CRC32_TAG: u32 = 0xacc3a728;
-    // serialized_boc#b5ee9c72
+
+    /// ```tlb
+    /// serialized_boc#b5ee9c72
+    /// ```
     const GENERIC_BOC_TAG: u32 = 0xb5ee9c72;
 
     pub fn pack_flags(&self, has_idx: bool, has_crc32c: bool) -> Result<Vec<u8>, StringError> {

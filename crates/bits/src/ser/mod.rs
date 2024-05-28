@@ -23,7 +23,7 @@ where
     T: BitPack,
 {
     let mut writer = BitVec::new();
-    writer.pack(value)?;
+    BitWriterExt::pack(&mut writer, value)?;
     Ok(writer)
 }
 
@@ -74,6 +74,18 @@ where
     }
 }
 
+impl<T> BitPack for Vec<T>
+where
+    T: BitPack,
+{
+    fn pack<W>(&self, writer: W) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        self.as_slice().pack(writer)
+    }
+}
+
 macro_rules! impl_bit_serialize_for_tuple {
     ($($n:tt:$t:ident),+) => {
         impl<$($t),+> BitPack for ($($t,)+)
@@ -110,6 +122,15 @@ impl<'a> BitPack for &'a BitSlice<u8, Msb0> {
         W: BitWriter,
     {
         writer.write_bitslice(self)
+    }
+}
+
+impl BitPack for BitVec<u8, Msb0> {
+    fn pack<W>(&self, writer: W) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        self.as_bitslice().pack(writer)
     }
 }
 

@@ -152,8 +152,16 @@ impl Cell {
 
 impl Debug for Cell {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (bits_len, data) = self.data_bytes();
-        write!(f, "{}[0x{}]", bits_len, hex::encode_upper(data))?;
+        if f.alternate() {
+            write!(f, "{}[0b", self.data.len())?;
+            for bit in &self.data {
+                write!(f, "{}", if *bit { '1' } else { '0' })?;
+            }
+            write!(f, "]")?;
+        } else {
+            let (bits_len, data) = self.data_bytes();
+            write!(f, "{}[0x{}]", bits_len, hex::encode_upper(data))?;
+        }
         if self.references.is_empty() {
             return Ok(());
         }

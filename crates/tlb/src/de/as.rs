@@ -1,7 +1,9 @@
 use core::{marker::PhantomData, mem::MaybeUninit};
 use std::{rc::Rc, sync::Arc};
 
-use crate::{CellDeserialize, CellParser, CellParserError, ResultExt};
+use tlbits::Same;
+
+use crate::{bits::DefaultOnNone, CellDeserialize, CellParser, CellParserError, ResultExt};
 
 pub trait CellDeserializeAs<'de, T> {
     fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>>;

@@ -4,7 +4,9 @@ use tlb::{BitPack, BitReader, BitReaderExt, BitUnpack, BitWriter, BitWriterExt, 
 pub type Coins = VarUint<4>;
 pub type Grams = Coins;
 
+/// ```tlb
 /// currencies$_ grams:Grams other:ExtraCurrencyCollection = CurrencyCollection;
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CurrencyCollection {
     pub grams: BigUint,
@@ -35,7 +37,9 @@ impl BitUnpack for CurrencyCollection {
     }
 }
 
+/// ```tlb
 /// extra_currencies$_ dict:(HashmapE 32 (VarUInteger 32)) = ExtraCurrencyCollection;
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExtraCurrencyCollection;
 
