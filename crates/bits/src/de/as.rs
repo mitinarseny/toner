@@ -53,7 +53,7 @@ where
     As: ?Sized,
 {
     value: T,
-    _phanton: PhantomData<As>,
+    _phantom: PhantomData<As>,
 }
 
 impl<T, As> BitUnpackAsWrap<T, As>
@@ -78,7 +78,7 @@ where
     {
         As::unpack_as(reader).map(|value| Self {
             value,
-            _phanton: PhantomData,
+            _phantom: PhantomData,
         })
     }
 }

@@ -1,31 +1,48 @@
-use bitvec::{order::Msb0, slice::BitSlice};
+use impl_tools::autoimpl;
 
-use crate::{BitReader, Error};
-
+#[autoimpl(Deref using self.inner)]
 pub struct MapErr<T, F> {
     pub(crate) inner: T,
     pub(crate) f: F,
 }
 
-impl<R, F, E> BitReader for MapErr<R, F>
-where
-    R: BitReader,
-    F: FnMut(R::Error) -> E,
-    E: Error,
-{
-    type Error = E;
+#[autoimpl(Deref using self.inner)]
+pub struct Tee<T, W> {
+    pub(crate) inner: T,
+    pub(crate) writer: W,
+}
 
-    fn read_bit(&mut self) -> Result<bool, Self::Error> {
-        self.inner.read_bit().map_err(&mut self.f)
+impl<T, W> Tee<T, W> {
+    #[inline]
+    pub fn into_inner(self) -> T {
+        self.inner
     }
 
     #[inline]
-    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
-        self.inner.read_bits_into(dst).map_err(&mut self.f)
+    pub fn into_writer(self) -> W {
+        self.writer
+    }
+}
+
+#[autoimpl(Deref using self.inner)]
+pub struct BitCounter<T> {
+    pub(crate) inner: T,
+    pub(crate) counter: usize,
+}
+
+impl<T> BitCounter<T> {
+    #[inline]
+    pub const fn new(inner: T) -> Self {
+        Self { inner, counter: 0 }
     }
 
     #[inline]
-    fn skip(&mut self, n: usize) -> Result<(), Self::Error> {
-        self.inner.skip(n).map_err(&mut self.f)
+    pub const fn counter(&self) -> usize {
+        self.counter
+    }
+
+    #[inline]
+    pub fn into_inner(self) -> T {
+        self.inner
     }
 }

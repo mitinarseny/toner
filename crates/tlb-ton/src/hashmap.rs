@@ -1,7 +1,7 @@
 use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
 use tlb::{
     BitReader, BitReaderExt, Cell, CellDeserializeAsOwned, CellDeserializeOwned, CellParser,
-    CellParserError, Error, Ref, Same,
+    CellParserError, Error, Ref, Same, VarNBits,
 };
 
 use crate::Unary;
@@ -80,54 +80,40 @@ impl<T> HashmapE<T> {
 /// ```
 #[derive(Debug, Clone)]
 pub struct Hashmap<T> {
-    label: HmLabel,
+    label: BitVec<u8, Msb0>,
     node: HashmapNode<T>,
 }
 
 impl<T> Hashmap<T> {
+    #[inline]
+    pub fn prefix(&self) -> &BitSlice<u8, Msb0> {
+        &self.label
+    }
+
+    #[inline]
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.node.len()
     }
 
+    #[inline]
     pub fn get(&self, mut key: &BitSlice<u8, Msb0>) -> Option<&T> {
-        key = key.strip_prefix(&self.label.s)?;
+        key = key.strip_prefix(&self.label)?;
         self.node.get(key)
     }
 
+    #[inline]
     pub fn get_mut(&mut self, mut key: &BitSlice<u8, Msb0>) -> Option<&mut T> {
-        key = key.strip_prefix(&self.label.s)?;
+        key = key.strip_prefix(&self.label)?;
         self.node.get_mut(key)
     }
 
-    pub fn parse_n_as<'de, As>(
-        parser: &mut CellParser<'de>,
-        n: u32,
-    ) -> Result<Self, CellParserError<'de>>
-    where
-        As: CellDeserializeAsOwned<T> + ?Sized,
-    {
-        let label = HmLabel::unpack_m(&mut *parser, n)?;
-        let m = n - label.n;
-        Ok(Self {
-            label,
-            node: HashmapNode::parse_n_as::<As>(parser, m)?,
-        })
-    }
-}
-
-/// ```tlb
-/// hml_short$0 {m:#} {n:#} len:(Unary ~n) {n <= m} s:(n * Bit) = HmLabel ~n m;
-/// hml_long$10 {m:#} n:(#<= m) s:(n * Bit) = HmLabel ~n m;
-/// hml_same$11 {m:#} v:Bit n:(#<= m) = HmLabel ~n m;
-/// ```
-#[derive(Debug, Clone)]
-struct HmLabel {
-    n: u32,
-    s: BitVec<u8, Msb0>,
-}
-
-impl HmLabel {
-    fn unpack_m<R>(mut reader: R, m: u32) -> Result<Self, R::Error>
+    /// ```tlb
+    /// hml_short$0 {m:#} {n:#} len:(Unary ~n) {n <= m} s:(n * Bit) = HmLabel ~n m;
+    /// hml_long$10 {m:#} n:(#<= m) s:(n * Bit) = HmLabel ~n m;
+    /// hml_same$11 {m:#} v:Bit n:(#<= m) = HmLabel ~n m;
+    /// ```
+    fn unpack_label<R>(mut reader: R, m: u32) -> Result<(u32, BitVec<u8, Msb0>), R::Error>
     where
         R: BitReader,
     {
@@ -140,31 +126,52 @@ impl HmLabel {
                 if n > m {
                     return Err(Error::custom("n > m"));
                 }
-                Self {
+                (
                     n,
                     // s:(n * Bit)
-                    s: reader.read_bitvec(n as usize)?,
-                }
+                    reader.read_bitvec(n as usize)?,
+                )
             }
             true => match reader.unpack()? {
                 // hml_long$10
                 false => {
                     // n:(#<= m)
-                    let n: u32 = reader.unpack_as_n_bits(m.ilog2() + 1)?;
-                    Self {
+                    let n: u32 = reader.unpack_as_with::<_, VarNBits>(m.ilog2() + 1)?;
+                    (
                         n,
                         // s:(n * Bit)
-                        s: reader.read_bitvec(n as usize)?,
-                    }
+                        reader.read_bitvec(n as usize)?,
+                    )
                 }
                 // hml_same$11
-                true => Self {
+                true => {
                     // v:Bit
-                    s: reader.read_bitvec(1)?,
-                    // n:(#<= m)
-                    n: reader.unpack_as_n_bits(m.ilog2() + 1)?,
-                },
+                    let s = reader.read_bitvec(1)?;
+                    (
+                        // n:(#<= m)
+                        reader.unpack_as_with::<_, VarNBits>(m.ilog2() + 1)?,
+                        s,
+                    )
+                }
             },
+        })
+    }
+
+    pub fn parse_n_as<'de, As>(
+        parser: &mut CellParser<'de>,
+        n: u32,
+    ) -> Result<Self, CellParserError<'de>>
+    where
+        As: CellDeserializeAsOwned<T> + ?Sized,
+    {
+        // label:(HmLabel ~l n)
+        let (l, label) = Self::unpack_label(&mut *parser, n)?;
+        // {n = (~m) + l}
+        let m = n - l;
+        Ok(Self {
+            label,
+            // node:(HashmapNode m X)
+            node: HashmapNode::parse_n_as::<As>(parser, m)?,
         })
     }
 }

@@ -120,20 +120,25 @@ impl CellSerialize for WalletV4R2Op {
 
 #[cfg(test)]
 mod tests {
-    use tlb::unpack_bytes_fully;
-    use tlb_ton::BoC;
+    use tlb::{pack_with, unpack_fully};
+    use tlb_ton::{BagOfCellsArgs, BoC};
 
     use super::*;
 
     #[test]
     fn check_code() {
-        let packed = BoC::from_root(WALLET_V4R2_CODE_CELL.clone())
-            .pack(true)
-            .unwrap();
-        let unpacked: BoC = unpack_bytes_fully(packed).unwrap();
+        let packed = pack_with(
+            BoC::from_root(WALLET_V4R2_CODE_CELL.clone()),
+            BagOfCellsArgs {
+                has_idx: false,
+                has_crc32c: true,
+            },
+        )
+        .unwrap();
+
+        let unpacked: BoC = unpack_fully(packed).unwrap();
 
         let got: Cell = unpacked.single_root().unwrap().parse_fully().unwrap();
-
         assert_eq!(&got, WALLET_V4R2_CODE_CELL.as_ref());
     }
 }

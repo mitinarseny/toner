@@ -1,4 +1,7 @@
-use crate::{BitPack, BitPackAs, BitReader, BitUnpack, BitUnpackAs, BitWriter};
+use crate::{
+    BitPack, BitPackAs, BitPackAsWithArgs, BitPackWithArgs, BitReader, BitUnpack, BitUnpackAs,
+    BitUnpackAsWithArgs, BitUnpackWithArgs, BitWriter,
+};
 
 pub struct Same;
 
@@ -25,5 +28,35 @@ where
         R: BitReader,
     {
         T::unpack(reader)
+    }
+}
+
+impl<T> BitPackAsWithArgs<T> for Same
+where
+    T: BitPackWithArgs,
+{
+    type Args = T::Args;
+
+    #[inline]
+    fn pack_as_with<W>(source: &T, writer: W, args: Self::Args) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        T::pack_with(source, writer, args)
+    }
+}
+
+impl<T> BitUnpackAsWithArgs<T> for Same
+where
+    T: BitUnpackWithArgs,
+{
+    type Args = T::Args;
+
+    #[inline]
+    fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<T, R::Error>
+    where
+        R: BitReader,
+    {
+        T::unpack_with(reader, args)
     }
 }

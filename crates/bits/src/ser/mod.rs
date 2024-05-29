@@ -1,7 +1,8 @@
+mod args;
 mod r#as;
 mod writer;
 
-pub use self::{r#as::*, writer::*};
+pub use self::{args::*, r#as::*, writer::*};
 
 use std::{rc::Rc, sync::Arc};
 
@@ -24,6 +25,16 @@ where
 {
     let mut writer = BitVec::new();
     BitWriterExt::pack(&mut writer, value)?;
+    Ok(writer)
+}
+
+#[inline]
+pub fn pack_with<T>(value: T, args: T::Args) -> Result<BitVec<u8, Msb0>, StringError>
+where
+    T: BitPackWithArgs,
+{
+    let mut writer = BitVec::new();
+    BitWriterExt::pack_with(&mut writer, value, args)?;
     Ok(writer)
 }
 
