@@ -30,7 +30,7 @@ impl<'de, T, As> CellDeserializeAs<'de, BinTree<T>> for BinTree<As> where As: Ce
 mod tests {
     use bitvec::bits;
     use bitvec::order::Msb0;
-    use tlb::{CellSerializeExt, CellSerializeWrapAsExt, Data};
+    use tlb::{CellSerializeExt, CellSerializeWrapAsExt, Data, Ref};
     use crate::BinTree;
 
     impl<I> BinTree<I> {
@@ -38,6 +38,13 @@ mod tests {
             match self {
                 BinTree::Leaf(x) => x,
                 _ => panic!("expected leaf, got fork"),
+            }
+        }
+
+        pub fn unwrap_fork(self) -> [BinTree<I>; 2] {
+            match self {
+                BinTree::Fork(x) => x.map(|x| *x),
+                _ => panic!("expected fork, got leaf"),
             }
         }
     }
@@ -49,6 +56,22 @@ mod tests {
         let got: BinTree<u8> = data.parse_fully_as::<_, BinTree<Data>>().unwrap();
 
         assert_eq!(got.unwrap_leaf(), 5);
+    }
+
+    #[test]
+    fn bin_tree_fork() {
+        let data = (
+            bits![u8, Msb0; 1].wrap_as::<Data>(), (
+                bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 1].wrap_as::<Ref<Data>>(),
+                bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 0, 1, 1].wrap_as::<Ref<Data>>()
+        )).to_cell().unwrap();
+
+        let [left, right] = data.parse_fully_as::<BinTree<u8>, BinTree<Data>>()
+            .unwrap()
+            .unwrap_fork();
+
+        assert_eq!(left.unwrap_leaf(), 5);
+        assert_eq!(right.unwrap_leaf(), 3);
     }
 }
 
