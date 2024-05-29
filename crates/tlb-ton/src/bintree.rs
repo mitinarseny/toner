@@ -1,5 +1,5 @@
 use tlb::{Cell, CellDeserializeAs, CellDeserializeAsOwned, CellParser, CellParserError, Ref};
-use tlbits::BitReaderExt;
+use tlbits::{BitReader, BitReaderExt};
 
 /// ```tlb
 /// bt_leaf$0 {X:Type} leaf:X = BinTree X;
@@ -23,6 +23,39 @@ impl<'de, T, As> CellDeserializeAs<'de, BinTree<T>> for BinTree<As> where As: Ce
                 Ok(BinTree::Fork([l, r].map(Into::into)))
             }
         }
+    }
+}
+
+impl<'de, T, As> CellDeserializeAs<'de, Vec<T>> for BinTree<As> where As: CellDeserializeAsOwned<T> {
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<Vec<T>, CellParserError<'de>> {
+        #[inline]
+        fn unpack<'a, T, As: CellDeserializeAsOwned<T>>(
+            output: &'a mut Vec<T>,
+            stack: &'a mut Vec<Cell>,
+            parser: &'a mut CellParser<'_>
+        ) -> Result<(), <CellParser<'a> as BitReader>::Error> {
+            match parser.unpack()? {
+                false => output.push(parser.parse_as::<T, As>()?),
+                true => {
+                    let [lc, rc]: [Cell; 2] = parser.parse_as::<_, [Ref; 2]>()?;
+                    stack.push(lc);
+                    stack.push(rc);
+                }
+            }
+            Ok(())
+        }
+
+        let mut output = Vec::new();
+        let mut stack = Vec::new();
+
+        unpack::<T, As>(&mut output, &mut stack, parser)?;
+
+        while let Some(cell) = stack.pop() {
+            let mut parser = cell.parser();
+            unpack::<T, As>(&mut output, &mut stack, &mut parser)?;
+        }
+
+        Ok(output)
     }
 }
 
@@ -72,6 +105,28 @@ mod tests {
 
         assert_eq!(left.unwrap_leaf(), 5);
         assert_eq!(right.unwrap_leaf(), 3);
+    }
+
+    #[test]
+    fn bin_tree_as_vector_leaf() {
+        let data = (bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 1].wrap_as::<Data>()).to_cell().unwrap();
+
+        let got: Vec<u8> = data.parse_fully_as::<_, BinTree<Data>>().unwrap();
+
+        assert_eq!(got, vec![5]);
+    }
+
+    #[test]
+    fn bin_tree_as_vector_fork() {
+        let data = (
+            bits![u8, Msb0; 1].wrap_as::<Data>(), (
+                bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 1].wrap_as::<Ref<Data>>(),
+                bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 0, 1, 1].wrap_as::<Ref<Data>>()
+            )).to_cell().unwrap();
+
+        let got: Vec<u8> = data.parse_fully_as::<_, BinTree<Data>>().unwrap();
+
+        assert_eq!(got, vec![3, 5]);
     }
 }
 
