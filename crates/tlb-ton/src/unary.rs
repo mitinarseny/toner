@@ -1,7 +1,13 @@
 use core::iter;
 
 use num_traits::{ConstZero, One, ToPrimitive, Unsigned};
-use tlb::{BitPackAs, BitReader, BitUnpackAs, BitWriter, BitWriterExt, Error};
+use tlb::{
+    bits::{
+        de::{r#as::BitUnpackAs, BitReader},
+        ser::{r#as::BitPackAs, BitWriter, BitWriterExt},
+    },
+    Error,
+};
 
 /// ```tlb
 /// unary_zero$0 = Unary ~0;
@@ -13,6 +19,7 @@ impl<T> BitPackAs<T> for Unary
 where
     T: ToPrimitive + Unsigned,
 {
+    #[inline]
     fn pack_as<W>(num: &T, mut writer: W) -> Result<(), W::Error>
     where
         W: BitWriter,
@@ -35,6 +42,7 @@ impl<T> BitUnpackAs<T> for Unary
 where
     T: Unsigned + ConstZero + One,
 {
+    #[inline]
     fn unpack_as<R>(mut reader: R) -> Result<T, R::Error>
     where
         R: BitReader,

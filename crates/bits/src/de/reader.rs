@@ -4,8 +4,15 @@ use ::bitvec::{order::Msb0, slice::BitSlice, vec::BitVec, view::AsMutBits};
 use impl_tools::autoimpl;
 
 use crate::{
-    BitUnpack, BitUnpackAs, BitUnpackAsWithArgs, BitUnpackWithArgs, BitWriter, Error, MapErr,
-    ResultExt, StringError, Tee,
+    adapters::{MapErr, Tee},
+    ser::BitWriter,
+    Error, ResultExt, StringError,
+};
+
+use super::{
+    args::{r#as::BitUnpackAsWithArgs, BitUnpackWithArgs},
+    r#as::BitUnpackAs,
+    BitUnpack,
 };
 
 #[autoimpl(for <R: trait + ?Sized> &mut R, Box<R>)]

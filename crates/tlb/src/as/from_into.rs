@@ -1,9 +1,12 @@
 use core::fmt::Display;
 
 use crate::{
-    CellBuilder, CellBuilderError, CellDeserialize, CellDeserializeAs, CellParser, CellParserError,
-    CellSerialize, CellSerializeAs, Error, FromInto, FromIntoRef, TryFromInto,
+    de::{r#as::CellDeserializeAs, CellDeserialize, CellParser, CellParserError},
+    ser::{r#as::CellSerializeAs, CellBuilder, CellBuilderError, CellSerialize},
+    Error,
 };
+
+pub use crate::bits::r#as::{FromInto, FromIntoRef, TryFromInto};
 
 impl<T, As> CellSerializeAs<T> for FromInto<As>
 where

@@ -1,13 +1,13 @@
-mod r#as;
-
-pub use self::r#as::*;
+pub mod r#as;
 
 use core::mem::{self, MaybeUninit};
 use std::{rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, slice::BitSlice};
 
-use crate::{BitReader, Cell, Error, FromInto, ResultExt};
+use crate::{bits::de::BitReader, r#as::FromInto, Cell, Error, ResultExt};
+
+use self::r#as::CellDeserializeAs;
 
 pub trait CellDeserialize<'de>: Sized {
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>>;

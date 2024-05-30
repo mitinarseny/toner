@@ -1,6 +1,8 @@
 use core::marker::PhantomData;
 
-use crate::{BitReader, BitReaderExt, BitUnpackAs, Same};
+use crate::de::{r#as::BitUnpackAs, BitReader, BitReaderExt};
+
+use super::Same;
 
 pub struct DefaultOnNone<As: ?Sized = Same>(PhantomData<As>);
 
@@ -9,6 +11,7 @@ where
     T: Default,
     As: BitUnpackAs<T>,
 {
+    #[inline]
     fn unpack_as<R>(mut reader: R) -> Result<T, R::Error>
     where
         R: BitReader,

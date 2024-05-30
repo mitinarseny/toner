@@ -1,9 +1,11 @@
 use core::marker::PhantomData;
 
 use crate::{
-    CellBuilder, CellBuilderError, CellDeserializeAs, CellParser, CellParserError, CellSerializeAs,
-    Same,
+    de::{r#as::CellDeserializeAs, CellParser, CellParserError},
+    ser::{r#as::CellSerializeAs, CellBuilder, CellBuilderError},
 };
+
+use super::Same;
 
 pub struct Ref<As: ?Sized = Same>(PhantomData<As>);
 

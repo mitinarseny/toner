@@ -7,8 +7,12 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use bitvec::{order::Msb0, vec::BitVec, view::AsBits};
 use crc::Crc;
 use tlb::{
-    BitPackWithArgs, BitReader, BitReaderExt, BitUnpack, BitUnpackWithArgs, BitWriter,
-    BitWriterExt, Cell, Error, NBits, ResultExt, StringError, VarNBytes,
+    bits::{
+        de::{args::BitUnpackWithArgs, BitReader, BitReaderExt, BitUnpack},
+        r#as::{NBits, VarNBytes},
+        ser::{args::BitPackWithArgs, BitWriter, BitWriterExt},
+    },
+    Cell, Error, ResultExt, StringError,
 };
 
 pub type BoC = BagOfCells;
@@ -35,58 +39,6 @@ impl BagOfCells {
     pub fn single_root(&self) -> Option<&Arc<Cell>> {
         let [root]: &[_; 1] = self.roots.as_slice().try_into().ok()?;
         Some(root)
-    }
-
-    fn to_raw(&self) -> Result<RawBagOfCells, StringError> {
-        let mut all_cells: HashSet<Arc<Cell>> = HashSet::new();
-        let mut in_refs: HashMap<Arc<Cell>, HashSet<Arc<Cell>>> = HashMap::new();
-        for r in &self.roots {
-            Self::traverse_cell_tree(r, &mut all_cells, &mut in_refs)?;
-        }
-        let mut no_in_refs: HashSet<Arc<Cell>> = HashSet::new();
-        for c in &all_cells {
-            if !in_refs.contains_key(c) {
-                no_in_refs.insert(c.clone());
-            }
-        }
-        let mut ordered_cells: Vec<Arc<Cell>> = Vec::new();
-        let mut indices: HashMap<Arc<Cell>, u32> = HashMap::new();
-        while let Some(cell) = no_in_refs.iter().next().cloned() {
-            ordered_cells.push(cell.clone());
-            indices.insert(cell.clone(), indices.len() as u32);
-            for child in &cell.references {
-                if let Some(refs) = in_refs.get_mut(child) {
-                    refs.remove(&cell);
-                    if refs.is_empty() {
-                        no_in_refs.insert(child.clone());
-                        in_refs.remove(child);
-                    }
-                }
-            }
-            no_in_refs.remove(&cell);
-        }
-        if !in_refs.is_empty() {
-            return Err(Error::custom("reference cycle detected"));
-        }
-        Ok(RawBagOfCells {
-            cells: ordered_cells
-                .into_iter()
-                .map(|cell| RawCell {
-                    data: cell.data.clone(),
-                    references: cell
-                        .references
-                        .iter()
-                        .map(|c| *indices.get(c).unwrap())
-                        .collect(),
-                    level: cell.level(),
-                })
-                .collect(),
-            roots: self
-                .roots
-                .iter()
-                .map(|c| *indices.get(c).unwrap())
-                .collect(),
-        })
     }
 
     /// Traverses all cells, fills all_cells set and inbound references map.
@@ -131,9 +83,57 @@ impl BitPackWithArgs for BagOfCells {
     where
         W: BitWriter,
     {
-        self.to_raw()
-            .map_err(<W::Error>::custom)?
-            .pack_with(writer, args)
+        let mut all_cells: HashSet<Arc<Cell>> = HashSet::new();
+        let mut in_refs: HashMap<Arc<Cell>, HashSet<Arc<Cell>>> = HashMap::new();
+        for r in &self.roots {
+            Self::traverse_cell_tree(r, &mut all_cells, &mut in_refs).map_err(Error::custom)?;
+        }
+        let mut no_in_refs: HashSet<Arc<Cell>> = HashSet::new();
+        for c in &all_cells {
+            if !in_refs.contains_key(c) {
+                no_in_refs.insert(c.clone());
+            }
+        }
+        let mut ordered_cells: Vec<Arc<Cell>> = Vec::new();
+        let mut indices: HashMap<Arc<Cell>, u32> = HashMap::new();
+        while let Some(cell) = no_in_refs.iter().next().cloned() {
+            ordered_cells.push(cell.clone());
+            indices.insert(cell.clone(), indices.len() as u32);
+            for child in &cell.references {
+                if let Some(refs) = in_refs.get_mut(child) {
+                    refs.remove(&cell);
+                    if refs.is_empty() {
+                        no_in_refs.insert(child.clone());
+                        in_refs.remove(child);
+                    }
+                }
+            }
+            no_in_refs.remove(&cell);
+        }
+        if !in_refs.is_empty() {
+            return Err(Error::custom("reference cycle detected"));
+        }
+
+        RawBagOfCells {
+            cells: ordered_cells
+                .into_iter()
+                .map(|cell| RawCell {
+                    data: cell.data.clone(),
+                    references: cell
+                        .references
+                        .iter()
+                        .map(|c| *indices.get(c).unwrap())
+                        .collect(),
+                    level: cell.level(),
+                })
+                .collect(),
+            roots: self
+                .roots
+                .iter()
+                .map(|c| *indices.get(c).unwrap())
+                .collect(),
+        }
+        .pack_with(writer, args)
     }
 }
 
@@ -178,7 +178,7 @@ impl BitUnpack for BagOfCells {
 const CRC_32_ISCSI: Crc<u32> = Crc::<u32>::new(&crc::CRC_32_ISCSI);
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
-pub(crate) struct RawBagOfCells {
+struct RawBagOfCells {
     pub cells: Vec<RawCell>,
     pub roots: Vec<u32>,
 }
@@ -257,7 +257,7 @@ impl BitPackWithArgs for RawBagOfCells {
         }
         // cell_data:(tot_cells_size * [ uint8 ])
         for (i, cell) in self.cells.iter().enumerate() {
-            cell.pack(&mut buffered, size_bytes)
+            cell.pack_with(&mut buffered, size_bytes)
                 .with_context(|| format!("[{i}]"))?;
         }
 
@@ -405,8 +405,11 @@ impl BitUnpackWithArgs for RawCell {
     }
 }
 
-impl RawCell {
-    fn pack<W>(&self, mut writer: W, ref_size_bytes: u32) -> Result<(), W::Error>
+impl BitPackWithArgs for RawCell {
+    /// ref_size_bytes
+    type Args = u32;
+
+    fn pack_with<W>(&self, mut writer: W, ref_size_bytes: Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter,
     {
@@ -433,7 +436,9 @@ impl RawCell {
 
         Ok(())
     }
+}
 
+impl RawCell {
     fn size(&self, ref_size_bytes: u32) -> u32 {
         let data_len: u32 = (self.data.len() as u32 + 7) / 8;
         2 + data_len + self.references.len() as u32 * ref_size_bytes
@@ -442,7 +447,10 @@ impl RawCell {
 
 #[cfg(test)]
 mod tests {
-    use tlb::{pack_with, unpack_fully, CellSerializeExt};
+    use tlb::{
+        bits::{de::unpack_fully, ser::pack_with},
+        ser::CellSerializeExt,
+    };
 
     use super::*;
 

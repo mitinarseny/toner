@@ -1,9 +1,15 @@
 use chrono::{DateTime, Utc};
 use num_bigint::BigUint;
 use tlb::{
-    BitPack, BitReader, BitReaderExt, BitUnpack, BitWriter, BitWriterExt, Cell, CellBuilder,
-    CellBuilderError, CellDeserialize, CellParser, CellParserError, CellSerialize,
-    CellSerializeExt, Either, NBits, Ref, Same,
+    bits::{
+        de::{BitReader, BitReaderExt, BitUnpack},
+        r#as::NBits,
+        ser::{BitPack, BitWriter, BitWriterExt},
+    },
+    de::{CellDeserialize, CellParser, CellParserError},
+    r#as::{Ref, Same},
+    ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
+    Cell, Either,
 };
 
 use crate::{CurrencyCollection, Grams, MsgAddress, StateInit, UnixTimestamp};
@@ -286,7 +292,10 @@ impl BitUnpack for ExternalOutMsgInfo {
 
 #[cfg(test)]
 mod tests {
-    use tlb::{pack, unpack_fully, CellSerializeExt};
+    use tlb::{
+        bits::{de::unpack_fully, ser::pack},
+        ser::CellSerializeExt,
+    };
 
     use super::*;
 

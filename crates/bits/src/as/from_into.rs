@@ -1,8 +1,17 @@
 use core::{fmt::Display, marker::PhantomData};
 
 use crate::{
-    BitPack, BitPackAs, BitPackAsWithArgs, BitPackWithArgs, BitReader, BitUnpack, BitUnpackAs,
-    BitUnpackAsWithArgs, BitUnpackWithArgs, BitWriter, Error,
+    de::{
+        args::{r#as::BitUnpackAsWithArgs, BitUnpackWithArgs},
+        r#as::BitUnpackAs,
+        BitReader, BitUnpack,
+    },
+    ser::{
+        args::{r#as::BitPackAsWithArgs, BitPackWithArgs},
+        r#as::BitPackAs,
+        BitPack, BitWriter,
+    },
+    Error,
 };
 
 pub struct FromInto<T>(PhantomData<T>);

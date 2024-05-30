@@ -1,14 +1,17 @@
-mod r#as;
-
-pub use self::r#as::*;
+pub mod r#as;
 
 use std::{rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
 use impl_tools::autoimpl;
-use tlbits::BitWriterExt;
 
-use crate::{BitWriter, Cell, Error, LimitWriter, Ref, ResultExt};
+use crate::{
+    bits::ser::{BitWriter, BitWriterExt, LimitWriter},
+    r#as::Ref,
+    Cell, Error, ResultExt,
+};
+
+use self::r#as::CellSerializeAs;
 
 #[autoimpl(for <T: trait + ?Sized> &T, &mut T, Box<T>, Rc<T>, Arc<T>)]
 pub trait CellSerialize {

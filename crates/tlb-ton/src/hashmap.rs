@@ -1,7 +1,12 @@
 use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
 use tlb::{
-    BitReader, BitReaderExt, Cell, CellDeserializeAsOwned, CellDeserializeOwned, CellParser,
-    CellParserError, Error, Ref, Same, VarNBits,
+    bits::{
+        de::{args::BitUnpackWithArgs, BitReader, BitReaderExt},
+        r#as::VarNBits,
+    },
+    de::{r#as::CellDeserializeAsOwned, CellDeserializeOwned, CellParser, CellParserError},
+    r#as::{Ref, Same},
+    Cell, Error,
 };
 
 use crate::Unary;
@@ -108,55 +113,6 @@ impl<T> Hashmap<T> {
         self.node.get_mut(key)
     }
 
-    /// ```tlb
-    /// hml_short$0 {m:#} {n:#} len:(Unary ~n) {n <= m} s:(n * Bit) = HmLabel ~n m;
-    /// hml_long$10 {m:#} n:(#<= m) s:(n * Bit) = HmLabel ~n m;
-    /// hml_same$11 {m:#} v:Bit n:(#<= m) = HmLabel ~n m;
-    /// ```
-    fn unpack_label<R>(mut reader: R, m: u32) -> Result<(u32, BitVec<u8, Msb0>), R::Error>
-    where
-        R: BitReader,
-    {
-        Ok(match reader.unpack()? {
-            // hml_short$0
-            false => {
-                // len:(Unary ~n)
-                let n: u32 = reader.unpack_as::<_, Unary>()?;
-                // {n <= m}
-                if n > m {
-                    return Err(Error::custom("n > m"));
-                }
-                (
-                    n,
-                    // s:(n * Bit)
-                    reader.read_bitvec(n as usize)?,
-                )
-            }
-            true => match reader.unpack()? {
-                // hml_long$10
-                false => {
-                    // n:(#<= m)
-                    let n: u32 = reader.unpack_as_with::<_, VarNBits>(m.ilog2() + 1)?;
-                    (
-                        n,
-                        // s:(n * Bit)
-                        reader.read_bitvec(n as usize)?,
-                    )
-                }
-                // hml_same$11
-                true => {
-                    // v:Bit
-                    let s = reader.read_bitvec(1)?;
-                    (
-                        // n:(#<= m)
-                        reader.unpack_as_with::<_, VarNBits>(m.ilog2() + 1)?,
-                        s,
-                    )
-                }
-            },
-        })
-    }
-
     pub fn parse_n_as<'de, As>(
         parser: &mut CellParser<'de>,
         n: u32,
@@ -165,11 +121,11 @@ impl<T> Hashmap<T> {
         As: CellDeserializeAsOwned<T> + ?Sized,
     {
         // label:(HmLabel ~l n)
-        let (l, label) = Self::unpack_label(&mut *parser, n)?;
+        let label = HmLabel::unpack_with(&mut *parser, n)?;
         // {n = (~m) + l}
-        let m = n - l;
+        let m = n - label.n;
         Ok(Self {
-            label,
+            label: label.s,
             // node:(HashmapNode m X)
             node: HashmapNode::parse_n_as::<As>(parser, m)?,
         })
@@ -242,10 +198,72 @@ impl<T> HashmapNode<T> {
     }
 }
 
+/// ```tlb
+/// hml_short$0 {m:#} {n:#} len:(Unary ~n) {n <= m} s:(n * Bit) = HmLabel ~n m;
+/// hml_long$10 {m:#} n:(#<= m) s:(n * Bit) = HmLabel ~n m;
+/// hml_same$11 {m:#} v:Bit n:(#<= m) = HmLabel ~n m;
+/// ```
+struct HmLabel {
+    n: u32,
+    s: BitVec<u8, Msb0>,
+}
+
+impl BitUnpackWithArgs for HmLabel {
+    /// m
+    type Args = u32;
+
+    fn unpack_with<R>(mut reader: R, m: Self::Args) -> Result<Self, R::Error>
+    where
+        R: BitReader,
+    {
+        Ok(match reader.unpack()? {
+            // hml_short$0
+            false => {
+                // len:(Unary ~n)
+                let n: u32 = reader.unpack_as::<_, Unary>()?;
+                // {n <= m}
+                if n > m {
+                    return Err(Error::custom("n > m"));
+                }
+                Self {
+                    n,
+                    // s:(n * Bit)
+                    s: reader.read_bitvec(n as usize)?,
+                }
+            }
+            true => match reader.unpack()? {
+                // hml_long$10
+                false => {
+                    // n:(#<= m)
+                    let n: u32 = reader.unpack_as_with::<_, VarNBits>(m.ilog2() + 1)?;
+                    Self {
+                        n,
+                        // s:(n * Bit)
+                        s: reader.read_bitvec(n as usize)?,
+                    }
+                }
+                // hml_same$11
+                true => {
+                    // v:Bit
+                    let s = reader.read_bitvec(1)?;
+                    Self {
+                        // n:(#<= m)
+                        n: reader.unpack_as_with::<_, VarNBits>(m.ilog2() + 1)?,
+                        s,
+                    }
+                }
+            },
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use bitvec::{bits, order::Msb0};
-    use tlb::{CellSerializeExt, CellSerializeWrapAsExt, Data, Ref};
+    use tlb::{
+        r#as::Data,
+        ser::{r#as::CellSerializeWrapAsExt, CellSerializeExt},
+    };
 
     use super::*;
 

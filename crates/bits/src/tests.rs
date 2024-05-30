@@ -1,7 +1,15 @@
 use core::fmt::Debug;
 
 use crate::{
-    pack, pack_as, unpack_fully, unpack_fully_as, BitPack, BitPackAs, BitUnpack, BitUnpackAs,
+    de::{
+        r#as::{unpack_fully_as, BitUnpackAs},
+        unpack_fully, BitUnpack,
+    },
+    ser::{
+        pack,
+        r#as::{pack_as, BitPackAs},
+        BitPack,
+    },
 };
 
 #[track_caller]

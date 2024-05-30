@@ -1,6 +1,14 @@
 use crate::{
-    BitPack, BitPackAs, BitPackAsWithArgs, BitPackWithArgs, BitReader, BitUnpack, BitUnpackAs,
-    BitUnpackAsWithArgs, BitUnpackWithArgs, BitWriter,
+    de::{
+        args::{r#as::BitUnpackAsWithArgs, BitUnpackWithArgs},
+        r#as::BitUnpackAs,
+        BitReader, BitUnpack,
+    },
+    ser::{
+        args::{r#as::BitPackAsWithArgs, BitPackWithArgs},
+        r#as::BitPackAs,
+        BitPack, BitWriter,
+    },
 };
 
 pub struct Same;

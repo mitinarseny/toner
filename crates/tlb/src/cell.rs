@@ -8,7 +8,10 @@ use std::sync::Arc;
 use bitvec::{order::Msb0, vec::BitVec};
 use sha2::{Digest, Sha256};
 
-use crate::{CellBuilder, CellDeserialize, CellDeserializeAs, CellParser, CellParserError};
+use crate::{
+    de::{r#as::CellDeserializeAs, CellDeserialize, CellParser, CellParserError},
+    ser::CellBuilder,
+};
 
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct Cell {
@@ -33,6 +36,7 @@ impl Cell {
     }
 
     #[inline]
+    #[must_use]
     pub fn parser(&self) -> CellParser<'_> {
         CellParser::new(&self.data, &self.references)
     }
@@ -172,11 +176,14 @@ impl Debug for Cell {
 
 #[cfg(test)]
 mod tests {
-    use crate::{BitWriterExt, NBits};
+
     use hex_literal::hex;
 
     use crate::{
-        tests::assert_store_parse_as_eq, CellSerializeExt, CellSerializeWrapAsExt, Data, Ref,
+        bits::{r#as::NBits, ser::BitWriterExt},
+        r#as::{Data, Ref},
+        ser::{r#as::CellSerializeWrapAsExt, CellSerializeExt},
+        tests::assert_store_parse_as_eq,
     };
 
     use super::*;

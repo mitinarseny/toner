@@ -1,22 +1,31 @@
 use chrono::{DateTime, Utc};
-use tlb::{BitPack, BitPackAs, BitReaderExt, BitUnpackAs, BitWriter, Error};
+use tlb::{
+    bits::{
+        de::{r#as::BitUnpackAs, BitReader, BitReaderExt},
+        ser::{r#as::BitPackAs, BitWriter, BitWriterExt},
+    },
+    Error,
+};
 
 pub struct UnixTimestamp;
 
 impl BitPackAs<DateTime<Utc>> for UnixTimestamp {
-    fn pack_as<W>(source: &DateTime<Utc>, writer: W) -> Result<(), W::Error>
+    #[inline]
+    fn pack_as<W>(source: &DateTime<Utc>, mut writer: W) -> Result<(), W::Error>
     where
         W: BitWriter,
     {
         let timestamp: u32 = source.timestamp().try_into().map_err(Error::custom)?;
-        timestamp.pack(writer)
+        writer.pack(timestamp)?;
+        Ok(())
     }
 }
 
 impl BitUnpackAs<DateTime<Utc>> for UnixTimestamp {
+    #[inline]
     fn unpack_as<R>(mut reader: R) -> Result<DateTime<Utc>, R::Error>
     where
-        R: tlb::BitReader,
+        R: BitReader,
     {
         let timestamp: u32 = reader.unpack()?;
         Ok(DateTime::from_timestamp(timestamp as i64, 0).unwrap())
@@ -25,7 +34,7 @@ impl BitUnpackAs<DateTime<Utc>> for UnixTimestamp {
 
 #[cfg(test)]
 mod tests {
-    use tlb::{pack_as, unpack_fully_as};
+    use tlb::bits::{de::r#as::unpack_fully_as, ser::r#as::pack_as};
 
     use super::*;
 

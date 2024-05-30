@@ -1,5 +1,9 @@
 use num_bigint::BigUint;
-use tlb::{BitPack, BitReader, BitReaderExt, BitUnpack, BitWriter, BitWriterExt, VarUint};
+use tlb::bits::{
+    de::{BitReader, BitReaderExt, BitUnpack},
+    r#as::VarUint,
+    ser::{BitPack, BitWriter, BitWriterExt},
+};
 
 pub type Coins = VarUint<4>;
 pub type Grams = Coins;
@@ -66,7 +70,7 @@ impl BitUnpack for ExtraCurrencyCollection {
 
 #[cfg(test)]
 mod tests {
-    use tlb::{pack, unpack_fully};
+    use tlb::bits::{de::unpack_fully, ser::pack};
 
     use super::*;
 

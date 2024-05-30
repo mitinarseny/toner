@@ -1,7 +1,9 @@
 use crate::{
-    CellBuilder, CellBuilderError, CellDeserialize, CellDeserializeAs, CellParser, CellParserError,
-    CellSerialize, CellSerializeAs, Same,
+    de::{r#as::CellDeserializeAs, CellDeserialize, CellParser, CellParserError},
+    ser::{r#as::CellSerializeAs, CellBuilder, CellBuilderError, CellSerialize},
 };
+
+pub use crate::bits::r#as::Same;
 
 impl<T> CellSerializeAs<T> for Same
 where

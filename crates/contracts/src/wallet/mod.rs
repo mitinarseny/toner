@@ -8,8 +8,11 @@ use chrono::{DateTime, Utc};
 use nacl::sign::{signature, Keypair, PUBLIC_KEY_LENGTH};
 use num_bigint::BigUint;
 use tlb::{
-    BitReaderExt, BitWriterExt, Cell, CellBuilder, CellBuilderError, CellDeserialize,
-    CellSerialize, CellSerializeExt, Ref,
+    bits::{de::BitReaderExt, ser::BitWriterExt},
+    de::{CellDeserialize, CellParser, CellParserError},
+    r#as::Ref,
+    ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
+    Cell,
 };
 use tlb_ton::{CommonMsgInfo, ExternalInMsgInfo, Message, MsgAddress, StateInit};
 
@@ -137,7 +140,7 @@ impl<'de, T> CellDeserialize<'de> for SignedBody<T>
 where
     T: CellDeserialize<'de>,
 {
-    fn parse(parser: &mut tlb::CellParser<'de>) -> Result<Self, tlb::CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             sig: parser.unpack()?,
             msg: parser.parse()?,
@@ -162,7 +165,7 @@ pub trait WalletVersion {
 }
 
 pub struct WalletOpSendMessage<T = Cell, IC = Cell, ID = Cell, IL = Cell> {
-    /// See https://docs.ton.org/develop/func/stdlib#send_raw_message
+    /// See <https://docs.ton.org/develop/func/stdlib#send_raw_message>
     pub mode: u8,
     pub message: Message<T, IC, ID, IL>,
 }

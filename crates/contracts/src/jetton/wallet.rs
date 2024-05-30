@@ -1,7 +1,10 @@
 use num_bigint::BigUint;
 use tlb::{
-    BitReaderExt, BitWriterExt, Cell, CellBuilder, CellBuilderError, CellDeserialize, CellParser,
-    CellParserError, CellSerialize, ConstU32, Either, ParseFully, Ref, Same, VarUint,
+    bits::{de::BitReaderExt, integer::ConstU32, r#as::VarUint, ser::BitWriterExt},
+    de::{CellDeserialize, CellParser, CellParserError},
+    r#as::{ParseFully, Ref, Same},
+    ser::{CellBuilder, CellBuilderError, CellSerialize},
+    Cell, Either,
 };
 use tlb_ton::MsgAddress;
 

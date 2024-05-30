@@ -1,13 +1,19 @@
 use core::{fmt::Binary, mem::size_of};
 
-use crate::{
-    BitCounter, BitPack, BitPackAs, BitPackAsWithArgs, BitPackWithArgs, Error, ResultExt,
-    StringError, Tee,
-};
-
 use ::bitvec::{order::Msb0, slice::BitSlice, store::BitStore, vec::BitVec, view::AsBits};
 use impl_tools::autoimpl;
 use num_traits::{PrimInt, ToBytes};
+
+use crate::{
+    adapters::{BitCounter, Tee},
+    Error, ResultExt, StringError,
+};
+
+use super::{
+    args::{r#as::BitPackAsWithArgs, BitPackWithArgs},
+    r#as::BitPackAs,
+    BitPack,
+};
 
 #[autoimpl(for <W: trait + ?Sized> &mut W, Box<W>)]
 pub trait BitWriter {
@@ -262,7 +268,7 @@ where
 
     #[inline]
     fn ensure_more(&self, n: usize) -> Result<(), W::Error> {
-        if self.counter() + n > self.limit {
+        if self.bit_count() + n > self.limit {
             return Err(Error::custom("max bits limit reached"));
         }
         Ok(())
@@ -306,6 +312,7 @@ where
 {
     type Error = T::Error;
 
+    #[inline]
     fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error> {
         self.inner.write_bit(bit)?;
         self.writer

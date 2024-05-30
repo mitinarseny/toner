@@ -1,15 +1,17 @@
-mod args;
-mod r#as;
+pub mod args;
+pub mod r#as;
 mod writer;
 
-pub use self::{args::*, r#as::*, writer::*};
+pub use self::writer::*;
 
 use std::{rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
 use impl_tools::autoimpl;
 
-use crate::{AsBytes, ResultExt, StringError};
+use crate::{r#as::AsBytes, ResultExt, StringError};
+
+use self::args::BitPackWithArgs;
 
 #[autoimpl(for<S: trait + ?Sized> &S, &mut S, Box<S>, Rc<S>, Arc<S>)]
 pub trait BitPack {
@@ -89,6 +91,7 @@ impl<T> BitPack for Vec<T>
 where
     T: BitPack,
 {
+    #[inline]
     fn pack<W>(&self, writer: W) -> Result<(), W::Error>
     where
         W: BitWriter,
@@ -97,7 +100,7 @@ where
     }
 }
 
-macro_rules! impl_bit_serialize_for_tuple {
+macro_rules! impl_bit_pack_for_tuple {
     ($($n:tt:$t:ident),+) => {
         impl<$($t),+> BitPack for ($($t,)+)
         where $(
@@ -115,16 +118,16 @@ macro_rules! impl_bit_serialize_for_tuple {
         }
     };
 }
-impl_bit_serialize_for_tuple!(0:T0);
-impl_bit_serialize_for_tuple!(0:T0,1:T1);
-impl_bit_serialize_for_tuple!(0:T0,1:T1,2:T2);
-impl_bit_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3);
-impl_bit_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4);
-impl_bit_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5);
-impl_bit_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6);
-impl_bit_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
-impl_bit_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
-impl_bit_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
+impl_bit_pack_for_tuple!(0:T0);
+impl_bit_pack_for_tuple!(0:T0,1:T1);
+impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2);
+impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3);
+impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4);
+impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5);
+impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6);
+impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
+impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
+impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
 
 impl<'a> BitPack for &'a BitSlice<u8, Msb0> {
     #[inline]
@@ -137,6 +140,7 @@ impl<'a> BitPack for &'a BitSlice<u8, Msb0> {
 }
 
 impl BitPack for BitVec<u8, Msb0> {
+    #[inline]
     fn pack<W>(&self, writer: W) -> Result<(), W::Error>
     where
         W: BitWriter,

@@ -695,7 +695,6 @@ name = "tlb"
 version = "0.2.19"
 dependencies = [
  "bitvec",
- "either",
  "hex",
  "hex-literal",
  "impl-tools",
@@ -720,7 +719,6 @@ dependencies = [
  "serde_with",
  "strum",
  "tlb",
- "tlbits",
 ]
 
 [[package]]

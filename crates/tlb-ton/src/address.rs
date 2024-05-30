@@ -9,8 +9,12 @@ use base64::{
 use crc::Crc;
 use strum::Display;
 use tlb::{
-    BitPack, BitReader, BitReaderExt, BitUnpack, BitWriter, BitWriterExt, Error, NBits, ResultExt,
-    StringError,
+    bits::{
+        de::{BitReader, BitReaderExt, BitUnpack},
+        r#as::NBits,
+        ser::{BitPack, BitWriter, BitWriterExt},
+    },
+    Error, ResultExt, StringError,
 };
 
 const CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);

@@ -1,9 +1,12 @@
 use core::marker::PhantomData;
 
 use crate::{
-    BitPackAs, BitUnpackAs, CellBuilder, CellBuilderError, CellDeserializeAs, CellParser,
-    CellParserError, CellSerializeAs, Same,
+    bits::{de::r#as::BitUnpackAs, ser::r#as::BitPackAs},
+    de::{r#as::CellDeserializeAs, CellParser, CellParserError},
+    ser::{r#as::CellSerializeAs, CellBuilder, CellBuilderError},
 };
+
+use super::Same;
 
 pub struct Data<As: ?Sized = Same>(PhantomData<As>);
 

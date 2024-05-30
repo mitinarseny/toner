@@ -4,8 +4,10 @@ use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use nacl::sign::PUBLIC_KEY_LENGTH;
 use tlb::{
-    BitReaderExt, BitWriterExt, Cell, CellBuilder, CellBuilderError, CellDeserialize, CellParser,
-    CellParserError, CellSerialize, ConstBit,
+    bits::{de::BitReaderExt, integer::ConstBit, ser::BitWriterExt},
+    de::{CellDeserialize, CellParser, CellParserError},
+    ser::{CellBuilder, CellBuilderError, CellSerialize},
+    Cell,
 };
 use tlb_ton::{BagOfCells, UnixTimestamp};
 
@@ -120,7 +122,7 @@ impl CellSerialize for WalletV4R2Op {
 
 #[cfg(test)]
 mod tests {
-    use tlb::{pack_with, unpack_fully};
+    use tlb::bits::{de::unpack_fully, ser::pack_with};
     use tlb_ton::{BagOfCellsArgs, BoC};
 
     use super::*;

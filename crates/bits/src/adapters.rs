@@ -37,7 +37,7 @@ impl<T> BitCounter<T> {
     }
 
     #[inline]
-    pub const fn counter(&self) -> usize {
+    pub const fn bit_count(&self) -> usize {
         self.counter
     }
 

@@ -1,10 +1,13 @@
-use either::Either;
-use tlbits::Same;
-
 use crate::{
-    BitReaderExt, BitWriterExt, CellBuilder, CellBuilderError, CellDeserialize, CellDeserializeAs,
-    CellDeserializeAsWrap, CellParser, CellParserError, CellSerialize, CellSerializeAs,
-    CellSerializeAsWrap, ResultExt, StringError,
+    bits::{
+        de::{r#as::UnpackAsWrap, BitReaderExt},
+        ser::{r#as::PackAsWrap, BitWriterExt},
+        Either,
+    },
+    de::{r#as::CellDeserializeAs, CellDeserialize, CellParser, CellParserError},
+    r#as::Same,
+    ser::{r#as::CellSerializeAs, CellBuilder, CellBuilderError, CellSerialize},
+    ResultExt, StringError,
 };
 
 impl<L, R> CellSerialize for Either<L, R>
@@ -57,8 +60,8 @@ where
         source
             .as_ref()
             .map_either(
-                CellSerializeAsWrap::<Left, AsLeft>::new,
-                CellSerializeAsWrap::<Right, AsRight>::new,
+                PackAsWrap::<Left, AsLeft>::new,
+                PackAsWrap::<Right, AsRight>::new,
             )
             .store(builder)
     }
@@ -73,10 +76,8 @@ where
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<Either<Left, Right>, CellParserError<'de>> {
         Ok(
-            Either::<CellDeserializeAsWrap<Left, AsLeft>, CellDeserializeAsWrap<Right, AsRight>>::parse(
-                parser,
-            )?
-            .map_either(CellDeserializeAsWrap::into_inner, CellDeserializeAsWrap::into_inner),
+            Either::<UnpackAsWrap<Left, AsLeft>, UnpackAsWrap<Right, AsRight>>::parse(parser)?
+                .map_either(UnpackAsWrap::into_inner, UnpackAsWrap::into_inner),
         )
     }
 }
@@ -89,7 +90,7 @@ where
     fn store_as(source: &Option<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         match source.as_ref() {
             None => Either::Left(()),
-            Some(v) => Either::Right(CellSerializeAsWrap::<T, As>::new(v)),
+            Some(v) => Either::Right(PackAsWrap::<T, As>::new(v)),
         }
         .store(builder)
     }
@@ -101,8 +102,8 @@ where
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<Option<T>, StringError> {
-        Ok(Either::<(), CellDeserializeAsWrap<T, As>>::parse(parser)?
-            .map_right(CellDeserializeAsWrap::into_inner)
+        Ok(Either::<(), UnpackAsWrap<T, As>>::parse(parser)?
+            .map_right(UnpackAsWrap::into_inner)
             .right())
     }
 }

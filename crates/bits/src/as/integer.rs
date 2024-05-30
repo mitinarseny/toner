@@ -8,9 +8,12 @@ use num_bigint::{BigInt, BigUint};
 use num_traits::{PrimInt, ToBytes};
 
 use crate::{
-    BitPackAs, BitPackAsWithArgs, BitReader, BitReaderExt, BitUnpackAs, BitUnpackAsWithArgs,
-    BitWriter, BitWriterExt, Error, NBits, VarBytes,
+    de::{args::r#as::BitUnpackAsWithArgs, r#as::BitUnpackAs, BitReader, BitReaderExt},
+    ser::{args::r#as::BitPackAsWithArgs, r#as::BitPackAs, BitWriter, BitWriterExt},
+    Error,
 };
+
+use super::{NBits, VarBytes};
 
 impl<const BITS: usize> BitPackAs<BigUint> for NBits<BITS> {
     #[inline]

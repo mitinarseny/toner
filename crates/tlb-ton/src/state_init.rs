@@ -1,8 +1,14 @@
 use impl_tools::autoimpl;
 use tlb::{
-    BitPack, BitReader, BitReaderExt, BitUnpack, BitWriter, BitWriterExt, Cell, CellBuilder,
-    CellBuilderError, CellDeserialize, CellParser, CellParserError, CellSerialize,
-    CellSerializeExt, NBits, ParseFully, Ref,
+    bits::{
+        de::{BitReader, BitUnpack, BitReaderExt},
+        r#as::NBits,
+        ser::{BitPack, BitWriter, BitWriterExt},
+    },
+    de::{CellDeserialize, CellParser, CellParserError},
+    r#as::{ParseFully, Ref},
+    ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
+    Cell,
 };
 
 /// ```tlb
@@ -116,7 +122,7 @@ impl BitUnpack for TickTock {
 
 #[cfg(test)]
 mod tests {
-    use tlb::CellSerializeExt;
+    use tlb::ser::CellSerializeExt;
 
     use super::*;
 
