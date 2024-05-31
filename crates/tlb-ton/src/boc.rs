@@ -4,10 +4,10 @@ use std::{
 };
 
 use base64::{engine::general_purpose::STANDARD, Engine};
-use bitvec::{order::Msb0, vec::BitVec, view::AsBits};
 use crc::Crc;
 use tlb::{
     bits::{
+        bitvec::{order::Msb0, vec::BitVec, view::AsBits},
         de::{args::BitUnpackWithArgs, BitReader, BitReaderExt, BitUnpack},
         r#as::{NBits, VarNBytes},
         ser::{args::BitPackWithArgs, BitWriter, BitWriterExt},

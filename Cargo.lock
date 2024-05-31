@@ -707,7 +707,6 @@ name = "tlb-ton"
 version = "0.2.19"
 dependencies = [
  "base64 0.21.7",
- "bitvec",
  "chrono",
  "crc",
  "hex",

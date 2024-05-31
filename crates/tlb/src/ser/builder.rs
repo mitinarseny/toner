@@ -162,6 +162,22 @@ impl CellBuilder {
     }
 
     #[inline]
+    pub(crate) fn store_reference_as_with<T, As>(
+        &mut self,
+        value: T,
+        args: As::Args,
+    ) -> Result<&mut Self, CellBuilderError>
+    where
+        As: CellSerializeAsWithArgs<T> + ?Sized,
+    {
+        self.ensure_reference()?;
+        let mut builder = Self::new();
+        builder.store_as_with::<T, As>(value, args)?;
+        self.references.push(builder.into_cell().into());
+        Ok(self)
+    }
+
+    #[inline]
     #[must_use]
     pub fn into_cell(self) -> Cell {
         Cell {

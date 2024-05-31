@@ -131,6 +131,17 @@ impl<'de> CellParser<'de> {
     }
 
     #[inline]
+    pub(crate) fn parse_reference_as_with<T, As>(
+        &mut self,
+        args: As::Args,
+    ) -> Result<T, CellParserError<'de>>
+    where
+        As: CellDeserializeAsWithArgs<'de, T> + ?Sized,
+    {
+        self.pop_reference()?.parse_fully_as_with::<T, As>(args)
+    }
+
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.data.is_empty() && self.references.is_empty()
     }

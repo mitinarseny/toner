@@ -9,7 +9,11 @@ use bitvec::{order::Msb0, vec::BitVec};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    de::{r#as::CellDeserializeAs, CellDeserialize, CellParser, CellParserError},
+    de::{
+        args::{r#as::CellDeserializeAsWithArgs, CellDeserializeWithArgs},
+        r#as::CellDeserializeAs,
+        CellDeserialize, CellParser, CellParserError,
+    },
     ser::CellBuilder,
 };
 
@@ -53,12 +57,37 @@ impl Cell {
     }
 
     #[inline]
+    pub fn parse_fully_with<'de, T>(&'de self, args: T::Args) -> Result<T, CellParserError<'de>>
+    where
+        T: CellDeserializeWithArgs<'de>,
+    {
+        let mut parser = self.parser();
+        let v = parser.parse_with(args)?;
+        parser.ensure_empty()?;
+        Ok(v)
+    }
+
+    #[inline]
     pub fn parse_fully_as<'de, T, As>(&'de self) -> Result<T, CellParserError<'de>>
     where
         As: CellDeserializeAs<'de, T> + ?Sized,
     {
         let mut parser = self.parser();
         let v = parser.parse_as::<T, As>()?;
+        parser.ensure_empty()?;
+        Ok(v)
+    }
+
+    #[inline]
+    pub fn parse_fully_as_with<'de, T, As>(
+        &'de self,
+        args: As::Args,
+    ) -> Result<T, CellParserError<'de>>
+    where
+        As: CellDeserializeAsWithArgs<'de, T> + ?Sized,
+    {
+        let mut parser = self.parser();
+        let v = parser.parse_as_with::<T, As>(args)?;
         parser.ensure_empty()?;
         Ok(v)
     }

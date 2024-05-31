@@ -1,12 +1,18 @@
-use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
+use std::marker::PhantomData;
+
 use tlb::{
     bits::{
+        bitvec::{order::Msb0, slice::BitSlice, vec::BitVec},
         de::{args::BitUnpackWithArgs, BitReader, BitReaderExt},
         r#as::VarNBits,
     },
-    de::{r#as::CellDeserializeAsOwned, CellDeserializeOwned, CellParser, CellParserError},
-    r#as::{Ref, Same},
-    Cell, Error,
+    de::{
+        args::{r#as::CellDeserializeAsWithArgs, CellDeserializeWithArgs},
+        r#as::CellDeserializeAs,
+        CellParser, CellParserError,
+    },
+    r#as::{NoArgs, ParseFully, Ref, Same},
+    Error,
 };
 
 use crate::Unary;
@@ -51,31 +57,71 @@ impl<T> HashmapE<T> {
             Self::Root(root) => root.get_mut(key),
         }
     }
+}
 
-    pub fn parse_n_as<'de, As>(
+impl<'de, T, As> CellDeserializeAsWithArgs<'de, HashmapE<T>> for HashmapE<As>
+where
+    As: CellDeserializeAsWithArgs<'de, T>,
+    As::Args: Clone,
+{
+    // (n, As::Args)
+    type Args = (u32, As::Args);
+
+    fn parse_as_with(
         parser: &mut CellParser<'de>,
-        n: u32,
-    ) -> Result<Self, CellParserError<'de>>
-    where
-        As: CellDeserializeAsOwned<T> + ?Sized,
-    {
+        (n, args): Self::Args,
+    ) -> Result<HashmapE<T>, CellParserError<'de>> {
         Ok(match parser.unpack()? {
-            false => Self::Empty,
-            true => {
-                let cell: Cell = parser.parse_as::<_, Ref>()?;
-                let mut parser = cell.parser();
-                let root = Hashmap::parse_n_as::<As>(&mut parser, n)?;
-                parser.ensure_empty()?;
-                Self::Root(root)
-            }
+            // hme_empty$0
+            false => HashmapE::Empty,
+            // hme_root$1
+            true => parser
+                // root:^(Hashmap n X)
+                .parse_as_with::<_, Ref<ParseFully<Hashmap<As>>>>((n, args))
+                .map(HashmapE::Root)?,
         })
     }
+}
 
-    pub fn parse_n<'de>(parser: &mut CellParser<'de>, n: u32) -> Result<Self, CellParserError<'de>>
-    where
-        T: CellDeserializeOwned,
-    {
-        Self::parse_n_as::<Same>(parser, n)
+impl<'de, T> CellDeserializeWithArgs<'de> for HashmapE<T>
+where
+    T: CellDeserializeWithArgs<'de>,
+    T::Args: Clone,
+{
+    /// (n, T::Args)
+    type Args = (u32, T::Args);
+
+    fn parse_with(
+        parser: &mut CellParser<'de>,
+        args: Self::Args,
+    ) -> Result<Self, CellParserError<'de>> {
+        parser.parse_as_with::<_, Same>(args)
+    }
+}
+
+pub struct HashmapEN<const N: u32, As: ?Sized = Same>(PhantomData<As>);
+
+impl<'de, const N: u32, T, As> CellDeserializeAsWithArgs<'de, HashmapE<T>> for HashmapEN<N, As>
+where
+    As: CellDeserializeAsWithArgs<'de, T>,
+    As::Args: Clone,
+{
+    type Args = As::Args;
+
+    fn parse_as_with(
+        parser: &mut CellParser<'de>,
+        args: Self::Args,
+    ) -> Result<HashmapE<T>, CellParserError<'de>> {
+        parser.parse_as_with::<_, HashmapE<As>>((N, args))
+    }
+}
+
+impl<'de, const N: u32, T, As> CellDeserializeAs<'de, HashmapE<T>> for HashmapEN<N, As>
+where
+    As: CellDeserializeAs<'de, T>,
+{
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<HashmapE<T>, CellParserError<'de>> {
+        parser.parse_as_with::<_, HashmapE<NoArgs<_, As>>>((N, ()))
     }
 }
 
@@ -112,22 +158,28 @@ impl<T> Hashmap<T> {
         key = key.strip_prefix(&self.label)?;
         self.node.get_mut(key)
     }
+}
 
-    pub fn parse_n_as<'de, As>(
+impl<'de, T, As> CellDeserializeAsWithArgs<'de, Hashmap<T>> for Hashmap<As>
+where
+    As: CellDeserializeAsWithArgs<'de, T>,
+    As::Args: Clone,
+{
+    /// (n, As::Args)
+    type Args = (u32, As::Args);
+
+    fn parse_as_with(
         parser: &mut CellParser<'de>,
-        n: u32,
-    ) -> Result<Self, CellParserError<'de>>
-    where
-        As: CellDeserializeAsOwned<T> + ?Sized,
-    {
+        (n, args): Self::Args,
+    ) -> Result<Hashmap<T>, CellParserError<'de>> {
         // label:(HmLabel ~l n)
-        let label = HmLabel::unpack_with(&mut *parser, n)?;
+        let label: HmLabel = parser.unpack_with(n)?;
         // {n = (~m) + l}
         let m = n - label.n;
-        Ok(Self {
+        Ok(Hashmap {
             label: label.s,
             // node:(HashmapNode m X)
-            node: HashmapNode::parse_n_as::<As>(parser, m)?,
+            node: parser.parse_as_with::<_, HashmapNode<As>>((m, args))?,
         })
     }
 }
@@ -173,28 +225,29 @@ impl<T> HashmapNode<T> {
             _ => None,
         }
     }
+}
 
-    fn parse_n_as<'de, As>(
+impl<'de, T, As> CellDeserializeAsWithArgs<'de, HashmapNode<T>> for HashmapNode<As>
+where
+    As: CellDeserializeAsWithArgs<'de, T>,
+    As::Args: Clone,
+{
+    /// (n, T::Args)
+    type Args = (u32, As::Args);
+
+    fn parse_as_with(
         parser: &mut CellParser<'de>,
-        n: u32,
-    ) -> Result<Self, CellParserError<'de>>
-    where
-        As: CellDeserializeAsOwned<T> + ?Sized,
-    {
+        (n, args): Self::Args,
+    ) -> Result<HashmapNode<T>, CellParserError<'de>> {
         if n == 0 {
-            return parser.parse_as::<_, As>().map(Self::Leaf);
+            return parser.parse_as_with::<_, As>(args).map(HashmapNode::Leaf);
         }
-        let [lc, rc]: [Cell; 2] = parser.parse_as::<_, [Ref; 2]>()?;
-        let [mut lp, mut rp] = [&lc, &rc].map(Cell::parser);
-        let [l, r] = [
-            Hashmap::parse_n_as::<As>(&mut lp, n - 1)?,
-            Hashmap::parse_n_as::<As>(&mut rp, n - 1)?,
-        ];
 
-        for p in [lp, rp] {
-            p.ensure_empty()?;
-        }
-        Ok(Self::Fork([l, r].map(Into::into)))
+        Ok(HashmapNode::Fork(
+            parser
+                .parse_as_with::<_, [Ref<ParseFully<Hashmap<As>>>; 2]>((n - 1, args))?
+                .map(Into::into),
+        ))
     }
 }
 
@@ -259,15 +312,15 @@ impl BitUnpackWithArgs for HmLabel {
 
 #[cfg(test)]
 mod tests {
-    use bitvec::{bits, order::Msb0};
     use tlb::{
+        bits::bitvec::{bits, order::Msb0},
         r#as::Data,
         ser::{r#as::CellSerializeWrapAsExt, CellSerializeExt},
     };
 
     use super::*;
 
-    /// https://docs.ton.org/develop/data-formats/tl-b-types#hashmap-parsing-example
+    /// See <https://docs.ton.org/develop/data-formats/tl-b-types#hashmap-parsing-example>
     #[test]
     fn parse() {
         let cell = (
@@ -290,7 +343,9 @@ mod tests {
             .to_cell()
             .unwrap();
 
-        let hm: HashmapE<u16> = HashmapE::parse_n_as::<Data>(&mut cell.parser(), 8).unwrap();
+        let hm: HashmapE<u16> = cell
+            .parse_fully_as::<_, HashmapEN<8, Data>>()
+            .unwrap();
 
         assert_eq!(hm.len(), 3);
         // 1 -> 777
