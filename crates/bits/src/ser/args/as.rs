@@ -1,8 +1,10 @@
 use std::{rc::Rc, sync::Arc};
 
+use either::Either;
+
 use crate::{
+    r#as::args::NoArgs,
     ser::{r#as::PackAsWrap, BitWriter, BitWriterExt},
-    ResultExt,
 };
 
 use super::BitPackWithArgs;
@@ -76,11 +78,7 @@ where
     where
         W: BitWriter,
     {
-        for (i, v) in source.iter().enumerate() {
-            writer
-                .pack_as_with::<&T, &As>(v, args.clone())
-                .with_context(|| format!("[{i}]"))?;
-        }
+        writer.pack_many_as_with::<_, &As>(source, args)?;
         Ok(())
     }
 }
@@ -160,6 +158,55 @@ where
         W: BitWriter,
     {
         PackAsWrap::<T, As>::new(source).pack_with(writer, args)
+    }
+}
+
+impl<Left, Right, AsLeft, AsRight> BitPackAsWithArgs<Either<Left, Right>>
+    for Either<AsLeft, AsRight>
+where
+    AsLeft: BitPackAsWithArgs<Left>,
+    AsRight: BitPackAsWithArgs<Right, Args = AsLeft::Args>,
+{
+    type Args = AsLeft::Args;
+
+    #[inline]
+    fn pack_as_with<W>(
+        source: &Either<Left, Right>,
+        writer: W,
+        args: Self::Args,
+    ) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        source
+            .as_ref()
+            .map_either(
+                PackAsWrap::<Left, AsLeft>::new,
+                PackAsWrap::<Right, AsRight>::new,
+            )
+            .pack_with(writer, args)
+    }
+}
+
+impl<T, As> BitPackAsWithArgs<Option<T>> for Either<(), As>
+where
+    As: BitPackAsWithArgs<T>,
+{
+    type Args = As::Args;
+
+    #[inline]
+    fn pack_as_with<W>(source: &Option<T>, writer: W, args: Self::Args) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        BitPackWithArgs::pack_with(
+            &match source.as_ref() {
+                None => Either::Left(PackAsWrap::<_, NoArgs<_>>::new(&())),
+                Some(v) => Either::Right(PackAsWrap::<T, As>::new(v)),
+            },
+            writer,
+            args,
+        )
     }
 }
 

@@ -1,7 +1,7 @@
 use std::{rc::Rc, sync::Arc};
 
 pub use crate::bits::ser::r#as::PackAsWrap;
-use crate::ResultExt;
+use crate::{either::Either, ResultExt};
 
 use super::{CellBuilder, CellBuilderError, CellSerialize};
 
@@ -126,16 +126,47 @@ where
     }
 }
 
+impl<Left, Right, AsLeft, AsRight> CellSerializeAs<Either<Left, Right>> for Either<AsLeft, AsRight>
+where
+    AsLeft: CellSerializeAs<Left>,
+    AsRight: CellSerializeAs<Right>,
+{
+    #[inline]
+    fn store_as(
+        source: &Either<Left, Right>,
+        builder: &mut CellBuilder,
+    ) -> Result<(), CellBuilderError> {
+        source
+            .as_ref()
+            .map_either(
+                PackAsWrap::<Left, AsLeft>::new,
+                PackAsWrap::<Right, AsRight>::new,
+            )
+            .store(builder)
+    }
+}
+
+impl<T, As> CellSerializeAs<Option<T>> for Either<(), As>
+where
+    As: CellSerializeAs<T>,
+{
+    #[inline]
+    fn store_as(source: &Option<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+        match source.as_ref() {
+            None => Either::Left(()),
+            Some(v) => Either::Right(PackAsWrap::<T, As>::new(v)),
+        }
+        .store(builder)
+    }
+}
+
 impl<T, As> CellSerializeAs<Option<T>> for Option<As>
 where
     As: CellSerializeAs<T>,
 {
     #[inline]
     fn store_as(source: &Option<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        source
-            .as_ref()
-            .map(CellSerializeWrapAsExt::wrap_as::<As>)
-            .store(builder)
+        source.as_ref().map(PackAsWrap::<_, As>::new).store(builder)
     }
 }
 

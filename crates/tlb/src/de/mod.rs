@@ -1,13 +1,18 @@
+pub mod args;
 pub mod r#as;
+mod parser;
+
+pub use self::parser::*;
 
 use core::mem::{self, MaybeUninit};
 use std::{rc::Rc, sync::Arc};
 
-use bitvec::{order::Msb0, slice::BitSlice};
-
-use crate::{bits::de::BitReader, r#as::FromInto, Cell, Error, ResultExt};
-
-use self::r#as::CellDeserializeAs;
+use crate::{
+    bits::de::BitReaderExt,
+    either::Either,
+    r#as::{FromInto, Same},
+    Cell, ResultExt,
+};
 
 pub trait CellDeserialize<'de>: Sized {
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>>;
@@ -95,6 +100,31 @@ where
     }
 }
 
+impl<'de, Left, Right> CellDeserialize<'de> for Either<Left, Right>
+where
+    Left: CellDeserialize<'de>,
+    Right: CellDeserialize<'de>,
+{
+    #[inline]
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        match parser.unpack().context("tag")? {
+            false => parser.parse().map(Either::Left).context("left"),
+            true => parser.parse().map(Either::Right).context("right"),
+        }
+    }
+}
+
+/// [Maybe](https://docs.ton.org/develop/data-formats/tl-b-types#maybe)
+impl<'de, T> CellDeserialize<'de> for Option<T>
+where
+    T: CellDeserialize<'de>,
+{
+    #[inline]
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        parser.parse_as::<_, Either<(), Same>>()
+    }
+}
+
 impl<'de> CellDeserialize<'de> for Cell {
     #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
@@ -102,89 +132,5 @@ impl<'de> CellDeserialize<'de> for Cell {
             data: mem::take(&mut parser.data).to_bitvec(),
             references: mem::take(&mut parser.references).to_vec(),
         })
-    }
-}
-
-pub type CellParserError<'de> = <CellParser<'de> as BitReader>::Error;
-
-pub struct CellParser<'de> {
-    data: &'de BitSlice<u8, Msb0>,
-    references: &'de [Arc<Cell>],
-}
-
-impl<'de> CellParser<'de> {
-    #[inline]
-    pub(crate) const fn new(data: &'de BitSlice<u8, Msb0>, references: &'de [Arc<Cell>]) -> Self {
-        Self { data, references }
-    }
-
-    #[inline]
-    pub fn parse<T>(&mut self) -> Result<T, CellParserError<'de>>
-    where
-        T: CellDeserialize<'de>,
-    {
-        T::parse(self)
-    }
-
-    #[inline]
-    pub fn parse_as<T, As>(&mut self) -> Result<T, CellParserError<'de>>
-    where
-        As: CellDeserializeAs<'de, T> + ?Sized,
-    {
-        As::parse_as(self)
-    }
-
-    #[inline]
-    fn pop_reference(&mut self) -> Result<&'de Arc<Cell>, CellParserError<'de>> {
-        let (first, rest) = self
-            .references
-            .split_first()
-            .ok_or_else(|| Error::custom("no more references left"))?;
-        self.references = rest;
-        Ok(first)
-    }
-
-    #[inline]
-    pub(crate) fn parse_reference_as<T, As>(&mut self) -> Result<T, CellParserError<'de>>
-    where
-        As: CellDeserializeAs<'de, T> + ?Sized,
-    {
-        self.pop_reference()?.parse_fully_as::<T, As>()
-    }
-
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.data.is_empty() && self.references.is_empty()
-    }
-
-    #[inline]
-    pub fn ensure_empty(&self) -> Result<(), CellParserError<'de>> {
-        if !self.is_empty() {
-            return Err(Error::custom(format!(
-                "more data left: {} bits, {} references",
-                self.data.len(),
-                self.references.len(),
-            )));
-        }
-        Ok(())
-    }
-}
-
-impl<'de> BitReader for CellParser<'de> {
-    type Error = <&'de BitSlice<u8, Msb0> as BitReader>::Error;
-
-    #[inline]
-    fn read_bit(&mut self) -> Result<bool, Self::Error> {
-        self.data.read_bit()
-    }
-
-    #[inline]
-    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
-        self.data.read_bits_into(dst)
-    }
-
-    #[inline]
-    fn skip(&mut self, n: usize) -> Result<(), Self::Error> {
-        self.data.skip(n)
     }
 }

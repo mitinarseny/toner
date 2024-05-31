@@ -2,6 +2,7 @@ use core::marker::PhantomData;
 use std::{rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, vec::BitVec};
+use either::Either;
 
 use crate::{ResultExt, StringError};
 
@@ -192,6 +193,43 @@ where
         W: BitWriter,
     {
         PackAsWrap::<T, As>::new(source).pack(writer)
+    }
+}
+
+impl<Left, Right, AsLeft, AsRight> BitPackAs<Either<Left, Right>> for Either<AsLeft, AsRight>
+where
+    AsLeft: BitPackAs<Left>,
+    AsRight: BitPackAs<Right>,
+{
+    #[inline]
+    fn pack_as<W>(source: &Either<Left, Right>, writer: W) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        source
+            .as_ref()
+            .map_either(
+                PackAsWrap::<Left, AsLeft>::new,
+                PackAsWrap::<Right, AsRight>::new,
+            )
+            .pack(writer)
+    }
+}
+
+impl<T, As> BitPackAs<Option<T>> for Either<(), As>
+where
+    As: BitPackAs<T>,
+{
+    #[inline]
+    fn pack_as<W>(source: &Option<T>, writer: W) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        match source.as_ref() {
+            None => Either::Left(()),
+            Some(v) => Either::Right(PackAsWrap::<T, As>::new(v)),
+        }
+        .pack(writer)
     }
 }
 

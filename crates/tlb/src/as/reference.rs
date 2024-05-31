@@ -3,6 +3,7 @@ use core::marker::PhantomData;
 use crate::{
     de::{r#as::CellDeserializeAs, CellParser, CellParserError},
     ser::{r#as::CellSerializeAs, CellBuilder, CellBuilderError},
+    ResultExt,
 };
 
 use super::Same;
@@ -15,7 +16,7 @@ where
 {
     #[inline]
     fn store_as(source: &T, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.store_reference_as::<&T, &As>(source)?;
+        builder.store_reference_as::<&T, &As>(source).context("^")?;
         Ok(())
     }
 }
@@ -26,6 +27,6 @@ where
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
-        parser.parse_reference_as::<T, As>()
+        parser.parse_reference_as::<T, As>().context("^")
     }
 }

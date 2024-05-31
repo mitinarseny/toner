@@ -1,12 +1,14 @@
 use core::mem::MaybeUninit;
 use std::{rc::Rc, sync::Arc};
 
+use either::Either;
+
 use super::{
     super::{r#as::UnpackAsWrap, BitReader, BitReaderExt},
     BitUnpackWithArgs,
 };
 
-use crate::ResultExt;
+use crate::{r#as::args::NoArgs, ResultExt};
 
 pub trait BitUnpackAsWithArgs<T> {
     type Args;
@@ -151,6 +153,45 @@ where
         UnpackAsWrap::<T, As>::unpack_with(reader, args)
             .map(UnpackAsWrap::into_inner)
             .map(Into::into)
+    }
+}
+
+impl<Left, Right, AsLeft, AsRight> BitUnpackAsWithArgs<Either<Left, Right>>
+    for Either<AsLeft, AsRight>
+where
+    AsLeft: BitUnpackAsWithArgs<Left>,
+    AsRight: BitUnpackAsWithArgs<Right, Args = AsLeft::Args>,
+{
+    type Args = AsLeft::Args;
+
+    #[inline]
+    fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<Either<Left, Right>, R::Error>
+    where
+        R: BitReader,
+    {
+        Ok(
+            Either::<UnpackAsWrap<Left, AsLeft>, UnpackAsWrap<Right, AsRight>>::unpack_with(
+                reader, args,
+            )?
+            .map_either(UnpackAsWrap::into_inner, UnpackAsWrap::into_inner),
+        )
+    }
+}
+
+impl<T, As> BitUnpackAsWithArgs<Option<T>> for Either<(), As>
+where
+    As: BitUnpackAsWithArgs<T>,
+{
+    type Args = As::Args;
+
+    #[inline]
+    fn unpack_as_with<R>(mut reader: R, args: Self::Args) -> Result<Option<T>, R::Error>
+    where
+        R: BitReader,
+    {
+        Ok(reader
+            .unpack_as_with::<Either<(), T>, Either<NoArgs<_>, As>>(args)?
+            .right())
     }
 }
 

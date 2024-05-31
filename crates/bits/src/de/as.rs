@@ -2,6 +2,7 @@ use core::{marker::PhantomData, mem::MaybeUninit};
 use std::{rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, slice::BitSlice, view::AsBits};
+use either::Either;
 
 use crate::{Error, ResultExt, StringError};
 
@@ -183,6 +184,38 @@ where
         UnpackAsWrap::<T, As>::unpack(reader)
             .map(UnpackAsWrap::into_inner)
             .map(Arc::new)
+    }
+}
+
+impl<Left, Right, AsLeft, AsRight> BitUnpackAs<Either<Left, Right>> for Either<AsLeft, AsRight>
+where
+    AsLeft: BitUnpackAs<Left>,
+    AsRight: BitUnpackAs<Right>,
+{
+    #[inline]
+    fn unpack_as<R>(reader: R) -> Result<Either<Left, Right>, R::Error>
+    where
+        R: BitReader,
+    {
+        Ok(
+            Either::<UnpackAsWrap<Left, AsLeft>, UnpackAsWrap<Right, AsRight>>::unpack(reader)?
+                .map_either(UnpackAsWrap::into_inner, UnpackAsWrap::into_inner),
+        )
+    }
+}
+
+impl<T, As> BitUnpackAs<Option<T>> for Either<(), As>
+where
+    As: BitUnpackAs<T>,
+{
+    #[inline]
+    fn unpack_as<R>(reader: R) -> Result<Option<T>, R::Error>
+    where
+        R: BitReader,
+    {
+        Ok(Either::<(), UnpackAsWrap<T, As>>::unpack(reader)?
+            .map_right(UnpackAsWrap::into_inner)
+            .right())
     }
 }
 

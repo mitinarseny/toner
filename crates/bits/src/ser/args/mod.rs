@@ -2,9 +2,10 @@ pub mod r#as;
 
 use std::{rc::Rc, sync::Arc};
 
+use either::Either;
 use impl_tools::autoimpl;
 
-use crate::ResultExt;
+use crate::{r#as::Same, ResultExt};
 
 use super::{BitWriter, BitWriterExt};
 
@@ -96,3 +97,48 @@ impl_bit_pack_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6);
 impl_bit_pack_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
 impl_bit_pack_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
 impl_bit_pack_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
+
+impl<L, R> BitPackWithArgs for Either<L, R>
+where
+    L: BitPackWithArgs,
+    R: BitPackWithArgs<Args = L::Args>,
+{
+    type Args = L::Args;
+
+    #[inline]
+    fn pack_with<W>(&self, mut writer: W, args: Self::Args) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        match self {
+            Self::Left(l) => writer
+                .pack(false)
+                .context("tag")?
+                .pack_with(l, args)
+                .context("left")?,
+            Self::Right(r) => writer
+                .pack(true)
+                .context("tag")?
+                .pack_with(r, args)
+                .context("right")?,
+        };
+        Ok(())
+    }
+}
+
+/// [Maybe](https://docs.ton.org/develop/data-formats/tl-b-types#maybe)
+impl<T> BitPackWithArgs for Option<T>
+where
+    T: BitPackWithArgs,
+{
+    type Args = T::Args;
+
+    #[inline]
+    fn pack_with<W>(&self, mut writer: W, args: Self::Args) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        writer.pack_as_with::<_, Either<(), Same>>(self.as_ref(), args)?;
+        Ok(())
+    }
+}

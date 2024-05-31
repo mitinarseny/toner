@@ -1,7 +1,7 @@
 use core::mem::MaybeUninit;
 use std::{rc::Rc, sync::Arc};
 
-use crate::{bits::de::r#as::UnpackAsWrap, ResultExt};
+use crate::{bits::de::r#as::UnpackAsWrap, either::Either, ResultExt};
 
 use super::{CellDeserialize, CellParser, CellParserError};
 
@@ -98,6 +98,33 @@ where
         UnpackAsWrap::<T, As>::parse(parser)
             .map(UnpackAsWrap::into_inner)
             .map(Arc::new)
+    }
+}
+
+impl<'de, Left, Right, AsLeft, AsRight> CellDeserializeAs<'de, Either<Left, Right>>
+    for Either<AsLeft, AsRight>
+where
+    AsLeft: CellDeserializeAs<'de, Left>,
+    AsRight: CellDeserializeAs<'de, Right>,
+{
+    #[inline]
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<Either<Left, Right>, CellParserError<'de>> {
+        Ok(
+            Either::<UnpackAsWrap<Left, AsLeft>, UnpackAsWrap<Right, AsRight>>::parse(parser)?
+                .map_either(UnpackAsWrap::into_inner, UnpackAsWrap::into_inner),
+        )
+    }
+}
+
+impl<'de, T, As> CellDeserializeAs<'de, Option<T>> for Either<(), As>
+where
+    As: CellDeserializeAs<'de, T>,
+{
+    #[inline]
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<Option<T>, CellParserError<'de>> {
+        Ok(Either::<(), UnpackAsWrap<T, As>>::parse(parser)?
+            .map_right(UnpackAsWrap::into_inner)
+            .right())
     }
 }
 

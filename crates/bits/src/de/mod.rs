@@ -8,8 +8,12 @@ use core::mem::MaybeUninit;
 use std::{rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, slice::BitSlice, view::AsBits};
+use either::Either;
 
-use crate::{r#as::FromInto, Error, ResultExt, StringError};
+use crate::{
+    r#as::{FromInto, Same},
+    Error, ResultExt, StringError,
+};
 
 pub trait BitUnpack: Sized {
     fn unpack<R>(reader: R) -> Result<Self, R::Error>
@@ -157,5 +161,36 @@ where
         R: BitReader,
     {
         reader.unpack_as::<_, FromInto<T>>()
+    }
+}
+
+impl<Left, Right> BitUnpack for Either<Left, Right>
+where
+    Left: BitUnpack,
+    Right: BitUnpack,
+{
+    #[inline]
+    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+    where
+        R: BitReader,
+    {
+        match reader.unpack().context("tag")? {
+            false => reader.unpack().map(Either::Left).context("left"),
+            true => reader.unpack().map(Either::Right).context("right"),
+        }
+    }
+}
+
+/// [Maybe](https://docs.ton.org/develop/data-formats/tl-b-types#maybe)
+impl<T> BitUnpack for Option<T>
+where
+    T: BitUnpack,
+{
+    #[inline]
+    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+    where
+        R: BitReader,
+    {
+        reader.unpack_as::<_, Either<(), Same>>()
     }
 }

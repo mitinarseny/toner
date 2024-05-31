@@ -7,9 +7,10 @@ use tlb::{
         ser::{BitPack, BitWriter, BitWriterExt},
     },
     de::{CellDeserialize, CellParser, CellParserError},
+    either::Either,
     r#as::{Ref, Same},
     ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
-    Cell, Either,
+    Cell,
 };
 
 use crate::{CurrencyCollection, Grams, MsgAddress, StateInit, UnixTimestamp};

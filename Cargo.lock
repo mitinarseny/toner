@@ -710,7 +710,6 @@ dependencies = [
  "bitvec",
  "chrono",
  "crc",
- "either",
  "hex",
  "impl-tools",
  "num-bigint",

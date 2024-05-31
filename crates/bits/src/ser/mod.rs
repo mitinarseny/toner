@@ -7,9 +7,13 @@ pub use self::writer::*;
 use std::{rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
+use either::Either;
 use impl_tools::autoimpl;
 
-use crate::{r#as::AsBytes, ResultExt, StringError};
+use crate::{
+    r#as::{AsBytes, Same},
+    ResultExt, StringError,
+};
 
 use self::args::BitPackWithArgs;
 
@@ -128,6 +132,39 @@ impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6);
 impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
 impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
 impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
+
+impl<L, R> BitPack for Either<L, R>
+where
+    L: BitPack,
+    R: BitPack,
+{
+    #[inline]
+    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        match self {
+            Self::Left(l) => writer.pack(false).context("tag")?.pack(l).context("left")?,
+            Self::Right(r) => writer.pack(true).context("tag")?.pack(r).context("right")?,
+        };
+        Ok(())
+    }
+}
+
+/// [Maybe](https://docs.ton.org/develop/data-formats/tl-b-types#maybe)
+impl<T> BitPack for Option<T>
+where
+    T: BitPack,
+{
+    #[inline]
+    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        writer.pack_as::<_, Either<(), Same>>(self.as_ref())?;
+        Ok(())
+    }
+}
 
 impl<'a> BitPack for &'a BitSlice<u8, Msb0> {
     #[inline]
