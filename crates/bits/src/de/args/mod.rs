@@ -3,6 +3,7 @@ pub mod r#as;
 use core::mem::MaybeUninit;
 use std::{rc::Rc, sync::Arc};
 
+use bitvec::{order::Msb0, vec::BitVec};
 use either::Either;
 
 use crate::{
@@ -165,5 +166,16 @@ where
         R: BitReader,
     {
         reader.unpack_as_with::<_, Either<(), Same>>(args)
+    }
+}
+
+impl BitUnpackWithArgs for BitVec<u8, Msb0> {
+    type Args = usize;
+
+    fn unpack_with<R>(mut reader: R, len: Self::Args) -> Result<Self, R::Error>
+    where
+        R: BitReader,
+    {
+        reader.read_bitvec(len)
     }
 }

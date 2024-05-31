@@ -6,11 +6,11 @@ use crate::de::{
 
 use super::Same;
 
-pub struct ParseFully<As = Same>(PhantomData<As>);
+pub struct ParseFully<As: ?Sized = Same>(PhantomData<As>);
 
 impl<'de, T, As> CellDeserializeAs<'de, T> for ParseFully<As>
 where
-    As: CellDeserializeAs<'de, T>,
+    As: CellDeserializeAs<'de, T> + ?Sized,
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
@@ -22,7 +22,7 @@ where
 
 impl<'de, T, As> CellDeserializeAsWithArgs<'de, T> for ParseFully<As>
 where
-    As: CellDeserializeAsWithArgs<'de, T>,
+    As: CellDeserializeAsWithArgs<'de, T> + ?Sized,
 {
     type Args = As::Args;
 
