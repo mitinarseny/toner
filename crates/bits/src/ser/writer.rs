@@ -1,8 +1,5 @@
-use core::{fmt::Binary, mem::size_of};
-
 use ::bitvec::{order::Msb0, slice::BitSlice, store::BitStore, vec::BitVec, view::AsBits};
 use impl_tools::autoimpl;
-use num_traits::{PrimInt, ToBytes};
 
 use crate::{
     adapters::{BitCounter, Tee},
@@ -161,26 +158,6 @@ pub trait BitWriterExt: BitWriter {
             self.pack_as_with::<_, As>(v, args.clone())
                 .with_context(|| format!("[{i}]"))?;
         }
-        Ok(self)
-    }
-
-    #[inline]
-    fn pack_as_n_bytes<T>(&mut self, value: T, num_bytes: u32) -> Result<&mut Self, Self::Error>
-    where
-        T: PrimInt + Binary + ToBytes,
-    {
-        let size_bytes: u32 = size_of::<T>() as u32;
-        let leading_zeroes = value.leading_zeros();
-        let used_bytes = size_bytes - leading_zeroes / 8;
-        if num_bytes < used_bytes {
-            return Err(Error::custom(format!(
-                "{value:0b} cannot be packed into {num_bytes} bytes",
-            )));
-        }
-        let arr = value.to_be_bytes();
-        let mut bytes = arr.as_ref();
-        bytes = &bytes[bytes.len() - num_bytes as usize..];
-        self.write_bitslice(bytes.as_bits())?;
         Ok(self)
     }
 

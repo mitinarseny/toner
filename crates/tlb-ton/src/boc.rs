@@ -251,9 +251,7 @@ impl BitPackWithArgs for RawBagOfCells {
             .pack_as_with::<_, VarNBytes>(0u32, size_bytes)?; // root should have index 0
         if args.has_idx {
             // index:has_idx?(cells * ##(off_bytes * 8))
-            for id in index {
-                buffered.pack_as_n_bytes(id, off_bytes)?;
-            }
+            buffered.pack_many_as_with::<_, VarNBytes>(index, off_bytes)?;
         }
         // cell_data:(tot_cells_size * [ uint8 ])
         for (i, cell) in self.cells.iter().enumerate() {
@@ -430,9 +428,7 @@ impl BitPackWithArgs for RawCell {
             writer.repeat_bit(8 - padding_bits - 1, false)?;
         }
 
-        for r in &self.references {
-            writer.pack_as_n_bytes(*r, ref_size_bytes)?;
-        }
+        writer.pack_many_as_with::<_, &VarNBytes>(&self.references, ref_size_bytes)?;
 
         Ok(())
     }
