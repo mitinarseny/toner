@@ -33,6 +33,7 @@ where
     IC: CellSerialize,
     ID: CellSerialize,
 {
+    #[inline]
     pub fn normalize(&self) -> Result<StateInit, CellBuilderError> {
         Ok(StateInit {
             split_depth: self.split_depth,
@@ -57,6 +58,7 @@ where
     C: CellSerialize,
     D: CellSerialize,
 {
+    #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder
             // split_depth:(Maybe (## 5))
@@ -78,6 +80,7 @@ where
     C: CellDeserialize<'de>,
     D: CellDeserialize<'de>,
 {
+    #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             // split_depth:(Maybe (## 5))
@@ -104,6 +107,7 @@ pub struct TickTock {
 }
 
 impl BitPack for TickTock {
+    #[inline]
     fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
     where
         W: BitWriter,
@@ -114,6 +118,7 @@ impl BitPack for TickTock {
 }
 
 impl BitUnpack for TickTock {
+    #[inline]
     fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
     where
         R: BitReader,

@@ -22,6 +22,7 @@ where
 {
     type Args = (AsT::Args, AsE::Args);
 
+    #[inline]
     fn store_as_with(
         source: &BinTreeAug<T, E>,
         builder: &mut CellBuilder,
@@ -43,6 +44,7 @@ where
 {
     type Args = (AsT::Args, AsE::Args);
 
+    #[inline]
     fn parse_as_with(
         parser: &mut tlb::de::CellParser<'de>,
         (args, extra_args): Self::Args,
@@ -72,6 +74,7 @@ where
 {
     type Args = (AsT::Args, AsE::Args);
 
+    #[inline]
     fn store_as_with(
         source: &BinTreeNode<T, E>,
         builder: &mut CellBuilder,
@@ -100,6 +103,7 @@ where
 {
     type Args = (AsT::Args, AsE::Args);
 
+    #[inline]
     fn parse_as_with(
         parser: &mut tlb::de::CellParser<'de>,
         (args, extra_args): Self::Args,

@@ -21,6 +21,7 @@ pub struct CurrencyCollection {
 }
 
 impl CellSerialize for CurrencyCollection {
+    #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder
             .pack_as::<_, &Grams>(&self.grams)?
@@ -30,6 +31,7 @@ impl CellSerialize for CurrencyCollection {
 }
 
 impl<'de> CellDeserialize<'de> for CurrencyCollection {
+    #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             grams: parser.unpack_as::<_, Grams>()?,
@@ -45,6 +47,7 @@ impl<'de> CellDeserialize<'de> for CurrencyCollection {
 pub struct ExtraCurrencyCollection(pub HashmapE<BigUint>);
 
 impl CellSerialize for ExtraCurrencyCollection {
+    #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder.store_as_with::<_, &HashmapE<NoArgs<_, Data<VarInt<32>>>, NoArgs<_>>>(
             &self.0,
@@ -55,6 +58,7 @@ impl CellSerialize for ExtraCurrencyCollection {
 }
 
 impl<'de> CellDeserialize<'de> for ExtraCurrencyCollection {
+    #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self(
             parser.parse_as_with::<_, HashmapE<NoArgs<_, Data<VarInt<32>>>, NoArgs<_>>>((
