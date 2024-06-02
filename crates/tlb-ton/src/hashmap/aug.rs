@@ -88,7 +88,7 @@ where
 /// hme_empty$0 {n:#} {X:Type} = HashmapE n X;
 /// hme_root$1 {n:#} {X:Type} root:^(Hashmap n X) = HashmapE n X;
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HashmapE<T, E = ()> {
     Empty,
     Root(Hashmap<T, E>),
@@ -308,15 +308,15 @@ where
 /// label:(HmLabel ~l n) {n = (~m) + l}
 /// node:(HashmapAugNode m X Y) = HashmapAug n X Y;
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Hashmap<T, E = ()> {
     pub(super) prefix: BitVec<u8, Msb0>,
-    pub(super) node: HashmapAugNode<T, E>,
+    pub(super) node: AugNode<T, E>,
 }
 
 impl<T, E> Hashmap<T, E> {
     #[inline]
-    pub fn new(prefix: impl Into<BitVec<u8, Msb0>>, node: HashmapAugNode<T, E>) -> Self {
+    pub fn new(prefix: impl Into<BitVec<u8, Msb0>>, node: AugNode<T, E>) -> Self {
         Self {
             prefix: prefix.into(),
             node,
@@ -372,7 +372,7 @@ where
             .pack_as_with::<_, &HmLabel>(source.prefix.as_bitslice(), n)
             .context("label")?
             // node:(HashmapNode m X)
-            .store_as_with::<_, &HashmapAugNode<AsT, AsE>>(
+            .store_as_with::<_, &AugNode<AsT, AsE>>(
                 &source.node,
                 (
                     // {n = (~m) + l}
@@ -409,7 +409,7 @@ where
             prefix,
             // node:(HashmapNode m X)
             node: parser
-                .parse_as_with::<_, HashmapAugNode<AsT, AsE>>((m, node_args, extra_args))
+                .parse_as_with::<_, AugNode<AsT, AsE>>((m, node_args, extra_args))
                 .context("node")?,
         })
     }
@@ -420,14 +420,14 @@ where
 /// hmn_fork#_ {n:#} {X:Type} left:^(Hashmap n X)
 ///            right:^(Hashmap n X) = HashmapNode (n + 1) X;
 /// ```
-#[derive(Debug, Clone)]
-pub enum HashmapNode<T, E = ()> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Node<T, E = ()> {
     Leaf(T),
     /// [left, right]
     Fork([Box<Hashmap<T, E>>; 2]),
 }
 
-impl<T, E> HashmapNode<T, E> {
+impl<T, E> Node<T, E> {
     #[inline]
     #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
@@ -479,7 +479,7 @@ impl<T, E> HashmapNode<T, E> {
     }
 }
 
-impl<T, AsT, E, AsE> CellSerializeAsWithArgs<HashmapNode<T, E>> for HashmapNode<AsT, AsE>
+impl<T, AsT, E, AsE> CellSerializeAsWithArgs<Node<T, E>> for Node<AsT, AsE>
 where
     AsT: CellSerializeAsWithArgs<T>,
     AsT::Args: Clone,
@@ -490,12 +490,12 @@ where
     type Args = (u32, AsT::Args, AsE::Args);
 
     fn store_as_with(
-        source: &HashmapNode<T, E>,
+        source: &Node<T, E>,
         builder: &mut CellBuilder,
         (n, node_args, extra_args): Self::Args,
     ) -> Result<(), CellBuilderError> {
         match source {
-            HashmapNode::Leaf(value) => {
+            Node::Leaf(value) => {
                 if n != 0 {
                     return Err(CellBuilderError::custom(format!(
                         "key is too small, {n} more bits required"
@@ -504,7 +504,7 @@ where
                 // hmn_leaf#_ {X:Type} value:X = HashmapNode 0 X;
                 builder.store_as_with::<_, &AsT>(value, node_args)?
             }
-            HashmapNode::Fork(fork) => {
+            Node::Fork(fork) => {
                 if n == 0 {
                     return Err(CellBuilderError::custom("key is too long"));
                 }
@@ -520,8 +520,7 @@ where
     }
 }
 
-impl<'de, T, AsT, E, AsE> CellDeserializeAsWithArgs<'de, HashmapNode<T, E>>
-    for HashmapNode<AsT, AsE>
+impl<'de, T, AsT, E, AsE> CellDeserializeAsWithArgs<'de, Node<T, E>> for Node<AsT, AsE>
 where
     AsT: CellDeserializeAsWithArgs<'de, T>,
     AsT::Args: Clone,
@@ -535,15 +534,13 @@ where
     fn parse_as_with(
         parser: &mut CellParser<'de>,
         (n, node_args, extra_args): Self::Args,
-    ) -> Result<HashmapNode<T, E>, CellParserError<'de>> {
+    ) -> Result<Node<T, E>, CellParserError<'de>> {
         if n == 0 {
             // hmn_leaf#_ {X:Type} value:X = HashmapNode 0 X;
-            return parser
-                .parse_as_with::<_, AsT>(node_args)
-                .map(HashmapNode::Leaf);
+            return parser.parse_as_with::<_, AsT>(node_args).map(Node::Leaf);
         }
 
-        Ok(HashmapNode::Fork(
+        Ok(Node::Fork(
             parser
                 // left:^(Hashmap n X) right:^(Hashmap n X)
                 .parse_as_with::<_, [Box<Ref<ParseFully<Hashmap<AsT, AsE>>>>; 2]>((
@@ -560,22 +557,22 @@ where
 /// ahmn_fork#_ {n:#} {X:Type} {Y:Type} left:^(HashmapAug n X Y)
 /// right:^(HashmapAug n X Y) extra:Y = HashmapAugNode (n + 1) X Y;
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[autoimpl(Deref using self.node)]
 #[autoimpl(DerefMut using self.node)]
-pub struct HashmapAugNode<T, E = ()> {
-    pub node: HashmapNode<T, E>,
+pub struct AugNode<T, E = ()> {
+    pub node: Node<T, E>,
     pub extra: E,
 }
 
-impl<T, E> HashmapAugNode<T, E> {
+impl<T, E> AugNode<T, E> {
     #[inline]
-    pub fn new(node: HashmapNode<T, E>, extra: E) -> Self {
+    pub fn new(node: Node<T, E>, extra: E) -> Self {
         Self { node, extra }
     }
 }
 
-impl<T, AsT, E, AsE> CellSerializeAsWithArgs<HashmapAugNode<T, E>> for HashmapAugNode<AsT, AsE>
+impl<T, AsT, E, AsE> CellSerializeAsWithArgs<AugNode<T, E>> for AugNode<AsT, AsE>
 where
     AsT: CellSerializeAsWithArgs<T>,
     AsT::Args: Clone,
@@ -586,20 +583,19 @@ where
     type Args = (u32, AsT::Args, AsE::Args);
 
     fn store_as_with(
-        source: &HashmapAugNode<T, E>,
+        source: &AugNode<T, E>,
         builder: &mut CellBuilder,
         (n, node_args, extra_args): Self::Args,
     ) -> Result<(), CellBuilderError> {
         builder
             // extra:Y
             .store_as_with::<_, &AsE>(&source.extra, extra_args.clone())?
-            .store_as_with::<_, &HashmapNode<AsT, AsE>>(&source.node, (n, node_args, extra_args))?;
+            .store_as_with::<_, &Node<AsT, AsE>>(&source.node, (n, node_args, extra_args))?;
         Ok(())
     }
 }
 
-impl<'de, T, AsT, E, AsE> CellDeserializeAsWithArgs<'de, HashmapAugNode<T, E>>
-    for HashmapAugNode<AsT, AsE>
+impl<'de, T, AsT, E, AsE> CellDeserializeAsWithArgs<'de, AugNode<T, E>> for AugNode<AsT, AsE>
 where
     AsT: CellDeserializeAsWithArgs<'de, T>,
     AsT::Args: Clone,
@@ -612,11 +608,11 @@ where
     fn parse_as_with(
         parser: &mut CellParser<'de>,
         (n, node_args, extra_args): Self::Args,
-    ) -> Result<HashmapAugNode<T, E>, CellParserError<'de>> {
-        Ok(HashmapAugNode {
+    ) -> Result<AugNode<T, E>, CellParserError<'de>> {
+        Ok(AugNode {
             // extra:Y
             extra: parser.parse_as_with::<_, AsE>(extra_args.clone())?,
-            node: parser.parse_as_with::<_, HashmapNode<AsT, AsE>>((n, node_args, extra_args))?,
+            node: parser.parse_as_with::<_, Node<AsT, AsE>>((n, node_args, extra_args))?,
         })
     }
 }

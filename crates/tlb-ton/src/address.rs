@@ -14,8 +14,11 @@ use tlb::{
         r#as::NBits,
         ser::{BitPack, BitWriter, BitWriterExt},
     },
+    ser::{CellBuilderError, CellSerializeExt},
     Error, ResultExt, StringError,
 };
+
+use crate::StateInit;
 
 const CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
 
@@ -35,6 +38,14 @@ impl MsgAddress {
         address: [0; 32],
     };
 
+    #[inline]
+    pub fn derive(workchain_id: i32, state_init: StateInit) -> Result<Self, CellBuilderError> {
+        Ok(Self {
+            workchain_id,
+            address: state_init.to_cell()?.hash(),
+        })
+    }
+
     pub fn from_hex(s: impl AsRef<str>) -> Result<Self, StringError> {
         let s = s.as_ref();
         let (workchain, addr) = s
@@ -49,38 +60,47 @@ impl MsgAddress {
         })
     }
 
+    #[inline]
     pub fn to_hex(&self) -> String {
         format!("{}:{}", self.workchain_id, hex::encode(self.address))
     }
 
+    #[inline]
     pub fn from_base64_url(s: impl AsRef<str>) -> Result<Self, StringError> {
         Self::from_base64_url_flags(s).map(|(addr, _, _)| addr)
     }
 
+    #[inline]
     pub fn from_base64_url_flags(s: impl AsRef<str>) -> Result<(Self, bool, bool), StringError> {
         Self::from_base64_repr(URL_SAFE_NO_PAD, s)
     }
 
+    #[inline]
     pub fn from_base64_std(s: impl AsRef<str>) -> Result<Self, StringError> {
         Self::from_base64_std_flags(s).map(|(addr, _, _)| addr)
     }
 
+    #[inline]
     pub fn from_base64_std_flags(s: impl AsRef<str>) -> Result<(Self, bool, bool), StringError> {
         Self::from_base64_repr(STANDARD_NO_PAD, s)
     }
 
+    #[inline]
     pub fn to_base64_url(self) -> String {
         self.to_base64_url_flags(false, false)
     }
 
+    #[inline]
     pub fn to_base64_url_flags(self, non_bounceable: bool, non_production: bool) -> String {
         self.to_base64_flags(non_bounceable, non_production, URL_SAFE_NO_PAD)
     }
 
+    #[inline]
     pub fn to_base64_std(self) -> String {
         self.to_base64_std_flags(false, false)
     }
 
+    #[inline]
     pub fn to_base64_std_flags(self, non_bounceable: bool, non_production: bool) -> String {
         self.to_base64_flags(non_bounceable, non_production, STANDARD_NO_PAD)
     }

@@ -89,9 +89,9 @@ impl<const BITS: usize> BitUnpackAs<BigInt> for NBits<BITS> {
     }
 }
 
-pub struct VarUint<const BITS_FOR_BYTES_LEN: usize>;
+pub struct VarInt<const BITS_FOR_BYTES_LEN: usize>;
 
-impl<const BITS_FOR_BYTES_LEN: usize> BitPackAs<BigUint> for VarUint<BITS_FOR_BYTES_LEN> {
+impl<const BITS_FOR_BYTES_LEN: usize> BitPackAs<BigUint> for VarInt<BITS_FOR_BYTES_LEN> {
     #[inline]
     fn pack_as<W>(source: &BigUint, mut writer: W) -> Result<(), W::Error>
     where
@@ -108,7 +108,7 @@ impl<const BITS_FOR_BYTES_LEN: usize> BitPackAs<BigUint> for VarUint<BITS_FOR_BY
     }
 }
 
-impl<const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<BigUint> for VarUint<BITS_FOR_BYTES_LEN> {
+impl<const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<BigUint> for VarInt<BITS_FOR_BYTES_LEN> {
     #[inline]
     fn unpack_as<R>(mut reader: R) -> Result<BigUint, R::Error>
     where
@@ -124,8 +124,6 @@ impl<const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<BigUint> for VarUint<BITS_FOR_
         Ok(BigUint::from_bytes_be(bits.as_raw_slice()))
     }
 }
-
-pub struct VarInt<const BITS_FOR_BYTES_LEN: usize>;
 
 impl<const BITS_FOR_BYTES_LEN: usize> BitPackAs<BigInt> for VarInt<BITS_FOR_BYTES_LEN> {
     #[inline]

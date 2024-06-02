@@ -1,6 +1,6 @@
 use num_bigint::BigUint;
 use tlb::{
-    bits::{de::BitReaderExt, integer::ConstU32, r#as::VarUint, ser::BitWriterExt},
+    bits::{de::BitReaderExt, integer::ConstU32, r#as::VarInt, ser::BitWriterExt},
     de::{CellDeserialize, CellParser, CellParserError},
     either::Either,
     r#as::{ParseFully, Ref, Same},
@@ -36,11 +36,11 @@ where
         builder
             .pack(JETTON_TRANSFER_TAG)?
             .pack(self.query_id)?
-            .pack_as::<_, &VarUint<4>>(&self.amount)?
+            .pack_as::<_, &VarInt<4>>(&self.amount)?
             .pack(self.dst)?
             .pack(self.response_dst)?
             .store_as::<_, Option<Ref>>(self.custom_payload.as_ref())?
-            .pack_as::<_, &VarUint<4>>(&self.forward_ton_amount)?
+            .pack_as::<_, &VarInt<4>>(&self.forward_ton_amount)?
             .store_as::<Either<(), _>, Either<Same, Ref>>(Either::Right(&self.forward_payload))?;
         Ok(())
     }
@@ -55,11 +55,11 @@ where
         parser.unpack::<ConstU32<JETTON_TRANSFER_TAG>>()?;
         Ok(Self {
             query_id: parser.unpack()?,
-            amount: parser.unpack_as::<_, VarUint<4>>()?,
+            amount: parser.unpack_as::<_, VarInt<4>>()?,
             dst: parser.unpack()?,
             response_dst: parser.unpack()?,
             custom_payload: parser.parse_as::<_, Option<Ref<ParseFully>>>()?,
-            forward_ton_amount: parser.unpack_as::<_, VarUint<4>>()?,
+            forward_ton_amount: parser.unpack_as::<_, VarInt<4>>()?,
             forward_payload: parser
                 .parse_as::<Either<F, F>, Either<Same, Ref<ParseFully>>>()?
                 .into_inner(),
@@ -89,7 +89,7 @@ where
         builder
             .pack(JETTON_TRANSFER_NOTIFICATION_TAG)?
             .pack(self.query_id)?
-            .pack_as::<_, &VarUint<4>>(&self.amount)?
+            .pack_as::<_, &VarInt<4>>(&self.amount)?
             .pack(self.sender)?
             .store_as::<Either<(), _>, Either<Same, Ref>>(Either::Right(&self.forward_payload))?;
         Ok(())
@@ -104,7 +104,7 @@ where
         parser.unpack::<ConstU32<JETTON_TRANSFER_NOTIFICATION_TAG>>()?;
         Ok(Self {
             query_id: parser.unpack()?,
-            amount: parser.unpack_as::<_, VarUint<4>>()?,
+            amount: parser.unpack_as::<_, VarInt<4>>()?,
             sender: parser.unpack()?,
             forward_payload: parser
                 .parse_as::<Either<P, P>, Either<Same, Ref<ParseFully>>>()?
@@ -134,7 +134,7 @@ where
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder
             .pack(JETTON_BURN_TAG)?
-            .pack_as::<_, &VarUint<4>>(&self.amount)?
+            .pack_as::<_, &VarInt<4>>(&self.amount)?
             .pack(self.response_dst)?
             .store_as::<_, Option<Ref>>(self.custom_payload.as_ref())?;
         Ok(())
@@ -149,7 +149,7 @@ where
         parser.unpack::<ConstU32<JETTON_BURN_TAG>>()?;
         Ok(Self {
             query_id: parser.unpack()?,
-            amount: parser.unpack_as::<_, VarUint<4>>()?,
+            amount: parser.unpack_as::<_, VarInt<4>>()?,
             response_dst: parser.unpack()?,
             custom_payload: parser.parse_as::<_, Option<Ref<ParseFully>>>()?,
         })

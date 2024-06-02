@@ -1,42 +1,39 @@
 use num_bigint::BigUint;
-use tlb::bits::{
-    de::{BitReader, BitReaderExt, BitUnpack},
-    r#as::VarUint,
-    ser::{BitPack, BitWriter, BitWriterExt},
+use tlb::{
+    bits::{de::BitReaderExt, r#as::VarInt, ser::BitWriterExt},
+    de::{CellDeserialize, CellParser, CellParserError},
+    r#as::{Data, NoArgs},
+    ser::{CellBuilder, CellBuilderError, CellSerialize},
 };
 
-pub type Coins = VarUint<4>;
+use crate::hashmap::HashmapE;
+
+pub type Coins = VarInt<4>;
 pub type Grams = Coins;
 
 /// ```tlb
 /// currencies$_ grams:Grams other:ExtraCurrencyCollection = CurrencyCollection;
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct CurrencyCollection {
     pub grams: BigUint,
     pub other: ExtraCurrencyCollection,
 }
 
-impl BitPack for CurrencyCollection {
-    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
-    where
-        W: BitWriter,
-    {
-        writer
+impl CellSerialize for CurrencyCollection {
+    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+        builder
             .pack_as::<_, &Grams>(&self.grams)?
-            .pack(&self.other)?;
+            .store(&self.other)?;
         Ok(())
     }
 }
 
-impl BitUnpack for CurrencyCollection {
-    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
-    where
-        R: BitReader,
-    {
+impl<'de> CellDeserialize<'de> for CurrencyCollection {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
-            grams: reader.unpack_as::<_, Grams>()?,
-            other: reader.unpack()?,
+            grams: parser.unpack_as::<_, Grams>()?,
+            other: parser.parse()?,
         })
     }
 }
@@ -44,45 +41,43 @@ impl BitUnpack for CurrencyCollection {
 /// ```tlb
 /// extra_currencies$_ dict:(HashmapE 32 (VarUInteger 32)) = ExtraCurrencyCollection;
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ExtraCurrencyCollection;
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ExtraCurrencyCollection(pub HashmapE<BigUint>);
 
-impl BitPack for ExtraCurrencyCollection {
-    fn pack<W>(&self, writer: W) -> Result<(), W::Error>
-    where
-        W: BitWriter,
-    {
-        // TODO
-        false.pack(writer)
+impl CellSerialize for ExtraCurrencyCollection {
+    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+        builder.store_as_with::<_, &HashmapE<NoArgs<_, Data<VarInt<32>>>, NoArgs<_>>>(
+            &self.0,
+            (32, (), ()),
+        )?;
+        Ok(())
     }
 }
 
-impl BitUnpack for ExtraCurrencyCollection {
-    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
-    where
-        R: BitReader,
-    {
-        // TODO
-        let _: bool = reader.unpack()?;
-        Ok(Self)
+impl<'de> CellDeserialize<'de> for ExtraCurrencyCollection {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        Ok(Self(
+            parser.parse_as_with::<_, HashmapE<NoArgs<_, Data<VarInt<32>>>, NoArgs<_>>>((
+                32,
+                (),
+                (),
+            ))?,
+        ))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use tlb::bits::{de::unpack_fully, ser::pack};
+    use tlb::ser::CellSerializeExt;
 
     use super::*;
 
     #[test]
     fn currency_collection_serde() {
-        let v = CurrencyCollection {
-            grams: BigUint::ZERO,
-            other: ExtraCurrencyCollection,
-        };
+        let v = CurrencyCollection::default();
 
-        let packed = pack(v.clone()).unwrap();
-        let got: CurrencyCollection = unpack_fully(packed).unwrap();
+        let cell = v.to_cell().unwrap();
+        let got: CurrencyCollection = cell.parse_fully().unwrap();
 
         assert_eq!(got, v);
     }

@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use tlb::{
     bits::{
@@ -8,11 +8,11 @@ use tlb::{
     },
     de::{args::r#as::CellDeserializeAsWithArgs, CellParser, CellParserError},
     r#as::{ParseFully, Ref, Same},
-    ser::args::r#as::CellSerializeAsWithArgs,
+    ser::{args::r#as::CellSerializeAsWithArgs, CellBuilder, CellBuilderError},
     Error, ResultExt,
 };
 
-use super::{aug::HashmapAugNode, hm_label::HmLabel, Hashmap, HashmapE, HashmapNode};
+use super::{aug::AugNode, hm_label::HmLabel, Hashmap, HashmapE, Node};
 
 /// ```tlb
 /// phme_empty$0 {n:#} {X:Type} = PfxHashmapE n X;
@@ -89,9 +89,9 @@ where
 
     fn store_as_with(
         source: &Hashmap<T>,
-        builder: &mut tlb::ser::CellBuilder,
+        builder: &mut CellBuilder,
         (n, args): Self::Args,
-    ) -> Result<(), tlb::ser::CellBuilderError> {
+    ) -> Result<(), CellBuilderError> {
         builder
             // label:(HmLabel ~l n)
             .pack_as_with::<_, &HmLabel>(source.prefix.as_bitslice(), n)
@@ -130,7 +130,7 @@ where
         Ok(Hashmap {
             prefix,
             // node:(PfxHashmapNode m X)
-            node: HashmapAugNode::new(
+            node: AugNode::new(
                 parser
                     .parse_as_with::<_, PfxHashmapNode<As>>((m, args))
                     .context("node")?,
@@ -147,7 +147,7 @@ where
 /// ```
 pub struct PfxHashmapNode<As: ?Sized = Same>(PhantomData<As>);
 
-impl<T, As> CellSerializeAsWithArgs<HashmapNode<T>> for PfxHashmapNode<As>
+impl<T, As> CellSerializeAsWithArgs<Node<T>> for PfxHashmapNode<As>
 where
     As: CellSerializeAsWithArgs<T>,
     As::Args: Clone,
@@ -156,19 +156,19 @@ where
     type Args = (u32, As::Args);
 
     fn store_as_with(
-        source: &HashmapNode<T>,
-        builder: &mut tlb::ser::CellBuilder,
+        source: &Node<T>,
+        builder: &mut CellBuilder,
         (n, args): Self::Args,
-    ) -> Result<(), tlb::ser::CellBuilderError> {
+    ) -> Result<(), CellBuilderError> {
         match source {
-            HashmapNode::Leaf(value) => {
+            Node::Leaf(value) => {
                 builder
                     // phmn_leaf$0
                     .pack(false)?
                     // value:X
                     .store_as_with::<_, &As>(value, args)?
             }
-            HashmapNode::Fork(fork) => {
+            Node::Fork(fork) => {
                 if n == 0 {
                     return Err(Error::custom("key is too long"));
                 }
@@ -182,7 +182,7 @@ where
     }
 }
 
-impl<'de, T, As> CellDeserializeAsWithArgs<'de, HashmapNode<T>> for PfxHashmapNode<As>
+impl<'de, T, As> CellDeserializeAsWithArgs<'de, Node<T>> for PfxHashmapNode<As>
 where
     As: CellDeserializeAsWithArgs<'de, T>,
     As::Args: Clone,
@@ -190,20 +190,19 @@ where
     /// (n + 1, As::Args)
     type Args = (u32, As::Args);
 
-    #[inline]
     fn parse_as_with(
         parser: &mut CellParser<'de>,
         (n, args): Self::Args,
-    ) -> Result<HashmapNode<T>, CellParserError<'de>> {
+    ) -> Result<Node<T>, CellParserError<'de>> {
         match parser.unpack()? {
             // phmn_leaf$0
             false => {
                 // value:X
-                parser.parse_as_with::<_, As>(args).map(HashmapNode::Leaf)
+                parser.parse_as_with::<_, As>(args).map(Node::Leaf)
             }
             // phmn_fork$1
             true => {
-                Ok(HashmapNode::Fork(
+                Ok(Node::Fork(
                     parser
                         // left:^(PfxHashmap n X) right:^(PfxHashmap n X)
                         .parse_as_with::<_, [Box<Ref<ParseFully<PfxHashmap<As>>>>; 2]>((
