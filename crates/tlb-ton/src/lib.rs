@@ -1,4 +1,5 @@
 mod address;
+pub mod bin_tree;
 mod boc;
 pub mod currency;
 pub mod hashmap;

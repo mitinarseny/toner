@@ -1,6 +1,6 @@
 [package]
 name = "ton-contracts"
-version = "0.2.19"
+version = "0.2.20"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true

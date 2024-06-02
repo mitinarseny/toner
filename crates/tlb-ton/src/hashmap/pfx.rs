@@ -12,7 +12,7 @@ use tlb::{
     Error, ResultExt,
 };
 
-use super::{aug::AugNode, hm_label::HmLabel, Hashmap, HashmapE, Node};
+use super::{aug::HashmapAugNode, hm_label::HmLabel, Hashmap, HashmapE, HashmapNode};
 
 /// ```tlb
 /// phme_empty$0 {n:#} {X:Type} = PfxHashmapE n X;
@@ -130,9 +130,9 @@ where
         Ok(Hashmap {
             prefix,
             // node:(PfxHashmapNode m X)
-            node: AugNode::new(
+            node: HashmapAugNode::new(
                 parser
-                    .parse_as_with::<_, PfxHashmapNode<As>>((m, args))
+                    .parse_as_with::<_, ParseFully<PfxHashmapNode<As>>>((m, args))
                     .context("node")?,
                 (),
             ),
@@ -147,7 +147,7 @@ where
 /// ```
 pub struct PfxHashmapNode<As: ?Sized = Same>(PhantomData<As>);
 
-impl<T, As> CellSerializeAsWithArgs<Node<T>> for PfxHashmapNode<As>
+impl<T, As> CellSerializeAsWithArgs<HashmapNode<T>> for PfxHashmapNode<As>
 where
     As: CellSerializeAsWithArgs<T>,
     As::Args: Clone,
@@ -156,19 +156,19 @@ where
     type Args = (u32, As::Args);
 
     fn store_as_with(
-        source: &Node<T>,
+        source: &HashmapNode<T>,
         builder: &mut CellBuilder,
         (n, args): Self::Args,
     ) -> Result<(), CellBuilderError> {
         match source {
-            Node::Leaf(value) => {
+            HashmapNode::Leaf(value) => {
                 builder
                     // phmn_leaf$0
                     .pack(false)?
                     // value:X
                     .store_as_with::<_, &As>(value, args)?
             }
-            Node::Fork(fork) => {
+            HashmapNode::Fork(fork) => {
                 if n == 0 {
                     return Err(Error::custom("key is too long"));
                 }
@@ -182,7 +182,7 @@ where
     }
 }
 
-impl<'de, T, As> CellDeserializeAsWithArgs<'de, Node<T>> for PfxHashmapNode<As>
+impl<'de, T, As> CellDeserializeAsWithArgs<'de, HashmapNode<T>> for PfxHashmapNode<As>
 where
     As: CellDeserializeAsWithArgs<'de, T>,
     As::Args: Clone,
@@ -193,16 +193,16 @@ where
     fn parse_as_with(
         parser: &mut CellParser<'de>,
         (n, args): Self::Args,
-    ) -> Result<Node<T>, CellParserError<'de>> {
+    ) -> Result<HashmapNode<T>, CellParserError<'de>> {
         match parser.unpack()? {
             // phmn_leaf$0
             false => {
                 // value:X
-                parser.parse_as_with::<_, As>(args).map(Node::Leaf)
+                parser.parse_as_with::<_, As>(args).map(HashmapNode::Leaf)
             }
             // phmn_fork$1
             true => {
-                Ok(Node::Fork(
+                Ok(HashmapNode::Fork(
                     parser
                         // left:^(PfxHashmap n X) right:^(PfxHashmap n X)
                         .parse_as_with::<_, [Box<Ref<ParseFully<PfxHashmap<As>>>>; 2]>((

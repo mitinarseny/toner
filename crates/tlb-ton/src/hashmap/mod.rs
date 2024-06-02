@@ -1,4 +1,4 @@
 pub mod aug;
-pub use aug::{Hashmap, HashmapE, Node};
+pub use aug::{Hashmap, HashmapE, HashmapNode};
 mod hm_label;
 pub mod pfx;
