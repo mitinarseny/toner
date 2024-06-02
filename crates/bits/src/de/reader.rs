@@ -1,11 +1,19 @@
-use core::{iter, mem::size_of};
+use core::iter;
 
 use ::bitvec::{order::Msb0, slice::BitSlice, vec::BitVec, view::AsMutBits};
-use bitvec::mem::bits_of;
 use impl_tools::autoimpl;
-use num_traits::PrimInt;
 
-use crate::{BitUnpack, BitUnpackAs, BitWriter, Error, MapErr, ResultExt, StringError};
+use crate::{
+    adapters::{MapErr, Tee},
+    ser::BitWriter,
+    Error, ResultExt, StringError,
+};
+
+use super::{
+    args::{r#as::BitUnpackAsWithArgs, BitUnpackWithArgs},
+    r#as::BitUnpackAs,
+    BitUnpack,
+};
 
 #[autoimpl(for <R: trait + ?Sized> &mut R, Box<R>)]
 pub trait BitReader {
@@ -67,11 +75,33 @@ pub trait BitReaderExt: BitReader {
     }
 
     #[inline]
+    fn unpack_with<T>(&mut self, args: T::Args) -> Result<T, Self::Error>
+    where
+        T: BitUnpackWithArgs,
+    {
+        T::unpack_with(self, args)
+    }
+
+    #[inline]
     fn unpack_iter<T>(&mut self) -> impl Iterator<Item = Result<T, Self::Error>> + '_
     where
         T: BitUnpack,
     {
         iter::repeat_with(move || self.unpack::<T>())
+            .enumerate()
+            .map(|(i, v)| v.with_context(|| format!("[{i}]")))
+    }
+
+    #[inline]
+    fn unpack_iter_with<'a, T>(
+        &'a mut self,
+        args: T::Args,
+    ) -> impl Iterator<Item = Result<T, Self::Error>> + 'a
+    where
+        T: BitUnpackWithArgs,
+        T::Args: Clone + 'a,
+    {
+        iter::repeat_with(move || self.unpack_with::<T>(args.clone()))
             .enumerate()
             .map(|(i, v)| v.with_context(|| format!("[{i}]")))
     }
@@ -85,6 +115,14 @@ pub trait BitReaderExt: BitReader {
     }
 
     #[inline]
+    fn unpack_as_with<T, As>(&mut self, args: As::Args) -> Result<T, Self::Error>
+    where
+        As: BitUnpackAsWithArgs<T> + ?Sized,
+    {
+        As::unpack_as_with(self, args)
+    }
+
+    #[inline]
     fn unpack_iter_as<T, As>(&mut self) -> impl Iterator<Item = Result<T, Self::Error>> + '_
     where
         As: BitUnpackAs<T> + ?Sized,
@@ -95,39 +133,25 @@ pub trait BitReaderExt: BitReader {
     }
 
     #[inline]
-    fn unpack_as_n_bits<T>(&mut self, num_bits: u32) -> Result<T, Self::Error>
+    fn unpack_iter_as_with<'a, T, As>(
+        &'a mut self,
+        args: As::Args,
+    ) -> impl Iterator<Item = Result<T, Self::Error>> + 'a
     where
-        T: PrimInt,
+        As: BitUnpackAsWithArgs<T> + ?Sized,
+        As::Args: Clone + 'a,
     {
-        let size_bits: u32 = bits_of::<T>() as u32;
-        if num_bits > size_bits {
-            return Err(Error::custom("excessive bits for the type"));
-        }
-        let mut v: T = T::zero();
-        for bit in self.unpack_iter::<bool>().take(num_bits as usize) {
-            v = v << 1;
-            v = v | if bit? { T::one() } else { T::zero() };
-        }
-        Ok(v)
+        iter::repeat_with(move || self.unpack_as_with::<_, As>(args.clone()))
+            .enumerate()
+            .map(|(i, v)| v.with_context(|| format!("[{i}]")))
     }
 
     #[inline]
-    fn unpack_as_n_bytes<T>(&mut self, num_bytes: u32) -> Result<T, Self::Error>
-    where
-        T: PrimInt,
-    {
-        let size_bytes: u32 = size_of::<T>() as u32;
-        if num_bytes > size_bytes {
-            return Err(Error::custom("excessive bits for type"));
-        }
-        let mut v: T = T::zero();
-        for byte in self.unpack_iter::<u8>().take(num_bytes as usize) {
-            v = v << 8;
-            v = v | T::from(byte?).unwrap();
-        }
-        Ok(v)
+    fn as_mut(&mut self) -> &mut Self {
+        self
     }
 
+    #[inline]
     fn map_err<F>(self, f: F) -> MapErr<Self, F>
     where
         Self: Sized,
@@ -135,38 +159,52 @@ pub trait BitReaderExt: BitReader {
         MapErr { inner: self, f }
     }
 
-    fn tee<W>(self, writer: W) -> TeeReader<Self, W>
+    #[inline]
+    fn tee<W>(self, writer: W) -> Tee<Self, W>
     where
         Self: Sized,
         W: BitWriter,
     {
-        TeeReader {
+        Tee {
             inner: self,
             writer,
         }
     }
 }
 
-impl<T> BitReaderExt for T where T: BitReader {}
+impl<R, F, E> BitReader for MapErr<R, F>
+where
+    R: BitReader,
+    F: FnMut(R::Error) -> E,
+    E: Error,
+{
+    type Error = E;
 
-pub struct TeeReader<R, W> {
-    inner: R,
-    writer: W,
-}
+    fn read_bit(&mut self) -> Result<bool, Self::Error> {
+        self.inner.read_bit().map_err(&mut self.f)
+    }
 
-impl<R, W> TeeReader<R, W> {
-    pub fn into_inner(self) -> R {
-        self.inner
+    #[inline]
+    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
+        self.inner.read_bits_into(dst).map_err(&mut self.f)
+    }
+
+    #[inline]
+    fn skip(&mut self, n: usize) -> Result<(), Self::Error> {
+        self.inner.skip(n).map_err(&mut self.f)
     }
 }
 
-impl<R, W> BitReader for TeeReader<R, W>
+impl<T> BitReaderExt for T where T: BitReader {}
+
+impl<R, W> BitReader for Tee<R, W>
 where
     R: BitReader,
     W: BitWriter,
 {
     type Error = R::Error;
 
+    #[inline]
     fn read_bit(&mut self) -> Result<bool, Self::Error> {
         let bit = self.inner.read_bit()?;
         self.writer

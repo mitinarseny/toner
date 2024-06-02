@@ -7,8 +7,10 @@ use bitvec::{
 };
 
 use crate::{
-    AsBytes, BitPack, BitPackAs, BitReader, BitReaderExt, BitUnpack, BitUnpackAs, BitWriter,
-    BitWriterExt, Error, NBits,
+    de::{r#as::BitUnpackAs, BitReader, BitReaderExt, BitUnpack},
+    r#as::{AsBytes, NBits},
+    ser::{r#as::BitPackAs, BitPack, BitWriter, BitWriterExt},
+    Error,
 };
 
 pub struct ConstBit<const VALUE: bool>;
@@ -151,7 +153,7 @@ mod tests {
     use num_bigint::BigUint;
 
     use crate::{
-        pack, pack_as,
+        ser::{pack, r#as::pack_as},
         tests::{assert_pack_unpack_as_eq, assert_pack_unpack_eq},
     };
 

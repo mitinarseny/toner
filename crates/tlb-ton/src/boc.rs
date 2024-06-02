@@ -1,15 +1,18 @@
-use core::iter;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
 
 use base64::{engine::general_purpose::STANDARD, Engine};
-use bitvec::{order::Msb0, vec::BitVec, view::AsBits};
 use crc::Crc;
 use tlb::{
-    BitReader, BitReaderExt, BitUnpack, BitWriter, BitWriterExt, Cell, Error, NBits, ResultExt,
-    StringError,
+    bits::{
+        bitvec::{order::Msb0, vec::BitVec, view::AsBits},
+        de::{args::BitUnpackWithArgs, BitReader, BitReaderExt, BitUnpack},
+        r#as::{NBits, VarNBytes},
+        ser::{args::BitPackWithArgs, BitWriter, BitWriterExt},
+    },
+    Cell, Error, ResultExt, StringError,
 };
 
 pub type BoC = BagOfCells;
@@ -38,67 +41,6 @@ impl BagOfCells {
         Some(root)
     }
 
-    #[inline]
-    pub fn pack(&self, has_crc32c: bool) -> Result<Vec<u8>, StringError> {
-        self.pack_flags(false, has_crc32c)
-    }
-
-    pub fn pack_flags(&self, has_idx: bool, has_crc32c: bool) -> Result<Vec<u8>, StringError> {
-        self.to_raw()?.pack_flags(has_idx, has_crc32c)
-    }
-
-    fn to_raw(&self) -> Result<RawBagOfCells, StringError> {
-        let mut all_cells: HashSet<Arc<Cell>> = HashSet::new();
-        let mut in_refs: HashMap<Arc<Cell>, HashSet<Arc<Cell>>> = HashMap::new();
-        for r in &self.roots {
-            Self::traverse_cell_tree(r, &mut all_cells, &mut in_refs)?;
-        }
-        let mut no_in_refs: HashSet<Arc<Cell>> = HashSet::new();
-        for c in &all_cells {
-            if !in_refs.contains_key(c) {
-                no_in_refs.insert(c.clone());
-            }
-        }
-        let mut ordered_cells: Vec<Arc<Cell>> = Vec::new();
-        let mut indices: HashMap<Arc<Cell>, u32> = HashMap::new();
-        while let Some(cell) = no_in_refs.iter().next().cloned() {
-            ordered_cells.push(cell.clone());
-            indices.insert(cell.clone(), indices.len() as u32);
-            for child in &cell.references {
-                if let Some(refs) = in_refs.get_mut(child) {
-                    refs.remove(&cell);
-                    if refs.is_empty() {
-                        no_in_refs.insert(child.clone());
-                        in_refs.remove(child);
-                    }
-                }
-            }
-            no_in_refs.remove(&cell);
-        }
-        if !in_refs.is_empty() {
-            return Err(Error::custom("reference cycle detected"));
-        }
-        Ok(RawBagOfCells {
-            cells: ordered_cells
-                .into_iter()
-                .map(|cell| RawCell {
-                    data: cell.data.clone(),
-                    references: cell
-                        .references
-                        .iter()
-                        .map(|c| *indices.get(c).unwrap())
-                        .collect(),
-                    level: cell.level(),
-                })
-                .collect(),
-            roots: self
-                .roots
-                .iter()
-                .map(|c| *indices.get(c).unwrap())
-                .collect(),
-        })
-    }
-
     /// Traverses all cells, fills all_cells set and inbound references map.
     fn traverse_cell_tree(
         cell: &Arc<Cell>,
@@ -125,6 +67,73 @@ impl BagOfCells {
     pub fn parse_base64(s: impl AsRef<[u8]>) -> Result<Self, StringError> {
         let bytes = STANDARD.decode(s).map_err(Error::custom)?;
         Self::unpack(bytes.as_bits())
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct BagOfCellsArgs {
+    pub has_idx: bool,
+    pub has_crc32c: bool,
+}
+
+impl BitPackWithArgs for BagOfCells {
+    type Args = BagOfCellsArgs;
+
+    fn pack_with<W>(&self, writer: W, args: Self::Args) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        let mut all_cells: HashSet<Arc<Cell>> = HashSet::new();
+        let mut in_refs: HashMap<Arc<Cell>, HashSet<Arc<Cell>>> = HashMap::new();
+        for r in &self.roots {
+            Self::traverse_cell_tree(r, &mut all_cells, &mut in_refs).map_err(Error::custom)?;
+        }
+        let mut no_in_refs: HashSet<Arc<Cell>> = HashSet::new();
+        for c in &all_cells {
+            if !in_refs.contains_key(c) {
+                no_in_refs.insert(c.clone());
+            }
+        }
+        let mut ordered_cells: Vec<Arc<Cell>> = Vec::new();
+        let mut indices: HashMap<Arc<Cell>, u32> = HashMap::new();
+        while let Some(cell) = no_in_refs.iter().next().cloned() {
+            ordered_cells.push(cell.clone());
+            indices.insert(cell.clone(), indices.len() as u32);
+            for child in &cell.references {
+                if let Some(refs) = in_refs.get_mut(child) {
+                    refs.remove(&cell);
+                    if refs.is_empty() {
+                        no_in_refs.insert(child.clone());
+                        in_refs.remove(child);
+                    }
+                }
+            }
+            no_in_refs.remove(&cell);
+        }
+        if !in_refs.is_empty() {
+            return Err(Error::custom("reference cycle detected"));
+        }
+
+        RawBagOfCells {
+            cells: ordered_cells
+                .into_iter()
+                .map(|cell| RawCell {
+                    data: cell.data.clone(),
+                    references: cell
+                        .references
+                        .iter()
+                        .map(|c| *indices.get(c).unwrap())
+                        .collect(),
+                    level: cell.level(),
+                })
+                .collect(),
+            roots: self
+                .roots
+                .iter()
+                .map(|c| *indices.get(c).unwrap())
+                .collect(),
+        }
+        .pack_with(writer, args)
     }
 }
 
@@ -169,7 +178,7 @@ impl BitUnpack for BagOfCells {
 const CRC_32_ISCSI: Crc<u32> = Crc::<u32>::new(&crc::CRC_32_ISCSI);
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
-pub(crate) struct RawBagOfCells {
+struct RawBagOfCells {
     pub cells: Vec<RawCell>,
     pub roots: Vec<u32>,
 }
@@ -189,8 +198,15 @@ impl RawBagOfCells {
     /// serialized_boc#b5ee9c72
     /// ```
     const GENERIC_BOC_TAG: u32 = 0xb5ee9c72;
+}
 
-    pub fn pack_flags(&self, has_idx: bool, has_crc32c: bool) -> Result<Vec<u8>, StringError> {
+impl BitPackWithArgs for RawBagOfCells {
+    type Args = BagOfCellsArgs;
+
+    fn pack_with<W>(&self, mut writer: W, args: Self::Args) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
         if self.roots.len() > 1 {
             return Err(Error::custom("only single root cell supported"));
         }
@@ -207,14 +223,14 @@ impl RawBagOfCells {
         let off_bits: u32 = 32 - tot_cells_size.leading_zeros();
         let off_bytes: u32 = (off_bits + 7) / 8;
 
-        let mut writer: BitVec<u8, Msb0> = BitVec::new();
-        writer
+        let mut buffered = writer.as_mut().tee(BitVec::<u8, Msb0>::new());
+        buffered
             // serialized_boc#b5ee9c72
             .pack(Self::GENERIC_BOC_TAG)?
             // has_idx:(## 1)
-            .pack(has_idx)?
+            .pack(args.has_idx)?
             // has_crc32c:(## 1)
-            .pack(has_crc32c)?
+            .pack(args.has_crc32c)?
             // has_cache_bits:(## 1)
             .pack(false)?
             // flags:(## 2) { flags = 0 }
@@ -224,86 +240,85 @@ impl RawBagOfCells {
             // off_bytes:(## 8) { off_bytes <= 8 }
             .pack_as::<_, NBits<8>>(off_bytes)?
             // cells:(##(size * 8))
-            .pack_as_n_bytes(self.cells.len() as u32, size_bytes)?
+            .pack_as_with::<_, VarNBytes>(self.cells.len() as u32, size_bytes)?
             // roots:(##(size * 8)) { roots >= 1 }
-            .pack_as_n_bytes(1u32, size_bytes)? // single root
+            .pack_as_with::<_, VarNBytes>(1u32, size_bytes)? // single root
             // absent:(##(size * 8)) { roots + absent <= cells }
-            .pack_as_n_bytes(0u32, size_bytes)? // complete BoCs only
+            .pack_as_with::<_, VarNBytes>(0u32, size_bytes)? // complete BoCs only
             // tot_cells_size:(##(off_bytes * 8))
-            .pack_as_n_bytes(tot_cells_size, off_bytes)?
+            .pack_as_with::<_, VarNBytes>(tot_cells_size, off_bytes)?
             // root_list:(roots * ##(size * 8))
-            .pack_as_n_bytes(0u32, size_bytes)?; // root should have index 0
-        if has_idx {
+            .pack_as_with::<_, VarNBytes>(0u32, size_bytes)?; // root should have index 0
+        if args.has_idx {
             // index:has_idx?(cells * ##(off_bytes * 8))
-            for id in index {
-                writer.pack_as_n_bytes(id, off_bytes)?;
-            }
+            buffered.pack_many_as_with::<_, VarNBytes>(index, off_bytes)?;
         }
         // cell_data:(tot_cells_size * [ uint8 ])
         for (i, cell) in self.cells.iter().enumerate() {
-            cell.pack(&mut writer, size_bytes)
+            cell.pack_with(&mut buffered, size_bytes)
                 .with_context(|| format!("[{i}]"))?;
         }
 
-        if writer.len() % 8 != 0 {
+        let buf = buffered.into_writer();
+        if buf.len() % 8 != 0 {
             return Err(Error::custom("produced stream is not byte-aligned"));
         }
         // crc32c:has_crc32c?uint32
-        if has_crc32c {
-            let cs = CRC_32_ISCSI.checksum(writer.as_raw_slice());
+        if args.has_crc32c {
+            let cs = CRC_32_ISCSI.checksum(buf.as_raw_slice());
             writer.write_bitslice(cs.to_le_bytes().as_bits())?;
         }
-        Ok(writer.into_vec())
+        Ok(())
     }
 }
 
 impl BitUnpack for RawBagOfCells {
-    fn unpack<R>(reader: R) -> Result<Self, R::Error>
+    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
     where
         R: BitReader,
     {
-        let mut buff = BitVec::<u8, Msb0>::new();
-        let mut reader = reader.tee(&mut buff);
+        let mut buffered = reader.as_mut().tee(BitVec::<u8, Msb0>::new());
 
-        let tag = reader.unpack::<u32>()?;
+        let tag = buffered.unpack::<u32>()?;
         let (has_idx, has_crc32c) = match tag {
             Self::INDEXED_BOC_TAG => (true, false),
             Self::INDEXED_CRC32_TAG => (true, true),
             Self::GENERIC_BOC_TAG => {
                 // has_idx:(## 1) has_crc32c:(## 1)
-                let (has_idx, has_crc32c) = reader.unpack()?;
+                let (has_idx, has_crc32c) = buffered.unpack()?;
                 // has_cache_bits:(## 1)
-                let _has_cache_bits: bool = reader.unpack()?;
+                let _has_cache_bits: bool = buffered.unpack()?;
                 // flags:(## 2) { flags = 0 }
-                let _flags: u8 = reader.unpack_as::<_, NBits<2>>()?;
+                let _flags: u8 = buffered.unpack_as::<_, NBits<2>>()?;
                 (has_idx, has_crc32c)
             }
             _ => return Err(Error::custom(format!("invalid BoC tag: {tag:#x}"))),
         };
         // size:(## 3) { size <= 4 }
-        let size_bytes: u32 = reader.unpack_as::<_, NBits<3>>()?;
+        let size_bytes: u32 = buffered.unpack_as::<_, NBits<3>>()?;
         if size_bytes > 4 {
             return Err(Error::custom(format!("invalid size: {size_bytes}")));
         }
         // off_bytes:(## 8) { off_bytes <= 8 }
-        let off_bytes: u32 = reader.unpack_as::<_, NBits<8>>()?;
+        let off_bytes: u32 = buffered.unpack_as::<_, NBits<8>>()?;
         if size_bytes > 8 {
             return Err(Error::custom(format!("invalid off_bytes: {off_bytes}")));
         }
         // cells:(##(size * 8))
-        let cells: u32 = reader.unpack_as_n_bytes(size_bytes)?;
+        let cells: u32 = buffered.unpack_as_with::<_, VarNBytes>(size_bytes)?;
         // roots:(##(size * 8)) { roots >= 1 }
-        let roots: u32 = reader.unpack_as_n_bytes(size_bytes)?;
+        let roots: u32 = buffered.unpack_as_with::<_, VarNBytes>(size_bytes)?;
         // absent:(##(size * 8)) { roots + absent <= cells }
-        let absent: u32 = reader.unpack_as_n_bytes(size_bytes)?;
+        let absent: u32 = buffered.unpack_as_with::<_, VarNBytes>(size_bytes)?;
         if roots + absent > cells {
             return Err(Error::custom("roots + absent > cells"));
         }
         // tot_cells_size:(##(off_bytes * 8))
-        let _tot_cells_size: usize = reader.unpack_as_n_bytes(off_bytes)?;
+        let _tot_cells_size: usize = buffered.unpack_as_with::<_, VarNBytes>(off_bytes)?;
         let root_list = if tag == Self::GENERIC_BOC_TAG {
             // root_list:(roots * ##(size * 8))
-            iter::repeat_with(|| reader.unpack_as_n_bytes(size_bytes))
+            buffered
+                .unpack_iter_as_with::<_, VarNBytes>(size_bytes)
                 .take(roots as usize)
                 .collect::<Result<_, _>>()?
         } else {
@@ -311,27 +326,26 @@ impl BitUnpack for RawBagOfCells {
         };
         if has_idx {
             // index:has_idx?(cells * ##(off_bytes * 8))
-            let _index: Vec<usize> = iter::repeat_with(|| reader.unpack_as_n_bytes(off_bytes))
+            let _index: Vec<u32> = buffered
+                .unpack_iter_as_with::<_, VarNBytes>(off_bytes)
                 .take(cells as usize)
                 .collect::<Result<_, _>>()?;
         }
         // cell_data:(tot_cells_size * [ uint8 ])
-        let cell_data: Vec<RawCell> =
-            iter::repeat_with(|| RawCell::unpack(&mut reader, size_bytes))
-                .take(cells as usize)
-                .enumerate()
-                .map(|(i, v)| v.with_context(|| format!("[{i}]")))
-                .collect::<Result<_, _>>()
-                .context("cell_data")?;
+        let cell_data: Vec<RawCell> = buffered
+            .unpack_iter_with(size_bytes)
+            .take(cells as usize)
+            .collect::<Result<_, _>>()
+            .context("cell_data")?;
 
-        let mut reader = reader.into_inner();
-        if buff.len() % 8 != 0 {
+        let buf = buffered.into_writer();
+        if buf.len() % 8 != 0 {
             return Err(Error::custom("produced stream is not byte-aligned"));
         }
         if has_crc32c {
             // crc32c:has_crc32c?uint32
             let cs = u32::from_le_bytes(reader.unpack()?);
-            if cs != CRC_32_ISCSI.checksum(buff.as_raw_slice()) {
+            if cs != CRC_32_ISCSI.checksum(buf.as_raw_slice()) {
                 return Err(Error::custom("CRC mismatch"));
             }
         }
@@ -350,8 +364,11 @@ pub(crate) struct RawCell {
     pub level: u8,
 }
 
-impl RawCell {
-    fn unpack<R>(mut reader: R, size_bytes: u32) -> Result<Self, R::Error>
+impl BitUnpackWithArgs for RawCell {
+    /// size_bytes
+    type Args = u32;
+
+    fn unpack_with<R>(mut reader: R, size_bytes: Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader,
     {
@@ -373,7 +390,8 @@ impl RawCell {
             data.truncate(data.len() - trailing_zeros - 1);
         }
 
-        let references: Vec<u32> = iter::repeat_with(|| reader.unpack_as_n_bytes(size_bytes))
+        let references: Vec<u32> = reader
+            .unpack_iter_as_with::<_, VarNBytes>(size_bytes)
             .take(ref_num)
             .collect::<Result<_, _>>()?;
 
@@ -383,8 +401,13 @@ impl RawCell {
             level,
         })
     }
+}
 
-    fn pack<W>(&self, mut writer: W, ref_size_bytes: u32) -> Result<(), W::Error>
+impl BitPackWithArgs for RawCell {
+    /// ref_size_bytes
+    type Args = u32;
+
+    fn pack_with<W>(&self, mut writer: W, ref_size_bytes: Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter,
     {
@@ -405,13 +428,13 @@ impl RawCell {
             writer.repeat_bit(8 - padding_bits - 1, false)?;
         }
 
-        for r in &self.references {
-            writer.pack_as_n_bytes(*r, ref_size_bytes)?;
-        }
+        writer.pack_many_as_with::<_, &VarNBytes>(&self.references, ref_size_bytes)?;
 
         Ok(())
     }
+}
 
+impl RawCell {
     fn size(&self, ref_size_bytes: u32) -> u32 {
         let data_len: u32 = (self.data.len() as u32 + 7) / 8;
         2 + data_len + self.references.len() as u32 * ref_size_bytes
@@ -420,14 +443,25 @@ impl RawCell {
 
 #[cfg(test)]
 mod tests {
-    use tlb::{unpack_bytes_fully, CellSerializeExt};
+    use tlb::{
+        bits::{de::unpack_fully, ser::pack_with},
+        ser::CellSerializeExt,
+    };
 
     use super::*;
 
     #[test]
     fn boc_serde() {
-        let packed = BoC::from_root(().to_cell().unwrap()).pack(true).unwrap();
-        let unpacked: BoC = unpack_bytes_fully(packed).unwrap();
+        let packed = pack_with(
+            BoC::from_root(().to_cell().unwrap()),
+            BagOfCellsArgs {
+                has_idx: false,
+                has_crc32c: true,
+            },
+        )
+        .unwrap();
+
+        let unpacked: BoC = unpack_fully(packed).unwrap();
 
         let got: () = unpacked.single_root().unwrap().parse_fully().unwrap();
         assert_eq!(got, ());

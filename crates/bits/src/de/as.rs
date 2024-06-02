@@ -2,8 +2,11 @@ use core::{marker::PhantomData, mem::MaybeUninit};
 use std::{rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, slice::BitSlice, view::AsBits};
+use either::Either;
 
-use crate::{BitReader, BitReaderExt, BitUnpack, Error, ResultExt, StringError};
+use crate::{Error, ResultExt, StringError};
+
+use super::{BitReader, BitReaderExt, BitUnpack};
 
 pub trait BitUnpackAs<T> {
     fn unpack_as<R>(reader: R) -> Result<T, R::Error>
@@ -48,18 +51,26 @@ where
     unpack_fully_as::<_, As>(bytes.as_bits())
 }
 
-pub struct BitUnpackAsWrap<T, As>
+pub struct UnpackAsWrap<T, As>
 where
     As: ?Sized,
 {
     value: T,
-    _phanton: PhantomData<As>,
+    _phantom: PhantomData<As>,
 }
 
-impl<T, As> BitUnpackAsWrap<T, As>
+impl<T, As> UnpackAsWrap<T, As>
 where
-    As: BitUnpackAs<T> + ?Sized,
+    As: ?Sized,
 {
+    #[inline]
+    pub fn new(value: T) -> Self {
+        Self {
+            value,
+            _phantom: PhantomData,
+        }
+    }
+
     /// Return the inner value of type `T`.
     #[inline]
     pub fn into_inner(self) -> T {
@@ -67,7 +78,7 @@ where
     }
 }
 
-impl<T, As> BitUnpack for BitUnpackAsWrap<T, As>
+impl<T, As> BitUnpack for UnpackAsWrap<T, As>
 where
     As: BitUnpackAs<T> + ?Sized,
 {
@@ -78,7 +89,7 @@ where
     {
         As::unpack_as(reader).map(|value| Self {
             value,
-            _phanton: PhantomData,
+            _phantom: PhantomData,
         })
     }
 }
@@ -140,8 +151,8 @@ where
     where
         R: BitReader,
     {
-        BitUnpackAsWrap::<T, As>::unpack(reader)
-            .map(BitUnpackAsWrap::into_inner)
+        UnpackAsWrap::<T, As>::unpack(reader)
+            .map(UnpackAsWrap::into_inner)
             .map(Box::new)
     }
 }
@@ -155,8 +166,8 @@ where
     where
         R: BitReader,
     {
-        BitUnpackAsWrap::<T, As>::unpack(reader)
-            .map(BitUnpackAsWrap::into_inner)
+        UnpackAsWrap::<T, As>::unpack(reader)
+            .map(UnpackAsWrap::into_inner)
             .map(Rc::new)
     }
 }
@@ -170,9 +181,41 @@ where
     where
         R: BitReader,
     {
-        BitUnpackAsWrap::<T, As>::unpack(reader)
-            .map(BitUnpackAsWrap::into_inner)
+        UnpackAsWrap::<T, As>::unpack(reader)
+            .map(UnpackAsWrap::into_inner)
             .map(Arc::new)
+    }
+}
+
+impl<Left, Right, AsLeft, AsRight> BitUnpackAs<Either<Left, Right>> for Either<AsLeft, AsRight>
+where
+    AsLeft: BitUnpackAs<Left>,
+    AsRight: BitUnpackAs<Right>,
+{
+    #[inline]
+    fn unpack_as<R>(reader: R) -> Result<Either<Left, Right>, R::Error>
+    where
+        R: BitReader,
+    {
+        Ok(
+            Either::<UnpackAsWrap<Left, AsLeft>, UnpackAsWrap<Right, AsRight>>::unpack(reader)?
+                .map_either(UnpackAsWrap::into_inner, UnpackAsWrap::into_inner),
+        )
+    }
+}
+
+impl<T, As> BitUnpackAs<Option<T>> for Either<(), As>
+where
+    As: BitUnpackAs<T>,
+{
+    #[inline]
+    fn unpack_as<R>(reader: R) -> Result<Option<T>, R::Error>
+    where
+        R: BitReader,
+    {
+        Ok(Either::<(), UnpackAsWrap<T, As>>::unpack(reader)?
+            .map_right(UnpackAsWrap::into_inner)
+            .right())
     }
 }
 
@@ -185,6 +228,6 @@ where
     where
         R: BitReader,
     {
-        Ok(Option::<BitUnpackAsWrap<T, As>>::unpack(reader)?.map(BitUnpackAsWrap::into_inner))
+        Ok(Option::<UnpackAsWrap<T, As>>::unpack(reader)?.map(UnpackAsWrap::into_inner))
     }
 }

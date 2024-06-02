@@ -1,13 +1,11 @@
-mod r#as;
+pub mod r#as;
 mod cell;
-mod de;
-mod either;
-mod ser;
+pub mod de;
+pub mod ser;
+
+pub use self::cell::*;
+
+pub use tlbits::{self as bits, either, Error, ResultExt, StringError};
+
 #[cfg(test)]
 mod tests;
-
-pub use self::{cell::*, de::*, r#as::*, ser::*};
-
-pub use tlbits::{self as bits, *};
-
-pub use ::either::Either;

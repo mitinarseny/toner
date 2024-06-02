@@ -1,6 +1,6 @@
 [package]
 name = "tlb"
-version = "0.2.19"
+version = "0.2.20"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -12,7 +12,6 @@ description = "TL-B serialization"
 tlbits.workspace = true
 
 bitvec.workspace = true
-either.workspace = true
 hex.workspace = true
 impl-tools.workspace = true
 sha2.workspace = true

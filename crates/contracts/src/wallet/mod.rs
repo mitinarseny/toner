@@ -8,8 +8,11 @@ use chrono::{DateTime, Utc};
 use nacl::sign::{signature, Keypair, PUBLIC_KEY_LENGTH};
 use num_bigint::BigUint;
 use tlb::{
-    BitReaderExt, BitWriterExt, Cell, CellBuilder, CellBuilderError, CellDeserialize,
-    CellSerialize, CellSerializeExt, Ref,
+    bits::{de::BitReaderExt, ser::BitWriterExt},
+    de::{CellDeserialize, CellParser, CellParserError},
+    r#as::Ref,
+    ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
+    Cell,
 };
 use tlb_ton::{CommonMsgInfo, ExternalInMsgInfo, Message, MsgAddress, StateInit};
 
@@ -27,7 +30,7 @@ where
     V: WalletVersion,
 {
     pub fn derive(workchain_id: i32, key_pair: Keypair, wallet_id: u32) -> anyhow::Result<Self> {
-        let state_init = StateInit::<_, _, ()> {
+        let state_init = StateInit::<_, _> {
             code: Some(V::code()),
             data: Some(V::init_data(wallet_id, key_pair.pkey)),
             ..Default::default()
@@ -64,7 +67,7 @@ where
         seqno: u32,
         msgs: impl IntoIterator<Item = WalletOpSendMessage>,
         state_init: bool,
-    ) -> anyhow::Result<Message<SignedBody, Arc<Cell>, V::Data, ()>> {
+    ) -> anyhow::Result<Message<SignedBody, Arc<Cell>, V::Data>> {
         let body = self.create_external_body(expire_at, seqno, msgs);
         let signed = self.sign_body(&body)?;
         let wrapped = self.wrap_signed(signed, state_init);
@@ -100,14 +103,14 @@ where
         &self,
         body: SignedBody,
         state_init: bool,
-    ) -> Message<SignedBody, Arc<Cell>, V::Data, ()> {
+    ) -> Message<SignedBody, Arc<Cell>, V::Data> {
         Message {
             info: CommonMsgInfo::ExternalIn(ExternalInMsgInfo {
                 src: MsgAddress::NULL,
                 dst: self.address,
                 import_fee: BigUint::ZERO,
             }),
-            init: state_init.then(|| StateInit::<_, _, ()> {
+            init: state_init.then(|| StateInit::<_, _> {
                 code: Some(V::code()),
                 data: Some(V::init_data(self.wallet_id, self.key_pair.pkey)),
                 ..Default::default()
@@ -137,7 +140,7 @@ impl<'de, T> CellDeserialize<'de> for SignedBody<T>
 where
     T: CellDeserialize<'de>,
 {
-    fn parse(parser: &mut tlb::CellParser<'de>) -> Result<Self, tlb::CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             sig: parser.unpack()?,
             msg: parser.parse()?,
@@ -161,18 +164,17 @@ pub trait WalletVersion {
     ) -> Self::MessageBody;
 }
 
-pub struct WalletOpSendMessage<T = Cell, IC = Cell, ID = Cell, IL = Cell> {
-    /// See https://docs.ton.org/develop/func/stdlib#send_raw_message
+pub struct WalletOpSendMessage<T = Cell, IC = Cell, ID = Cell> {
+    /// See <https://docs.ton.org/develop/func/stdlib#send_raw_message>
     pub mode: u8,
-    pub message: Message<T, IC, ID, IL>,
+    pub message: Message<T, IC, ID>,
 }
 
-impl<T, IC, ID, IL> WalletOpSendMessage<T, IC, ID, IL>
+impl<T, IC, ID> WalletOpSendMessage<T, IC, ID>
 where
     T: CellSerialize,
     IC: CellSerialize,
     ID: CellSerialize,
-    IL: CellSerialize,
 {
     pub fn normalize(&self) -> Result<WalletOpSendMessage, CellBuilderError> {
         Ok(WalletOpSendMessage {
@@ -182,12 +184,11 @@ where
     }
 }
 
-impl<T, IC, ID, IL> CellSerialize for WalletOpSendMessage<T, IC, ID, IL>
+impl<T, IC, ID> CellSerialize for WalletOpSendMessage<T, IC, ID>
 where
     T: CellSerialize,
     IC: CellSerialize,
     ID: CellSerialize,
-    IL: CellSerialize,
 {
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder.pack(self.mode)?.store_as::<_, Ref>(&self.message)?;

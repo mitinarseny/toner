@@ -1,14 +1,14 @@
-mod r#as;
-mod de;
-mod either;
+pub mod adapters;
+pub mod r#as;
+pub mod de;
 mod error;
-mod integer;
-mod ser;
-mod utils;
+pub mod integer;
+pub mod ser;
+
+pub use self::error::*;
+
+pub use bitvec;
+pub use either;
 
 #[cfg(test)]
 mod tests;
-
-pub use self::{de::*, error::*, integer::*, r#as::*, ser::*, utils::*};
-
-pub use ::either::Either;

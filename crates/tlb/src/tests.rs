@@ -1,6 +1,12 @@
 use core::fmt::Debug;
 
-use crate::{CellDeserializeAsOwned, CellSerializeAs, CellSerializeExt, CellSerializeWrapAsExt};
+use crate::{
+    de::r#as::CellDeserializeAsOwned,
+    ser::{
+        r#as::{CellSerializeAs, CellSerializeWrapAsExt},
+        CellSerializeExt,
+    },
+};
 
 #[track_caller]
 pub fn assert_store_parse_as_eq<T, As>(value: T)

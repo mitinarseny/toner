@@ -1,7 +1,9 @@
-use core::{marker::PhantomData, mem::MaybeUninit};
+use core::mem::MaybeUninit;
 use std::{rc::Rc, sync::Arc};
 
-use crate::{CellDeserialize, CellParser, CellParserError, ResultExt};
+use crate::{bits::de::r#as::UnpackAsWrap, either::Either, ResultExt};
+
+use super::{CellDeserialize, CellParser, CellParserError};
 
 pub trait CellDeserializeAs<'de, T> {
     fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>>;
@@ -10,35 +12,13 @@ pub trait CellDeserializeAs<'de, T> {
 pub trait CellDeserializeAsOwned<T>: for<'de> CellDeserializeAs<'de, T> {}
 impl<T, As> CellDeserializeAsOwned<As> for T where T: for<'de> CellDeserializeAs<'de, As> + ?Sized {}
 
-pub struct CellDeserializeAsWrap<T, As>
-where
-    As: ?Sized,
-{
-    value: T,
-    _phanton: PhantomData<As>,
-}
-
-impl<'de, T, As> CellDeserializeAsWrap<T, As>
-where
-    As: CellDeserializeAs<'de, T> + ?Sized,
-{
-    /// Return the inner value of type `T`.
-    #[inline]
-    pub fn into_inner(self) -> T {
-        self.value
-    }
-}
-
-impl<'de, T, As> CellDeserialize<'de> for CellDeserializeAsWrap<T, As>
+impl<'de, T, As> CellDeserialize<'de> for UnpackAsWrap<T, As>
 where
     As: CellDeserializeAs<'de, T> + ?Sized,
 {
     #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        As::parse_as(parser).map(|value| Self {
-            value,
-            _phanton: PhantomData,
-        })
+        As::parse_as(parser).map(Self::new)
     }
 }
 
@@ -66,7 +46,7 @@ macro_rules! impl_cell_deserialize_as_for_tuple {
             #[inline]
             fn parse_as(parser: &mut CellParser<'de>) -> Result<($($t,)+), CellParserError<'de>> {
                 Ok(($(
-                    CellDeserializeAsWrap::<$t, $a>::parse(parser)
+                    UnpackAsWrap::<$t, $a>::parse(parser)
                         .context(concat!(".", stringify!($n)))?
                         .into_inner(),
                 )+))
@@ -91,8 +71,8 @@ where
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<Box<T>, CellParserError<'de>> {
-        CellDeserializeAsWrap::<T, As>::parse(parser)
-            .map(CellDeserializeAsWrap::into_inner)
+        UnpackAsWrap::<T, As>::parse(parser)
+            .map(UnpackAsWrap::into_inner)
             .map(Box::new)
     }
 }
@@ -103,8 +83,8 @@ where
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<Rc<T>, CellParserError<'de>> {
-        CellDeserializeAsWrap::<T, As>::parse(parser)
-            .map(CellDeserializeAsWrap::into_inner)
+        UnpackAsWrap::<T, As>::parse(parser)
+            .map(UnpackAsWrap::into_inner)
             .map(Rc::new)
     }
 }
@@ -115,9 +95,36 @@ where
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<Arc<T>, CellParserError<'de>> {
-        CellDeserializeAsWrap::<T, As>::parse(parser)
-            .map(CellDeserializeAsWrap::into_inner)
+        UnpackAsWrap::<T, As>::parse(parser)
+            .map(UnpackAsWrap::into_inner)
             .map(Arc::new)
+    }
+}
+
+impl<'de, Left, Right, AsLeft, AsRight> CellDeserializeAs<'de, Either<Left, Right>>
+    for Either<AsLeft, AsRight>
+where
+    AsLeft: CellDeserializeAs<'de, Left>,
+    AsRight: CellDeserializeAs<'de, Right>,
+{
+    #[inline]
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<Either<Left, Right>, CellParserError<'de>> {
+        Ok(
+            Either::<UnpackAsWrap<Left, AsLeft>, UnpackAsWrap<Right, AsRight>>::parse(parser)?
+                .map_either(UnpackAsWrap::into_inner, UnpackAsWrap::into_inner),
+        )
+    }
+}
+
+impl<'de, T, As> CellDeserializeAs<'de, Option<T>> for Either<(), As>
+where
+    As: CellDeserializeAs<'de, T>,
+{
+    #[inline]
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<Option<T>, CellParserError<'de>> {
+        Ok(Either::<(), UnpackAsWrap<T, As>>::parse(parser)?
+            .map_right(UnpackAsWrap::into_inner)
+            .right())
     }
 }
 
@@ -127,7 +134,6 @@ where
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<Option<T>, CellParserError<'de>> {
-        Ok(Option::<CellDeserializeAsWrap<T, As>>::parse(parser)?
-            .map(CellDeserializeAsWrap::into_inner))
+        Ok(Option::<UnpackAsWrap<T, As>>::parse(parser)?.map(UnpackAsWrap::into_inner))
     }
 }

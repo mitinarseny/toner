@@ -1,6 +1,9 @@
 use bitvec::{order::Msb0, slice::BitSlice, view::AsBits};
 
-use crate::{BitPack, BitPackAs, BitReader, BitReaderExt, BitUnpackAs, BitWriter, BitWriterExt};
+use crate::{
+    de::{r#as::BitUnpackAs, BitReader, BitReaderExt},
+    ser::{r#as::BitPackAs, BitPack, BitWriter, BitWriterExt},
+};
 
 pub struct AsBitSlice;
 

@@ -1,11 +1,16 @@
-use core::mem::size_of;
-use std::fmt::Binary;
-
-use crate::{BitPack, BitPackAs, Error, ResultExt, StringError};
-
 use ::bitvec::{order::Msb0, slice::BitSlice, store::BitStore, vec::BitVec, view::AsBits};
 use impl_tools::autoimpl;
-use num_traits::{PrimInt, ToBytes};
+
+use crate::{
+    adapters::{BitCounter, Tee},
+    Error, ResultExt, StringError,
+};
+
+use super::{
+    args::{r#as::BitPackAsWithArgs, BitPackWithArgs},
+    r#as::BitPackAs,
+    BitPack,
+};
 
 #[autoimpl(for <W: trait + ?Sized> &mut W, Box<W>)]
 pub trait BitWriter {
@@ -68,6 +73,15 @@ pub trait BitWriterExt: BitWriter {
     }
 
     #[inline]
+    fn pack_with<T>(&mut self, value: T, args: T::Args) -> Result<&mut Self, Self::Error>
+    where
+        T: BitPackWithArgs,
+    {
+        value.pack_with::<&mut Self>(self, args)?;
+        Ok(self)
+    }
+
+    #[inline]
     fn pack_many<T>(
         &mut self,
         values: impl IntoIterator<Item = T>,
@@ -82,11 +96,37 @@ pub trait BitWriterExt: BitWriter {
     }
 
     #[inline]
+    fn pack_many_with<T>(
+        &mut self,
+        values: impl IntoIterator<Item = T>,
+        args: T::Args,
+    ) -> Result<&mut Self, Self::Error>
+    where
+        T: BitPackWithArgs,
+        T::Args: Clone,
+    {
+        for (i, v) in values.into_iter().enumerate() {
+            self.pack_with(v, args.clone())
+                .with_context(|| format!("[{i}]"))?;
+        }
+        Ok(self)
+    }
+
+    #[inline]
     fn pack_as<T, As>(&mut self, value: T) -> Result<&mut Self, Self::Error>
     where
         As: BitPackAs<T> + ?Sized,
     {
         As::pack_as::<&mut Self>(&value, self)?;
+        Ok(self)
+    }
+
+    #[inline]
+    fn pack_as_with<T, As>(&mut self, value: T, args: As::Args) -> Result<&mut Self, Self::Error>
+    where
+        As: BitPackAsWithArgs<T> + ?Sized,
+    {
+        As::pack_as_with::<&mut Self>(&value, self, args)?;
         Ok(self)
     }
 
@@ -105,22 +145,19 @@ pub trait BitWriterExt: BitWriter {
     }
 
     #[inline]
-    fn pack_as_n_bytes<T>(&mut self, value: T, num_bytes: u32) -> Result<&mut Self, Self::Error>
+    fn pack_many_as_with<T, As>(
+        &mut self,
+        values: impl IntoIterator<Item = T>,
+        args: As::Args,
+    ) -> Result<&mut Self, Self::Error>
     where
-        T: PrimInt + Binary + ToBytes,
+        As: BitPackAsWithArgs<T> + ?Sized,
+        As::Args: Clone,
     {
-        let size_bytes: u32 = size_of::<T>() as u32;
-        let leading_zeroes = value.leading_zeros();
-        let used_bytes = size_bytes - leading_zeroes / 8;
-        if num_bytes < used_bytes {
-            return Err(Error::custom(format!(
-                "{value:0b} cannot be packed into {num_bytes} bytes",
-            )));
+        for (i, v) in values.into_iter().enumerate() {
+            self.pack_as_with::<_, As>(v, args.clone())
+                .with_context(|| format!("[{i}]"))?;
         }
-        let arr = value.to_be_bytes();
-        let mut bytes = arr.as_ref();
-        bytes = &bytes[bytes.len() - num_bytes as usize..];
-        self.write_bitslice(bytes.as_bits())?;
         Ok(self)
     }
 
@@ -144,35 +181,21 @@ pub trait BitWriterExt: BitWriter {
     {
         LimitWriter::new(self, n)
     }
+
+    #[inline]
+    fn tee<W>(self, writer: W) -> Tee<Self, W>
+    where
+        Self: Sized,
+        W: BitWriter,
+    {
+        Tee {
+            inner: self,
+            writer,
+        }
+    }
 }
 
 impl<T> BitWriterExt for T where T: BitWriter {}
-
-#[autoimpl(Deref using self.inner)]
-pub struct BitCounter<W> {
-    inner: W,
-    bits_written: usize,
-}
-
-impl<W> BitCounter<W> {
-    #[inline]
-    pub const fn new(writer: W) -> Self {
-        Self {
-            inner: writer,
-            bits_written: 0,
-        }
-    }
-
-    #[inline]
-    pub const fn bits_written(&self) -> usize {
-        self.bits_written
-    }
-
-    #[inline]
-    pub fn into_inner(self) -> W {
-        self.inner
-    }
-}
 
 impl<W> BitWriter for BitCounter<W>
 where
@@ -183,21 +206,21 @@ where
     #[inline]
     fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error> {
         self.inner.write_bit(bit)?;
-        self.bits_written += 1;
+        self.counter += 1;
         Ok(())
     }
 
     #[inline]
     fn write_bitslice(&mut self, bits: &BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
         self.inner.write_bitslice(bits)?;
-        self.bits_written += bits.len();
+        self.counter += bits.len();
         Ok(())
     }
 
     #[inline]
     fn repeat_bit(&mut self, n: usize, bit: bool) -> Result<(), Self::Error> {
         self.inner.repeat_bit(n, bit)?;
-        self.bits_written += n;
+        self.counter += n;
         Ok(())
     }
 }
@@ -222,7 +245,7 @@ where
 
     #[inline]
     fn ensure_more(&self, n: usize) -> Result<(), W::Error> {
-        if self.bits_written() + n > self.limit {
+        if self.bit_count() + n > self.limit {
             return Err(Error::custom("max bits limit reached"));
         }
         Ok(())
@@ -256,6 +279,41 @@ where
     fn repeat_bit(&mut self, n: usize, bit: bool) -> Result<(), Self::Error> {
         self.ensure_more(n)?;
         self.inner.repeat_bit(n, bit)
+    }
+}
+
+impl<T, W> BitWriter for Tee<T, W>
+where
+    T: BitWriter,
+    W: BitWriter,
+{
+    type Error = T::Error;
+
+    #[inline]
+    fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error> {
+        self.inner.write_bit(bit)?;
+        self.writer
+            .write_bit(bit)
+            .map_err(<T::Error>::custom)
+            .context("writer")
+    }
+
+    #[inline]
+    fn write_bitslice(&mut self, bits: &BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
+        self.inner.write_bitslice(bits)?;
+        self.writer
+            .write_bitslice(bits)
+            .map_err(<T::Error>::custom)
+            .context("writer")
+    }
+
+    #[inline]
+    fn repeat_bit(&mut self, n: usize, bit: bool) -> Result<(), Self::Error> {
+        self.inner.repeat_bit(n, bit)?;
+        self.writer
+            .repeat_bit(n, bit)
+            .map_err(<T::Error>::custom)
+            .context("writer")
     }
 }
 

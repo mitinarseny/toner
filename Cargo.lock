@@ -692,10 +692,9 @@ dependencies = [
 
 [[package]]
 name = "tlb"
-version = "0.2.19"
+version = "0.2.20"
 dependencies = [
  "bitvec",
- "either",
  "hex",
  "hex-literal",
  "impl-tools",
@@ -705,13 +704,11 @@ dependencies = [
 
 [[package]]
 name = "tlb-ton"
-version = "0.2.19"
+version = "0.2.20"
 dependencies = [
  "base64 0.21.7",
- "bitvec",
  "chrono",
  "crc",
- "either",
  "hex",
  "impl-tools",
  "num-bigint",
@@ -720,12 +717,11 @@ dependencies = [
  "serde_with",
  "strum",
  "tlb",
- "tlbits",
 ]
 
 [[package]]
 name = "tlbits"
-version = "0.2.19"
+version = "0.2.20"
 dependencies = [
  "bitvec",
  "either",
@@ -737,7 +733,7 @@ dependencies = [
 
 [[package]]
 name = "ton-contracts"
-version = "0.2.19"
+version = "0.2.20"
 dependencies = [
  "anyhow",
  "bitvec",

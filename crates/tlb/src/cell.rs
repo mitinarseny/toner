@@ -8,7 +8,14 @@ use std::sync::Arc;
 use bitvec::{order::Msb0, vec::BitVec};
 use sha2::{Digest, Sha256};
 
-use crate::{CellBuilder, CellDeserialize, CellDeserializeAs, CellParser, CellParserError};
+use crate::{
+    de::{
+        args::{r#as::CellDeserializeAsWithArgs, CellDeserializeWithArgs},
+        r#as::CellDeserializeAs,
+        CellDeserialize, CellParser, CellParserError,
+    },
+    ser::CellBuilder,
+};
 
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct Cell {
@@ -33,6 +40,7 @@ impl Cell {
     }
 
     #[inline]
+    #[must_use]
     pub fn parser(&self) -> CellParser<'_> {
         CellParser::new(&self.data, &self.references)
     }
@@ -49,12 +57,37 @@ impl Cell {
     }
 
     #[inline]
+    pub fn parse_fully_with<'de, T>(&'de self, args: T::Args) -> Result<T, CellParserError<'de>>
+    where
+        T: CellDeserializeWithArgs<'de>,
+    {
+        let mut parser = self.parser();
+        let v = parser.parse_with(args)?;
+        parser.ensure_empty()?;
+        Ok(v)
+    }
+
+    #[inline]
     pub fn parse_fully_as<'de, T, As>(&'de self) -> Result<T, CellParserError<'de>>
     where
         As: CellDeserializeAs<'de, T> + ?Sized,
     {
         let mut parser = self.parser();
         let v = parser.parse_as::<T, As>()?;
+        parser.ensure_empty()?;
+        Ok(v)
+    }
+
+    #[inline]
+    pub fn parse_fully_as_with<'de, T, As>(
+        &'de self,
+        args: As::Args,
+    ) -> Result<T, CellParserError<'de>>
+    where
+        As: CellDeserializeAsWithArgs<'de, T> + ?Sized,
+    {
+        let mut parser = self.parser();
+        let v = parser.parse_as_with::<T, As>(args)?;
         parser.ensure_empty()?;
         Ok(v)
     }
@@ -142,6 +175,7 @@ impl Cell {
         buf
     }
 
+    /// See [cell hash](https://docs.ton.org/develop/data-formats/cell-boc#cell-hash)
     #[inline]
     pub fn hash(&self) -> [u8; 32] {
         let mut hasher = Sha256::new();
@@ -172,11 +206,14 @@ impl Debug for Cell {
 
 #[cfg(test)]
 mod tests {
-    use crate::{BitWriterExt, NBits};
+
     use hex_literal::hex;
 
     use crate::{
-        tests::assert_store_parse_as_eq, CellSerializeExt, CellSerializeWrapAsExt, Data, Ref,
+        bits::{r#as::NBits, ser::BitWriterExt},
+        r#as::{Data, Ref},
+        ser::{r#as::CellSerializeWrapAsExt, CellSerializeExt},
+        tests::assert_store_parse_as_eq,
     };
 
     use super::*;

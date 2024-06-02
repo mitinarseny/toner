@@ -3,11 +3,17 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use nacl::sign::PUBLIC_KEY_LENGTH;
+use num_bigint::BigUint;
 use tlb::{
-    BitReaderExt, BitWriterExt, Cell, CellBuilder, CellBuilderError, CellDeserialize, CellParser,
-    CellParserError, CellSerialize, ConstBit,
+    bits::{de::BitReaderExt, ser::BitWriterExt},
+    de::{CellDeserialize, CellParser, CellParserError},
+    r#as::{NoArgs, Ref},
+    ser::{CellBuilder, CellBuilderError, CellSerialize},
+    Cell,
 };
-use tlb_ton::{BagOfCells, UnixTimestamp};
+use tlb_ton::{
+    currency::Grams, hashmap::HashmapE, BagOfCells, MsgAddress, StateInit, UnixTimestamp,
+};
 
 use super::{WalletOpSendMessage, WalletVersion};
 
@@ -36,6 +42,7 @@ impl WalletVersion for V4R2 {
             seqno: 0,
             wallet_id,
             pubkey,
+            plugins: HashmapE::Empty,
         }
     }
 
@@ -54,11 +61,13 @@ impl WalletVersion for V4R2 {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV4R2Data {
     pub seqno: u32,
     pub wallet_id: u32,
     pub pubkey: [u8; PUBLIC_KEY_LENGTH],
+    /// plugin address -> ()
+    pub plugins: HashmapE<()>,
 }
 
 impl CellSerialize for WalletV4R2Data {
@@ -67,8 +76,10 @@ impl CellSerialize for WalletV4R2Data {
             .pack(self.seqno)?
             .pack(self.wallet_id)?
             .pack(self.pubkey)?
-            // TODO: handle plugins dict
-            .pack(false)?;
+            .store_as_with::<_, &HashmapE<NoArgs<_>, NoArgs<_>>>(
+                &self.plugins,
+                (8 + 256, (), ()),
+            )?;
         Ok(())
     }
 }
@@ -79,9 +90,12 @@ impl<'de> CellDeserialize<'de> for WalletV4R2Data {
             seqno: parser.unpack()?,
             wallet_id: parser.unpack()?,
             pubkey: parser.unpack()?,
+            plugins: parser.parse_as_with::<_, HashmapE<NoArgs<_>, NoArgs<_>>>((
+                8 + 256,
+                (),
+                (),
+            ))?,
         };
-        // TODO: plugins
-        let _plugins: ConstBit<false> = parser.unpack()?;
         Ok(d)
     }
 }
@@ -106,34 +120,113 @@ impl CellSerialize for WalletV4R2Message {
 
 pub enum WalletV4R2Op {
     Send(Vec<WalletOpSendMessage>),
-    // TODO: add support for plugins management
+    DeployAndInstall(WalletV4R2OpDeployAndInstallPlugin),
+    Install(WalletV4R2OpPlugin),
+    Remove(WalletV4R2OpPlugin),
 }
 
 impl CellSerialize for WalletV4R2Op {
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         match self {
             Self::Send(msgs) => builder.pack(0u8)?.store_many(msgs)?,
+            Self::DeployAndInstall(msg) => builder.pack(1u8)?.store(msg)?,
+            Self::Install(msg) => builder.pack(2u8)?.store(msg)?,
+            Self::Remove(msg) => builder.pack(3u8)?.store(msg)?,
         };
         Ok(())
     }
 }
 
+pub struct WalletV4R2OpDeployAndInstallPlugin<T = Cell, IC = Cell, ID = Cell> {
+    pub plugin_workchain: i8,
+    pub plugin_balance: BigUint,
+    pub state_init: StateInit<IC, ID>,
+    pub body: T,
+}
+
+impl<T, IC, ID> CellSerialize for WalletV4R2OpDeployAndInstallPlugin<T, IC, ID>
+where
+    T: CellSerialize,
+    IC: CellSerialize,
+    ID: CellSerialize,
+{
+    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+        builder
+            .pack(self.plugin_workchain)?
+            .pack_as::<_, &Grams>(&self.plugin_balance)?
+            .store_as::<_, Ref>(&self.state_init)?
+            .store_as::<_, Ref>(&self.body)?;
+        Ok(())
+    }
+}
+
+impl<'de, T, IC, ID> CellDeserialize<'de> for WalletV4R2OpDeployAndInstallPlugin<T, IC, ID>
+where
+    T: CellDeserialize<'de>,
+    IC: CellDeserialize<'de>,
+    ID: CellDeserialize<'de>,
+{
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        Ok(Self {
+            plugin_workchain: parser.unpack()?,
+            plugin_balance: parser.unpack_as::<_, Grams>()?,
+            state_init: parser.parse_as::<_, Ref>()?,
+            body: parser.parse_as::<_, Ref>()?,
+        })
+    }
+}
+
+pub struct WalletV4R2OpPlugin {
+    pub plugin_address: MsgAddress,
+    pub amount: BigUint,
+    pub query_id: u64,
+}
+
+impl CellSerialize for WalletV4R2OpPlugin {
+    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+        builder
+            .pack(self.plugin_address.workchain_id as i8)?
+            .pack(self.plugin_address.address)?
+            .pack_as::<_, &Grams>(&self.amount)?
+            .pack(self.query_id)?;
+        Ok(())
+    }
+}
+
+impl<'de> CellDeserialize<'de> for WalletV4R2OpPlugin {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        Ok(Self {
+            plugin_address: MsgAddress {
+                workchain_id: parser.unpack::<i8>()? as i32,
+                address: parser.unpack()?,
+            },
+            amount: parser.unpack_as::<_, Grams>()?,
+            query_id: parser.unpack()?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use tlb::unpack_bytes_fully;
-    use tlb_ton::BoC;
+    use tlb::bits::{de::unpack_fully, ser::pack_with};
+    use tlb_ton::{BagOfCellsArgs, BoC};
 
     use super::*;
 
     #[test]
     fn check_code() {
-        let packed = BoC::from_root(WALLET_V4R2_CODE_CELL.clone())
-            .pack(true)
-            .unwrap();
-        let unpacked: BoC = unpack_bytes_fully(packed).unwrap();
+        let packed = pack_with(
+            BoC::from_root(WALLET_V4R2_CODE_CELL.clone()),
+            BagOfCellsArgs {
+                has_idx: false,
+                has_crc32c: true,
+            },
+        )
+        .unwrap();
+
+        let unpacked: BoC = unpack_fully(packed).unwrap();
 
         let got: Cell = unpacked.single_root().unwrap().parse_fully().unwrap();
-
         assert_eq!(&got, WALLET_V4R2_CODE_CELL.as_ref());
     }
 }

@@ -1,36 +1,15 @@
-use core::marker::PhantomData;
 use std::{rc::Rc, sync::Arc};
 
-use crate::{CellBuilder, CellBuilderError, CellSerialize, ResultExt};
+pub use crate::bits::ser::r#as::PackAsWrap;
+use crate::{either::Either, ResultExt};
+
+use super::{CellBuilder, CellBuilderError, CellSerialize};
 
 pub trait CellSerializeAs<T: ?Sized> {
     fn store_as(source: &T, builder: &mut CellBuilder) -> Result<(), CellBuilderError>;
 }
 
-pub struct CellSerializeAsWrap<'a, T, As>
-where
-    As: CellSerializeAs<T> + ?Sized,
-    T: ?Sized,
-{
-    value: &'a T,
-    _phantom: PhantomData<As>,
-}
-
-impl<'a, T, As> CellSerializeAsWrap<'a, T, As>
-where
-    T: ?Sized,
-    As: CellSerializeAs<T> + ?Sized,
-{
-    #[inline]
-    pub const fn new(value: &'a T) -> Self {
-        Self {
-            value,
-            _phantom: PhantomData,
-        }
-    }
-}
-
-impl<'a, T, As> CellSerialize for CellSerializeAsWrap<'a, T, As>
+impl<'a, T, As> CellSerialize for PackAsWrap<'a, T, As>
 where
     T: ?Sized,
     As: ?Sized,
@@ -38,7 +17,7 @@ where
 {
     #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        As::store_as(self.value, builder)
+        As::store_as(self.into_inner(), builder)
     }
 }
 
@@ -49,7 +28,7 @@ where
 {
     #[inline]
     fn store_as(source: &&T, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        CellSerializeAsWrap::<T, As>::new(source).store(builder)
+        PackAsWrap::<T, As>::new(source).store(builder)
     }
 }
 
@@ -60,7 +39,7 @@ where
 {
     #[inline]
     fn store_as(source: &&mut T, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        CellSerializeAsWrap::<T, As>::new(source).store(builder)
+        PackAsWrap::<T, As>::new(source).store(builder)
     }
 }
 
@@ -121,8 +100,9 @@ impl<T, As> CellSerializeAs<Box<T>> for Box<As>
 where
     As: CellSerializeAs<T> + ?Sized,
 {
+    #[inline]
     fn store_as(source: &Box<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        CellSerializeAsWrap::<T, As>::new(source).store(builder)
+        PackAsWrap::<T, As>::new(source).store(builder)
     }
 }
 
@@ -130,8 +110,9 @@ impl<T, As> CellSerializeAs<Rc<T>> for Rc<As>
 where
     As: CellSerializeAs<T> + ?Sized,
 {
+    #[inline]
     fn store_as(source: &Rc<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        CellSerializeAsWrap::<T, As>::new(source).store(builder)
+        PackAsWrap::<T, As>::new(source).store(builder)
     }
 }
 
@@ -139,8 +120,43 @@ impl<T, As> CellSerializeAs<Arc<T>> for Arc<As>
 where
     As: CellSerializeAs<T> + ?Sized,
 {
+    #[inline]
     fn store_as(source: &Arc<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        CellSerializeAsWrap::<T, As>::new(source).store(builder)
+        PackAsWrap::<T, As>::new(source).store(builder)
+    }
+}
+
+impl<Left, Right, AsLeft, AsRight> CellSerializeAs<Either<Left, Right>> for Either<AsLeft, AsRight>
+where
+    AsLeft: CellSerializeAs<Left>,
+    AsRight: CellSerializeAs<Right>,
+{
+    #[inline]
+    fn store_as(
+        source: &Either<Left, Right>,
+        builder: &mut CellBuilder,
+    ) -> Result<(), CellBuilderError> {
+        source
+            .as_ref()
+            .map_either(
+                PackAsWrap::<Left, AsLeft>::new,
+                PackAsWrap::<Right, AsRight>::new,
+            )
+            .store(builder)
+    }
+}
+
+impl<T, As> CellSerializeAs<Option<T>> for Either<(), As>
+where
+    As: CellSerializeAs<T>,
+{
+    #[inline]
+    fn store_as(source: &Option<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+        match source.as_ref() {
+            None => Either::Left(()),
+            Some(v) => Either::Right(PackAsWrap::<T, As>::new(v)),
+        }
+        .store(builder)
     }
 }
 
@@ -150,20 +166,17 @@ where
 {
     #[inline]
     fn store_as(source: &Option<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        source
-            .as_ref()
-            .map(CellSerializeWrapAsExt::wrap_as::<As>)
-            .store(builder)
+        source.as_ref().map(PackAsWrap::<_, As>::new).store(builder)
     }
 }
 
 pub trait CellSerializeWrapAsExt {
     #[inline]
-    fn wrap_as<As>(&self) -> CellSerializeAsWrap<'_, Self, As>
+    fn wrap_as<As>(&self) -> PackAsWrap<'_, Self, As>
     where
         As: CellSerializeAs<Self> + ?Sized,
     {
-        CellSerializeAsWrap::new(self)
+        PackAsWrap::new(self)
     }
 }
 impl<T> CellSerializeWrapAsExt for T {}
