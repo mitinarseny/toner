@@ -1,5 +1,9 @@
-use tlb::{Cell, CellDeserializeAs, CellDeserializeAsOwned, CellParser, CellParserError, Ref};
-use tlbits::{BitReader, BitReaderExt};
+use tlb::bits::de::{BitReader, BitReaderExt};
+use tlb::Cell;
+use tlb::de::{CellParser, CellParserError};
+use tlb::de::args::r#as::CellDeserializeAsWithArgs;
+use tlb::de::r#as::{CellDeserializeAs, CellDeserializeAsOwned};
+use tlb::r#as::Ref;
 
 /// ```tlb
 /// bt_leaf$0 {X:Type} leaf:X = BinTree X;
@@ -63,10 +67,11 @@ impl<'de, T, As> CellDeserializeAs<'de, Vec<T>> for BinTree<As> where As: CellDe
 
 #[cfg(test)]
 mod tests {
-    use bitvec::bits;
-    use bitvec::order::Msb0;
-    use tlb::{CellSerializeExt, CellSerializeWrapAsExt, Data, Ref};
-    use tlbits::Same;
+    use tlb::bits::bitvec::bits;
+    use tlb::bits::bitvec::order::Msb0;
+    use tlb::r#as::{Data, Ref, Same};
+    use tlb::ser::CellSerializeExt;
+    use tlb::ser::r#as::CellSerializeWrapAsExt;
     use crate::BinTree;
 
     impl<I> BinTree<I> {
