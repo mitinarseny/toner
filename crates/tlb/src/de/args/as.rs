@@ -17,6 +17,11 @@ pub trait CellDeserializeAsWithArgs<'de, T> {
     ) -> Result<T, CellParserError<'de>>;
 }
 
+pub trait CellDeserializeAsWithArgsOwned<T>: for<'de> CellDeserializeAsWithArgs<'de, T> {}
+impl<T, As> CellDeserializeAsWithArgsOwned<As> for T
+    where T: for<'de> CellDeserializeAsWithArgs<'de, As> + ?Sized {
+}
+
 impl<'de, T, As> CellDeserializeWithArgs<'de> for UnpackAsWrap<T, As>
 where
     As: CellDeserializeAsWithArgs<'de, T> + ?Sized,
