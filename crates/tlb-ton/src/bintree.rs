@@ -15,15 +15,15 @@ pub enum BinTree<X> {
 }
 
 impl<'de, T, As, Args> CellDeserializeAsWithArgs<'de, BinTree<T>> for BinTree<As>
-    where Args: Copy, As: CellDeserializeAsWithArgsOwned<T, Args = Args> {
+    where Args: Clone, As: CellDeserializeAsWithArgsOwned<T, Args = Args> {
     type Args = Args;
 
     fn parse_as_with(parser: &mut CellParser<'de>, args: Self::Args) -> Result<BinTree<T>, CellParserError<'de>> {
         match parser.unpack()? {
-            false => { Ok(BinTree::Leaf(parser.parse_as_with::<T, As>(args)?)) },
+            false => { Ok(BinTree::Leaf(parser.parse_as_with::<T, As>(args.clone())?)) },
             true => {
                 let [lc, rc]: [Cell; 2] = parser.parse_as::<_, [Ref; 2]>()?;
-                let l = lc.parse_fully_as_with::<BinTree<T>, BinTree<As>>(args)?;
+                let l = lc.parse_fully_as_with::<BinTree<T>, BinTree<As>>(args.clone())?;
                 let r = rc.parse_fully_as_with::<BinTree<T>, BinTree<As>>(args)?;
 
                 Ok(BinTree::Fork([l, r].map(Into::into)))
@@ -33,12 +33,12 @@ impl<'de, T, As, Args> CellDeserializeAsWithArgs<'de, BinTree<T>> for BinTree<As
 }
 
 impl<'de, T, As, Args> CellDeserializeAsWithArgs<'de, Vec<T>> for BinTree<As>
-    where Args: Copy, As: CellDeserializeAsWithArgsOwned<T, Args = Args> {
+    where Args: Clone, As: CellDeserializeAsWithArgsOwned<T, Args = Args> {
     type Args = Args;
 
     fn parse_as_with(parser: &mut CellParser<'de>, args: Self::Args) -> Result<Vec<T>, CellParserError<'de>> {
         #[inline]
-        fn unpack<'a, T, Args: Clone, As: CellDeserializeAsWithArgsOwned<T, Args = Args>>(
+        fn unpack<'a, T, Args, As: CellDeserializeAsWithArgsOwned<T, Args = Args>>(
             output: &'a mut Vec<T>,
             stack: &'a mut Vec<Cell>,
             parser: &'a mut CellParser<'_>,
@@ -58,12 +58,12 @@ impl<'de, T, As, Args> CellDeserializeAsWithArgs<'de, Vec<T>> for BinTree<As>
         let mut output = Vec::new();
         let mut stack = Vec::new();
 
-        unpack::<T, _, As>(&mut output, &mut stack, parser, args)?;
+        unpack::<T, _, As>(&mut output, &mut stack, parser, args.clone())?;
 
         while let Some(cell) = stack.pop() {
             let mut parser = cell.parser();
 
-            unpack::<T, _, As>(&mut output, &mut stack, &mut parser, args)?;
+            unpack::<T, _, As>(&mut output, &mut stack, &mut parser, args.clone())?;
         }
 
         output.shrink_to_fit();
