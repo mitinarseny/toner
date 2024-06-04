@@ -79,7 +79,7 @@ mod tests {
     use tlb::r#as::{Data, NoArgs, Ref, Same};
     use tlb::ser::CellSerializeExt;
     use tlb::ser::r#as::CellSerializeWrapAsExt;
-    use crate::BinTree;
+    use super::BinTree;
 
     impl<I> BinTree<I> {
         pub fn unwrap_leaf(self) -> I {
