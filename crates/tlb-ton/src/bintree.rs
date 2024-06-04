@@ -2,7 +2,6 @@ use tlb::bits::de::{BitReader, BitReaderExt};
 use tlb::Cell;
 use tlb::de::{CellParser, CellParserError};
 use tlb::de::args::r#as::{CellDeserializeAsWithArgs, CellDeserializeAsWithArgsOwned};
-use tlb::de::r#as::{CellDeserializeAs, CellDeserializeAsOwned};
 use tlb::r#as::Ref;
 
 /// ```tlb
@@ -15,14 +14,17 @@ pub enum BinTree<X> {
     Fork([Box<BinTree<X>>; 2]),
 }
 
-impl<'de, T, As> CellDeserializeAs<'de, BinTree<T>> for BinTree<As> where As: CellDeserializeAsOwned<T> {
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<BinTree<T>, CellParserError<'de>> {
+impl<'de, T, As, Args> CellDeserializeAsWithArgs<'de, BinTree<T>> for BinTree<As>
+    where Args: Copy, As: CellDeserializeAsWithArgsOwned<T, Args = Args> {
+    type Args = Args;
+
+    fn parse_as_with(parser: &mut CellParser<'de>, args: Self::Args) -> Result<BinTree<T>, CellParserError<'de>> {
         match parser.unpack()? {
-            false => { Ok(BinTree::Leaf(parser.parse_as::<T, As>()?)) },
+            false => { Ok(BinTree::Leaf(parser.parse_as_with::<T, As>(args)?)) },
             true => {
                 let [lc, rc]: [Cell; 2] = parser.parse_as::<_, [Ref; 2]>()?;
-                let l = lc.parse_fully_as::<BinTree<T>, BinTree<As>>()?;
-                let r = rc.parse_fully_as::<BinTree<T>, BinTree<As>>()?;
+                let l = lc.parse_fully_as_with::<BinTree<T>, BinTree<As>>(args)?;
+                let r = rc.parse_fully_as_with::<BinTree<T>, BinTree<As>>(args)?;
 
                 Ok(BinTree::Fork([l, r].map(Into::into)))
             }
@@ -31,7 +33,7 @@ impl<'de, T, As> CellDeserializeAs<'de, BinTree<T>> for BinTree<As> where As: Ce
 }
 
 impl<'de, T, As, Args> CellDeserializeAsWithArgs<'de, Vec<T>> for BinTree<As>
-    where Args: Clone, As: CellDeserializeAsWithArgsOwned<T, Args = Args> {
+    where Args: Copy, As: CellDeserializeAsWithArgsOwned<T, Args = Args> {
     type Args = Args;
 
     fn parse_as_with(parser: &mut CellParser<'de>, args: Self::Args) -> Result<Vec<T>, CellParserError<'de>> {
@@ -43,7 +45,7 @@ impl<'de, T, As, Args> CellDeserializeAsWithArgs<'de, Vec<T>> for BinTree<As>
             args: Args
         ) -> Result<(), <CellParser<'a> as BitReader>::Error> {
             match parser.unpack()? {
-                false => output.push(parser.parse_as_with::<T, As>(args.clone())?),
+                false => output.push(parser.parse_as_with::<T, As>(args)?),
                 true => {
                     let [lc, rc]: [Cell; 2] = parser.parse_as::<_, [Ref; 2]>()?;
                     stack.push(rc);
@@ -56,12 +58,12 @@ impl<'de, T, As, Args> CellDeserializeAsWithArgs<'de, Vec<T>> for BinTree<As>
         let mut output = Vec::new();
         let mut stack = Vec::new();
 
-        unpack::<T, _, As>(&mut output, &mut stack, parser, args.clone())?;
+        unpack::<T, _, As>(&mut output, &mut stack, parser, args)?;
 
         while let Some(cell) = stack.pop() {
             let mut parser = cell.parser();
 
-            unpack::<T, _, As>(&mut output, &mut stack, &mut parser, args.clone())?;
+            unpack::<T, _, As>(&mut output, &mut stack, &mut parser, args)?;
         }
 
         output.shrink_to_fit();
@@ -99,7 +101,7 @@ mod tests {
     fn bin_tree_leaf() {
         let data = bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 1].wrap_as::<Data>().to_cell().unwrap();
 
-        let got: BinTree<u8> = data.parse_fully_as::<_, BinTree<Data>>().unwrap();
+        let got: BinTree<u8> = data.parse_fully_as_with::<_, BinTree<Data<NoArgs<_>>>>(()).unwrap();
 
         assert_eq!(got.unwrap_leaf(), 5);
     }
@@ -112,7 +114,7 @@ mod tests {
             bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 0, 1, 1].wrap_as::<Ref<Data>>()
         ).to_cell().unwrap();
 
-        let [left, right] = data.parse_fully_as::<BinTree<u8>, BinTree<Data>>()
+        let [left, right] = data.parse_fully_as_with::<BinTree<u8>, BinTree<Data<NoArgs<_>>>>(())
             .unwrap()
             .unwrap_fork();
 
