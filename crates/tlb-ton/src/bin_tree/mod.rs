@@ -1,3 +1,5 @@
+pub mod aug;
+
 use tlb::bits::de::{BitReader, BitReaderExt};
 use tlb::Cell;
 use tlb::de::{CellParser, CellParserError};
