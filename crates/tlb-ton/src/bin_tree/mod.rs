@@ -58,6 +58,7 @@ where
 {
     type Args = As::Args;
 
+    #[inline]
     fn parse_as_with(
         parser: &mut CellParser<'de>,
         args: Self::Args,
@@ -78,6 +79,7 @@ where
 {
     type Args = As::Args;
 
+    #[inline]
     fn parse_as_with(
         parser: &mut CellParser<'de>,
         args: Self::Args,
