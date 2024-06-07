@@ -1,6 +1,6 @@
 use tlb::{
     bits::{de::BitReaderExt, ser::BitWriterExt},
-    de::args::r#as::CellDeserializeAsWithArgs,
+    de::{args::r#as::CellDeserializeAsWithArgs, CellParser, CellParserError},
     r#as::{ParseFully, Ref},
     ser::{args::r#as::CellSerializeAsWithArgs, CellBuilder, CellBuilderError},
 };
@@ -14,11 +14,11 @@ pub struct BinTreeAug<T, E = ()> {
 }
 
 impl<T, AsT, E, AsE> CellSerializeAsWithArgs<BinTreeAug<T, E>> for BinTreeAug<AsT, AsE>
-    where
-        AsT: CellSerializeAsWithArgs<T>,
-        AsT::Args: Clone,
-        AsE: CellSerializeAsWithArgs<E>,
-        AsE::Args: Clone,
+where
+    AsT: CellSerializeAsWithArgs<T>,
+    AsT::Args: Clone,
+    AsE: CellSerializeAsWithArgs<E>,
+    AsE::Args: Clone,
 {
     type Args = (AsT::Args, AsE::Args);
 
@@ -36,19 +36,19 @@ impl<T, AsT, E, AsE> CellSerializeAsWithArgs<BinTreeAug<T, E>> for BinTreeAug<As
 }
 
 impl<'de, T, AsT, E, AsE> CellDeserializeAsWithArgs<'de, BinTreeAug<T, E>> for BinTreeAug<AsT, AsE>
-    where
-        AsT: CellDeserializeAsWithArgs<'de, T>,
-        AsT::Args: Clone,
-        AsE: CellDeserializeAsWithArgs<'de, E>,
-        AsE::Args: Clone,
+where
+    AsT: CellDeserializeAsWithArgs<'de, T>,
+    AsT::Args: Clone,
+    AsE: CellDeserializeAsWithArgs<'de, E>,
+    AsE::Args: Clone,
 {
     type Args = (AsT::Args, AsE::Args);
 
     #[inline]
     fn parse_as_with(
-        parser: &mut tlb::de::CellParser<'de>,
+        parser: &mut CellParser<'de>,
         (args, extra_args): Self::Args,
-    ) -> Result<BinTreeAug<T, E>, tlb::de::CellParserError<'de>> {
+    ) -> Result<BinTreeAug<T, E>, CellParserError<'de>> {
         Ok(BinTreeAug {
             extra: parser.parse_as_with::<_, AsE>(extra_args.clone())?,
             node: parser
@@ -66,11 +66,11 @@ pub enum BinTreeNode<T, E = ()> {
 }
 
 impl<T, AsT, E, AsE> CellSerializeAsWithArgs<BinTreeNode<T, E>> for BinTreeNode<AsT, AsE>
-    where
-        AsT: CellSerializeAsWithArgs<T>,
-        AsT::Args: Clone,
-        AsE: CellSerializeAsWithArgs<E>,
-        AsE::Args: Clone,
+where
+    AsT: CellSerializeAsWithArgs<T>,
+    AsT::Args: Clone,
+    AsE: CellSerializeAsWithArgs<E>,
+    AsE::Args: Clone,
 {
     type Args = (AsT::Args, AsE::Args);
 
@@ -94,20 +94,20 @@ impl<T, AsT, E, AsE> CellSerializeAsWithArgs<BinTreeNode<T, E>> for BinTreeNode<
 }
 
 impl<'de, T, AsT, E, AsE> CellDeserializeAsWithArgs<'de, BinTreeNode<T, E>>
-for BinTreeNode<AsT, AsE>
-    where
-        AsT: CellDeserializeAsWithArgs<'de, T>,
-        AsT::Args: Clone,
-        AsE: CellDeserializeAsWithArgs<'de, E>,
-        AsE::Args: Clone,
+    for BinTreeNode<AsT, AsE>
+where
+    AsT: CellDeserializeAsWithArgs<'de, T>,
+    AsT::Args: Clone,
+    AsE: CellDeserializeAsWithArgs<'de, E>,
+    AsE::Args: Clone,
 {
     type Args = (AsT::Args, AsE::Args);
 
     #[inline]
     fn parse_as_with(
-        parser: &mut tlb::de::CellParser<'de>,
+        parser: &mut CellParser<'de>,
         (args, extra_args): Self::Args,
-    ) -> Result<BinTreeNode<T, E>, tlb::de::CellParserError<'de>> {
+    ) -> Result<BinTreeNode<T, E>, CellParserError<'de>> {
         Ok(match parser.unpack()? {
             false => BinTreeNode::Leaf(parser.parse_as_with::<_, AsT>(args)?),
             true => BinTreeNode::Fork(
