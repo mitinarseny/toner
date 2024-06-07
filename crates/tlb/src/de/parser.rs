@@ -1,4 +1,4 @@
-use core::iter;
+use core::{iter, mem};
 use std::sync::Arc;
 
 use tlbits::ResultExt;
@@ -175,5 +175,15 @@ impl<'de> BitReader for CellParser<'de> {
     #[inline]
     fn skip(&mut self, n: usize) -> Result<(), Self::Error> {
         self.data.skip(n)
+    }
+}
+
+impl<'de> CellDeserialize<'de> for CellParser<'de> {
+    #[inline]
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        Ok(Self {
+            data: mem::take(&mut parser.data),
+            references: mem::take(&mut parser.references),
+        })
     }
 }
