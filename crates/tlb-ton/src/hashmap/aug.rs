@@ -1,3 +1,4 @@
+use std::iter::once;
 use impl_tools::autoimpl;
 use tlb::{
     bits::{
@@ -240,6 +241,31 @@ where
     }
 }
 
+impl<'de, T, As, C> CellDeserializeAsWithArgs<'de, C> for HashmapE<As>
+    where
+        C: IntoIterator<Item=(Key, T)> + Extend<(Key, T)> + Default, // IntoIterator used as type constraint for T
+        As: CellDeserializeAsWithArgs<'de, T>,
+        As::Args: Clone,
+{
+    // (n, As::Args)
+    type Args = (u32, As::Args);
+
+    #[inline]
+    fn parse_as_with(
+        parser: &mut CellParser<'de>,
+        (n, node_args): Self::Args,
+    ) -> Result<C, CellParserError<'de>> {
+        Ok(match parser.unpack()? {
+            // hme_empty$0
+            false => C::default(),
+            // hme_root$1
+            true => parser
+                // root:^(Hashmap n X)
+                .parse_as_with::<_, Ref<ParseFully<Hashmap<As, ()>>>>((n, node_args))?,
+        })
+    }
+}
+
 // pub struct HashmapEN<const N: u32, AsT: ?Sized = Same, AsE: ?Sized = Same>(PhantomData<(AsT, AsE)>);
 
 // impl<const N: u32, T, AsT, E, AsE> CellSerializeAsWithArgs<HashmapE<T, E>>
@@ -412,6 +438,77 @@ where
                 .parse_as_with::<_, HashmapAugNode<AsT, AsE>>((m, node_args, extra_args))
                 .context("node")?,
         })
+    }
+}
+
+pub type Key = BitVec<u8, Msb0>;
+impl<'de, T, As, C> CellDeserializeAsWithArgs<'de, C> for Hashmap<As, ()>
+    where
+        C: IntoIterator<Item=(Key, T)> + Extend<(Key, T)> + Default, // IntoIterator used as type constraint for T
+        As: CellDeserializeAsWithArgs<'de, T>,
+        As::Args: Clone
+{
+    /// (n, As::Args)
+    type Args = (u32, As::Args);
+
+    #[inline]
+    fn parse_as_with(
+        parser: &mut CellParser<'de>,
+        (n, args): Self::Args,
+    ) -> Result<C, CellParserError<'de>> {
+        let mut output = C::default();
+        let mut stack: Vec<(u32, Key, CellParser<'de>)> = Vec::new();
+
+        #[inline]
+        fn parse<'de, T, As, C>(
+            parser: &mut CellParser<'de>,
+            stack: &mut Vec<(u32, Key, CellParser<'de>)>,
+            output: &mut C,
+            n: u32,
+            mut prefix: Key,
+            args: As::Args,
+        ) -> Result<(), CellParserError<'de>>
+            where
+                C: Extend<(Key, T)>,
+                As: CellDeserializeAsWithArgs<'de, T>,
+        {
+            // label:(HmLabel ~l n)
+            let next_prefix: BitVec<u8, Msb0> = parser.unpack_as_with::<_, HmLabel>(n).context("label")?;
+            // {n = (~m) + l}
+            let m = n - next_prefix.len() as u32;
+
+            prefix.extend_from_bitslice(&next_prefix);
+
+            match m {
+                // bt_leaf$0
+                0 => output.extend(once((prefix, parser.parse_as_with::<_, As>(args)?))),
+                // bt_fork$1
+                1.. => stack.extend(
+                    parser
+                        .parse_as::<_, [Ref; 2]>()?
+                        .into_iter()
+                        .enumerate()
+                        // HashmapNode (n + 1)
+                        .map(|(next_prefix, parser)| {
+                            let mut prefix = prefix.clone();
+                            prefix.push(if next_prefix == 0 { false } else { true });
+
+                            (m - 1, prefix, parser)
+                        })
+                        // inverse ordering
+                        .rev(),
+                ),
+            }
+            Ok(())
+        }
+
+        parse::<_, As, C>(parser, &mut stack, &mut output, n, Key::default(), args.clone())?;
+
+        while let Some((n, prefix, mut parser)) = stack.pop() {
+            parse::<_, As, C>(&mut parser, &mut stack, &mut output, n, prefix, args.clone())?;
+        }
+
+        Ok(output)
     }
 }
 
@@ -623,6 +720,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{BTreeMap, HashMap};
     use tlb::{
         bits::bitvec::{bits, order::Msb0, view::AsBits},
         r#as::{Data, NoArgs},
@@ -632,10 +730,68 @@ mod tests {
 
     use super::*;
 
-    /// See <https://docs.ton.org/develop/data-formats/tl-b-types#hashmap-parsing-example>
     #[test]
     fn parse() {
-        let cell = (
+        let cell = given_cell_from_example();
+
+        let hm: HashmapE<u16> = cell
+            .parse_fully_as_with::<_, HashmapE<Data<NoArgs<_>>, NoArgs<_>>>((8, (), ()))
+            .unwrap();
+
+        assert_eq!(hm.len(), 3);
+        // 1 -> 777
+        assert_eq!(hm.get(1u8.to_be_bytes().as_bits()), Some(&777));
+        // 17 -> 111
+        assert_eq!(hm.get(17u8.to_be_bytes().as_bits()), Some(&111));
+        // 128 -> 777
+        assert_eq!(hm.get(128u8.to_be_bytes().as_bits()), Some(&777));
+
+        let mut builder = Cell::builder();
+        builder
+            .store_as_with::<_, HashmapE<Data<NoArgs<_>>, NoArgs<_>>>(hm, (8, (), ()))
+            .unwrap();
+        let got = builder.into_cell();
+        assert_eq!(got, cell);
+    }
+
+    #[test]
+    fn hashmape_parse_as_std_hashmap() {
+        let cell = given_cell_from_example();
+
+        let hm: HashMap<Key, u16> = cell
+            .parse_fully_as_with::<_, HashmapE<Data<NoArgs<_>>>>((8, ()))
+            .unwrap();
+
+        assert_eq!(hm.len(), 3);
+        // 1 -> 777
+        assert_eq!(hm.get(1u8.to_be_bytes().as_bits()), Some(&777));
+        // 17 -> 111
+        assert_eq!(hm.get(17u8.to_be_bytes().as_bits()), Some(&111));
+        // 128 -> 777
+        assert_eq!(hm.get(128u8.to_be_bytes().as_bits()), Some(&777));
+    }
+
+
+    #[test]
+    fn hashmape_parse_as_std_btreemap() {
+        let cell = given_cell_from_example();
+
+        let hm: BTreeMap<Key, u16> = cell
+            .parse_fully_as_with::<_, HashmapE<Data<NoArgs<_>>>>((8, ()))
+            .unwrap();
+
+        assert_eq!(hm.len(), 3);
+        // 1 -> 777
+        assert_eq!(hm.get(1u8.to_be_bytes().as_bits()), Some(&777));
+        // 17 -> 111
+        assert_eq!(hm.get(17u8.to_be_bytes().as_bits()), Some(&111));
+        // 128 -> 777
+        assert_eq!(hm.get(128u8.to_be_bytes().as_bits()), Some(&777));
+    }
+
+    /// See <https://docs.ton.org/develop/data-formats/tl-b-types#hashmap-parsing-example>
+    fn given_cell_from_example() -> Cell {
+        (
             bits![u8, Msb0; 1].wrap_as::<Data>(),
             (
                 bits![u8, Msb0; 0,0].wrap_as::<Data>(),
@@ -656,25 +812,6 @@ mod tests {
                 .wrap_as::<Ref>(),
         )
             .to_cell()
-            .unwrap();
-
-        let hm: HashmapE<u16> = cell
-            .parse_fully_as_with::<_, HashmapE<Data<NoArgs<_>>, NoArgs<_>>>((8, (), ()))
-            .unwrap();
-
-        assert_eq!(hm.len(), 3);
-        // 1 -> 777
-        assert_eq!(hm.get(1u8.to_be_bytes().as_bits()), Some(&777));
-        // 17 -> 111
-        assert_eq!(hm.get(17u8.to_be_bytes().as_bits()), Some(&111));
-        // 128 -> 777
-        assert_eq!(hm.get(128u8.to_be_bytes().as_bits()), Some(&777));
-
-        let mut builder = Cell::builder();
-        builder
-            .store_as_with::<_, HashmapE<Data<NoArgs<_>>, NoArgs<_>>>(hm, (8, (), ()))
-            .unwrap();
-        let got = builder.into_cell();
-        assert_eq!(got, cell);
+            .unwrap()
     }
 }
