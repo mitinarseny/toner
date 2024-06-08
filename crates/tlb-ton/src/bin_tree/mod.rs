@@ -1,5 +1,6 @@
 pub mod aug;
 
+use std::iter::once;
 use std::ops::Deref;
 
 use tlb::bits::de::BitReaderExt;
@@ -72,8 +73,9 @@ where
     }
 }
 
-impl<'de, T, As> CellDeserializeAsWithArgs<'de, Vec<T>> for BinTree<As>
+impl<'de, T, As, C> CellDeserializeAsWithArgs<'de, C> for BinTree<As>
 where
+    C: IntoIterator<Item=T> + Extend<T> + Default, // IntoIterator used as type constraint for T
     As: CellDeserializeAsWithArgs<'de, T>,
     As::Args: Clone,
 {
@@ -83,23 +85,24 @@ where
     fn parse_as_with(
         parser: &mut CellParser<'de>,
         args: Self::Args,
-    ) -> Result<Vec<T>, CellParserError<'de>> {
-        let mut output = Vec::new();
+    ) -> Result<C, CellParserError<'de>> {
+        let mut output = C::default();
         let mut stack: Vec<CellParser<'de>> = Vec::new();
 
         #[inline]
-        fn parse<'de, T, As>(
+        fn parse<'de, T, As, C>(
             parser: &mut CellParser<'de>,
             stack: &mut Vec<CellParser<'de>>,
-            output: &mut Vec<T>,
+            output: &mut C,
             args: As::Args,
         ) -> Result<(), CellParserError<'de>>
         where
+            C: Extend<T>,
             As: CellDeserializeAsWithArgs<'de, T>,
         {
             match parser.unpack()? {
                 // bt_leaf$0
-                false => output.push(parser.parse_as_with::<_, As>(args)?),
+                false => output.extend(once(parser.parse_as_with::<_, As>(args)?)),
                 // bt_fork$1
                 true => stack.extend(
                     parser
@@ -112,19 +115,19 @@ where
             Ok(())
         }
 
-        parse::<_, As>(parser, &mut stack, &mut output, args.clone())?;
+        parse::<_, As, C>(parser, &mut stack, &mut output, args.clone())?;
 
         while let Some(mut parser) = stack.pop() {
-            parse::<_, As>(&mut parser, &mut stack, &mut output, args.clone())?;
+            parse::<_, As, C>(&mut parser, &mut stack, &mut output, args.clone())?;
         }
 
-        output.shrink_to_fit();
         Ok(output)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
     use super::BinTree;
     use tlb::bits::bitvec::bits;
     use tlb::bits::bitvec::order::Msb0;
@@ -195,6 +198,23 @@ mod tests {
             .unwrap();
 
         assert_eq!(got, vec![5, 3]);
+    }
+
+    #[test]
+    fn bin_tree_as_btreeset_fork() {
+        let data = (
+            bits![u8, Msb0; 1].wrap_as::<Data>(),
+            bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 1].wrap_as::<Ref<Data>>(),
+            bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 1].wrap_as::<Ref<Data>>(),
+        )
+            .to_cell()
+            .unwrap();
+
+        let got: BTreeSet<u8> = data
+            .parse_fully_as_with::<_, BinTree<Data<NoArgs<_>>>>(())
+            .unwrap();
+
+        assert_eq!(got.into_iter().collect::<Vec<_>>(), vec![5]);
     }
 
     #[test]
