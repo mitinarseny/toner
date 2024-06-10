@@ -75,7 +75,7 @@ where
 
 impl<'de, T, As, C> CellDeserializeAsWithArgs<'de, C> for BinTree<As>
 where
-    C: IntoIterator<Item=T> + Extend<T> + Default, // IntoIterator used as type constraint for T
+    C: IntoIterator<Item = T> + Extend<T> + Default, // IntoIterator used as type constraint for T
     As: CellDeserializeAsWithArgs<'de, T>,
     As::Args: Clone,
 {
@@ -127,8 +127,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
     use super::BinTree;
+    use std::collections::BTreeSet;
     use tlb::bits::bitvec::bits;
     use tlb::bits::bitvec::order::Msb0;
     use tlb::r#as::{Data, NoArgs, Ref, Same};

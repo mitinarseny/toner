@@ -1,4 +1,5 @@
 use std::iter::once;
+
 use impl_tools::autoimpl;
 use tlb::{
     bits::{
@@ -242,10 +243,10 @@ where
 }
 
 impl<'de, T, As, C> CellDeserializeAsWithArgs<'de, C> for HashmapE<As>
-    where
-        C: IntoIterator<Item=(Key, T)> + Extend<(Key, T)> + Default, // IntoIterator used as type constraint for T
-        As: CellDeserializeAsWithArgs<'de, T>,
-        As::Args: Clone,
+where
+    C: IntoIterator<Item = (Key, T)> + Extend<(Key, T)> + Default, // IntoIterator used as type constraint for T
+    As: CellDeserializeAsWithArgs<'de, T>,
+    As::Args: Clone,
 {
     // (n, As::Args)
     type Args = (u32, As::Args);
@@ -443,10 +444,10 @@ where
 
 pub type Key = BitVec<u8, Msb0>;
 impl<'de, T, As, C> CellDeserializeAsWithArgs<'de, C> for Hashmap<As, ()>
-    where
-        C: IntoIterator<Item=(Key, T)> + Extend<(Key, T)> + Default, // IntoIterator used as type constraint for T
-        As: CellDeserializeAsWithArgs<'de, T>,
-        As::Args: Clone
+where
+    C: IntoIterator<Item = (Key, T)> + Extend<(Key, T)> + Default, // IntoIterator used as type constraint for T
+    As: CellDeserializeAsWithArgs<'de, T>,
+    As::Args: Clone,
 {
     /// (n, As::Args)
     type Args = (u32, As::Args);
@@ -468,12 +469,13 @@ impl<'de, T, As, C> CellDeserializeAsWithArgs<'de, C> for Hashmap<As, ()>
             mut prefix: Key,
             args: As::Args,
         ) -> Result<(), CellParserError<'de>>
-            where
-                C: Extend<(Key, T)>,
-                As: CellDeserializeAsWithArgs<'de, T>,
+        where
+            C: Extend<(Key, T)>,
+            As: CellDeserializeAsWithArgs<'de, T>,
         {
             // label:(HmLabel ~l n)
-            let next_prefix: BitVec<u8, Msb0> = parser.unpack_as_with::<_, HmLabel>(n).context("label")?;
+            let next_prefix: BitVec<u8, Msb0> =
+                parser.unpack_as_with::<_, HmLabel>(n).context("label")?;
             // {n = (~m) + l}
             let m = n - next_prefix.len() as u32;
 
@@ -502,10 +504,24 @@ impl<'de, T, As, C> CellDeserializeAsWithArgs<'de, C> for Hashmap<As, ()>
             Ok(())
         }
 
-        parse::<_, As, C>(parser, &mut stack, &mut output, n, Key::default(), args.clone())?;
+        parse::<_, As, C>(
+            parser,
+            &mut stack,
+            &mut output,
+            n,
+            Key::default(),
+            args.clone(),
+        )?;
 
         while let Some((n, prefix, mut parser)) = stack.pop() {
-            parse::<_, As, C>(&mut parser, &mut stack, &mut output, n, prefix, args.clone())?;
+            parse::<_, As, C>(
+                &mut parser,
+                &mut stack,
+                &mut output,
+                n,
+                prefix,
+                args.clone(),
+            )?;
         }
 
         Ok(output)
@@ -770,7 +786,6 @@ mod tests {
         // 128 -> 777
         assert_eq!(hm.get(128u8.to_be_bytes().as_bits()), Some(&777));
     }
-
 
     #[test]
     fn hashmape_parse_as_std_btreemap() {
