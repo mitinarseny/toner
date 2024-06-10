@@ -491,7 +491,7 @@ impl<'de, T, As, C> CellDeserializeAsWithArgs<'de, C> for Hashmap<As, ()>
                         // HashmapNode (n + 1)
                         .map(|(next_prefix, parser)| {
                             let mut prefix = prefix.clone();
-                            prefix.push(if next_prefix == 0 { false } else { true });
+                            prefix.push(next_prefix != 0);
 
                             (m - 1, prefix, parser)
                         })
