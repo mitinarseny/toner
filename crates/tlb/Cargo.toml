@@ -17,4 +17,5 @@ impl-tools.workspace = true
 sha2.workspace = true
 
 [dev-dependencies]
-hex-literal = "0.4"
+hex-literal.workspace = true
+num-bigint.workspace = true

@@ -15,12 +15,17 @@ use super::{
     BitUnpack,
 };
 
+/// Bitwise reader.
 #[autoimpl(for <R: trait + ?Sized> &mut R, Box<R>)]
 pub trait BitReader {
+    // An error ocurred while reading
     type Error: Error;
 
+    /// Reads only one bit.
     fn read_bit(&mut self) -> Result<bool, Self::Error>;
 
+    /// Reads `dst.len()` bits into given bitslice.
+    /// Might be optimized by the implementation.
     #[inline]
     fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
         for mut bit in dst.iter_mut() {
@@ -29,6 +34,7 @@ pub trait BitReader {
         Ok(())
     }
 
+    /// Reads and discards `n` bits
     #[inline]
     fn skip(&mut self, n: usize) -> Result<(), Self::Error> {
         for _ in 0..n {
@@ -38,7 +44,9 @@ pub trait BitReader {
     }
 }
 
+/// Extension helper for [`BitReader`].
 pub trait BitReaderExt: BitReader {
+    /// Reads `n` bits and returns newly created [`BitVec`]
     #[inline]
     fn read_bitvec(&mut self, n: usize) -> Result<BitVec<u8, Msb0>, Self::Error> {
         let mut dst = BitVec::with_capacity(n);
@@ -47,11 +55,13 @@ pub trait BitReaderExt: BitReader {
         Ok(dst)
     }
 
+    /// Reads `dst.len()` bytes into given byte slice
     #[inline]
     fn read_bytes_into(&mut self, mut dst: impl AsMut<[u8]>) -> Result<(), Self::Error> {
         self.read_bits_into(dst.as_mut_bits())
     }
 
+    /// Read `N` bytes and return array
     #[inline]
     fn read_bytes_array<const N: usize>(&mut self) -> Result<[u8; N], Self::Error> {
         let mut arr = [0; N];
@@ -59,6 +69,7 @@ pub trait BitReaderExt: BitReader {
         Ok(arr)
     }
 
+    /// Read `n` bytes and return [`Vec`]
     #[inline]
     fn read_bytes_vec(&mut self, n: usize) -> Result<Vec<u8>, Self::Error> {
         let mut v = vec![0; n];
@@ -66,6 +77,7 @@ pub trait BitReaderExt: BitReader {
         Ok(v)
     }
 
+    /// Unpack value using its [`BitUnpack`] implementation
     #[inline]
     fn unpack<T>(&mut self) -> Result<T, Self::Error>
     where
@@ -74,6 +86,7 @@ pub trait BitReaderExt: BitReader {
         T::unpack(self)
     }
 
+    /// Unpack value witg args using its [`BitUnpackWithArgs`] implementation
     #[inline]
     fn unpack_with<T>(&mut self, args: T::Args) -> Result<T, Self::Error>
     where
@@ -82,6 +95,7 @@ pub trait BitReaderExt: BitReader {
         T::unpack_with(self, args)
     }
 
+    /// Return iterator that unpacks values using [`BitUnpack`] implementation
     #[inline]
     fn unpack_iter<T>(&mut self) -> impl Iterator<Item = Result<T, Self::Error>> + '_
     where
@@ -92,6 +106,7 @@ pub trait BitReaderExt: BitReader {
             .map(|(i, v)| v.with_context(|| format!("[{i}]")))
     }
 
+    /// Return iterator that unpacks values with args using [`BitUnpackWithArgs`] implementation
     #[inline]
     fn unpack_iter_with<'a, T>(
         &'a mut self,
@@ -106,6 +121,8 @@ pub trait BitReaderExt: BitReader {
             .map(|(i, v)| v.with_context(|| format!("[{i}]")))
     }
 
+    /// Unpack value using an adapter.  
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     fn unpack_as<T, As>(&mut self) -> Result<T, Self::Error>
     where
@@ -114,6 +131,8 @@ pub trait BitReaderExt: BitReader {
         As::unpack_as(self)
     }
 
+    /// Unpack value with args using an adapter.  
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     fn unpack_as_with<T, As>(&mut self, args: As::Args) -> Result<T, Self::Error>
     where
@@ -122,6 +141,8 @@ pub trait BitReaderExt: BitReader {
         As::unpack_as_with(self, args)
     }
 
+    /// Returns iterator that unpacks values using an adapter.  
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     fn unpack_iter_as<T, As>(&mut self) -> impl Iterator<Item = Result<T, Self::Error>> + '_
     where
@@ -132,6 +153,8 @@ pub trait BitReaderExt: BitReader {
             .map(|(i, v)| v.with_context(|| format!("[{i}]")))
     }
 
+    /// Returns iterator that unpacks values with args using an adapter.  
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     fn unpack_iter_as_with<'a, T, As>(
         &'a mut self,
@@ -146,11 +169,13 @@ pub trait BitReaderExt: BitReader {
             .map(|(i, v)| v.with_context(|| format!("[{i}]")))
     }
 
+    /// Borrows reader, rather than consuming it.
     #[inline]
     fn as_mut(&mut self) -> &mut Self {
         self
     }
 
+    /// Map [`Error`](BitReader::Error) by given closure
     #[inline]
     fn map_err<F>(self, f: F) -> MapErr<Self, F>
     where
@@ -159,6 +184,7 @@ pub trait BitReaderExt: BitReader {
         MapErr { inner: self, f }
     }
 
+    /// Mirror all read data to given writer as well.
     #[inline]
     fn tee<W>(self, writer: W) -> Tee<Self, W>
     where
@@ -171,6 +197,7 @@ pub trait BitReaderExt: BitReader {
         }
     }
 }
+impl<T> BitReaderExt for T where T: BitReader {}
 
 impl<R, F, E> BitReader for MapErr<R, F>
 where
@@ -194,8 +221,6 @@ where
         self.inner.skip(n).map_err(&mut self.f)
     }
 }
-
-impl<T> BitReaderExt for T where T: BitReader {}
 
 impl<R, W> BitReader for Tee<R, W>
 where

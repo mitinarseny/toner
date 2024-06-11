@@ -33,7 +33,7 @@ impl<const BITS: usize> BitPackAs<BigUint> for NBits<BITS> {
         let bytes = source.to_bytes_be();
         let mut bits = bytes.as_bits::<Msb0>();
         bits = &bits[bits.len() - used_bits..];
-        writer.with_bits(bits)?;
+        writer.pack(bits)?;
         Ok(())
     }
 }
@@ -70,7 +70,7 @@ impl<const BITS: usize> BitPackAs<BigInt> for NBits<BITS> {
         let bytes = source.to_signed_bytes_be();
         let mut bits = bytes.as_bits::<Msb0>();
         bits = &bits[bits.len() - used_bits..];
-        writer.with_bits(bits)?;
+        writer.pack(bits)?;
         Ok(())
     }
 }
@@ -89,6 +89,14 @@ impl<const BITS: usize> BitUnpackAs<BigInt> for NBits<BITS> {
     }
 }
 
+/// Adapter for [`Var[U]Integer n`](https://docs.ton.org/develop/data-formats/msg-tlb#varuinteger-n)
+/// where `n` is *constant*.
+///
+/// ```tlb
+/// var_uint$_ {n:#} len:(#< n) value:(uint (len * 8)) = VarUInteger n;
+/// var_int$_ {n:#} len:(#< n) value:(int (len * 8)) = VarInteger n;
+/// ```
+/// See [`VarNBits`] for *dynamic* version.
 pub struct VarInt<const BITS_FOR_BYTES_LEN: usize>;
 
 impl<const BITS_FOR_BYTES_LEN: usize> BitPackAs<BigUint> for VarInt<BITS_FOR_BYTES_LEN> {
@@ -153,6 +161,12 @@ impl<const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<BigInt> for VarInt<BITS_FOR_BY
     }
 }
 
+/// Adapter for [`Var[U]Integer (n * 8)`](https://docs.ton.org/develop/data-formats/msg-tlb#varuinteger-n) where `n` is *dynamic*.
+/// ```tlb
+/// var_uint$_ {n:#} len:(#< n) value:(uint (len * 8)) = VarUInteger n;
+/// var_int$_ {n:#} len:(#< n) value:(int (len * 8)) = VarInteger n;
+/// ```
+/// See [`VarInt`] for *constant* version.
 pub struct VarNBits;
 
 impl<T> BitPackAsWithArgs<T> for VarNBits
@@ -207,6 +221,12 @@ where
     }
 }
 
+/// Adapter for [`Var[U]Integer n`](https://docs.ton.org/develop/data-formats/msg-tlb#varuinteger-n) where `n` is *dynamic*.
+/// ```tlb
+/// var_uint$_ {n:#} len:(#< n) value:(uint (len * 8)) = VarUInteger n;
+/// var_int$_ {n:#} len:(#< n) value:(int (len * 8)) = VarInteger n;
+/// ```
+/// See [`VarInt`] for *constant* version.
 pub struct VarNBytes;
 
 impl<T> BitPackAsWithArgs<T> for VarNBytes

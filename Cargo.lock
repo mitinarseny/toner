@@ -698,6 +698,7 @@ dependencies = [
  "hex",
  "hex-literal",
  "impl-tools",
+ "num-bigint",
  "sha2",
  "tlbits",
 ]
@@ -711,6 +712,7 @@ dependencies = [
  "crc",
  "hex",
  "impl-tools",
+ "lazy_static",
  "num-bigint",
  "num-traits",
  "serde_json",

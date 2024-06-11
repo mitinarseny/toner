@@ -1,19 +1,26 @@
-use core::{marker::PhantomData, mem::MaybeUninit};
+use core::mem::MaybeUninit;
 use std::{rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, slice::BitSlice, view::AsBits};
 use either::Either;
 
-use crate::{Error, ResultExt, StringError};
+use crate::{r#as::AsWrap, Error, ResultExt, StringError};
 
 use super::{BitReader, BitReaderExt, BitUnpack};
 
+/// Adapter to **de**serialize `T`.  
+/// See [`as`](crate::as) module-level documentation for more.
+///
+/// For dynamic arguments, see
+/// [`BitUnackAsWithArgs`](super::args::as::BitUnpackAsWithArgs).
 pub trait BitUnpackAs<T> {
+    /// Unpacks value using an adapter
     fn unpack_as<R>(reader: R) -> Result<T, R::Error>
     where
         R: BitReader;
 }
 
+/// **De**serialize value from [`BitSlice`] using an adapter
 #[inline]
 pub fn unpack_as<T, As>(bits: impl AsRef<BitSlice<u8, Msb0>>) -> Result<T, StringError>
 where
@@ -22,6 +29,7 @@ where
     bits.as_ref().unpack_as::<T, As>()
 }
 
+/// **De**serialize value from bytes slice using an adapter
 #[inline]
 pub fn unpack_bytes_as<T, As>(bytes: impl AsRef<[u8]>) -> Result<T, StringError>
 where
@@ -30,6 +38,8 @@ where
     unpack_as::<_, As>(bytes.as_bits())
 }
 
+/// **De**serialize value from [`BitSlice`] using an adapter
+/// and ensure that no more data left.
 #[inline]
 pub fn unpack_fully_as<T, As>(bits: impl AsRef<BitSlice<u8, Msb0>>) -> Result<T, StringError>
 where
@@ -43,55 +53,14 @@ where
     Ok(v)
 }
 
+/// **De**serialize value from bytes slice using an adapter
+/// and ensure that no more data left.
 #[inline]
 pub fn unpack_bytes_fully_as<T, As>(bytes: impl AsRef<[u8]>) -> Result<T, StringError>
 where
     As: BitUnpackAs<T>,
 {
     unpack_fully_as::<_, As>(bytes.as_bits())
-}
-
-pub struct UnpackAsWrap<T, As>
-where
-    As: ?Sized,
-{
-    value: T,
-    _phantom: PhantomData<As>,
-}
-
-impl<T, As> UnpackAsWrap<T, As>
-where
-    As: ?Sized,
-{
-    #[inline]
-    pub fn new(value: T) -> Self {
-        Self {
-            value,
-            _phantom: PhantomData,
-        }
-    }
-
-    /// Return the inner value of type `T`.
-    #[inline]
-    pub fn into_inner(self) -> T {
-        self.value
-    }
-}
-
-impl<T, As> BitUnpack for UnpackAsWrap<T, As>
-where
-    As: BitUnpackAs<T> + ?Sized,
-{
-    #[inline]
-    fn unpack<R>(reader: R) -> Result<Self, R::Error>
-    where
-        R: BitReader,
-    {
-        As::unpack_as(reader).map(|value| Self {
-            value,
-            _phantom: PhantomData,
-        })
-    }
 }
 
 impl<T, As, const N: usize> BitUnpackAs<[T; N]> for [As; N]
@@ -151,8 +120,8 @@ where
     where
         R: BitReader,
     {
-        UnpackAsWrap::<T, As>::unpack(reader)
-            .map(UnpackAsWrap::into_inner)
+        AsWrap::<T, As>::unpack(reader)
+            .map(AsWrap::into_inner)
             .map(Box::new)
     }
 }
@@ -166,8 +135,8 @@ where
     where
         R: BitReader,
     {
-        UnpackAsWrap::<T, As>::unpack(reader)
-            .map(UnpackAsWrap::into_inner)
+        AsWrap::<T, As>::unpack(reader)
+            .map(AsWrap::into_inner)
             .map(Rc::new)
     }
 }
@@ -181,12 +150,17 @@ where
     where
         R: BitReader,
     {
-        UnpackAsWrap::<T, As>::unpack(reader)
-            .map(UnpackAsWrap::into_inner)
+        AsWrap::<T, As>::unpack(reader)
+            .map(AsWrap::into_inner)
             .map(Arc::new)
     }
 }
 
+/// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
+/// ```tlb
+/// left$0 {X:Type} {Y:Type} value:X = Either X Y;
+/// right$1 {X:Type} {Y:Type} value:Y = Either X Y;
+/// ```
 impl<Left, Right, AsLeft, AsRight> BitUnpackAs<Either<Left, Right>> for Either<AsLeft, AsRight>
 where
     AsLeft: BitUnpackAs<Left>,
@@ -198,8 +172,8 @@ where
         R: BitReader,
     {
         Ok(
-            Either::<UnpackAsWrap<Left, AsLeft>, UnpackAsWrap<Right, AsRight>>::unpack(reader)?
-                .map_either(UnpackAsWrap::into_inner, UnpackAsWrap::into_inner),
+            Either::<AsWrap<Left, AsLeft>, AsWrap<Right, AsRight>>::unpack(reader)?
+                .map_either(AsWrap::into_inner, AsWrap::into_inner),
         )
     }
 }
@@ -213,12 +187,17 @@ where
     where
         R: BitReader,
     {
-        Ok(Either::<(), UnpackAsWrap<T, As>>::unpack(reader)?
-            .map_right(UnpackAsWrap::into_inner)
+        Ok(Either::<(), AsWrap<T, As>>::unpack(reader)?
+            .map_right(AsWrap::into_inner)
             .right())
     }
 }
 
+/// Implementation of [`Maybe X`](https://docs.ton.org/develop/data-formats/tl-b-types#maybe):
+/// ```tlb
+/// nothing$0 {X:Type} = Maybe X;
+/// just$1 {X:Type} value:X = Maybe X;
+/// ```
 impl<T, As> BitUnpackAs<Option<T>> for Option<As>
 where
     As: BitUnpackAs<T>,
@@ -228,6 +207,6 @@ where
     where
         R: BitReader,
     {
-        Ok(Option::<UnpackAsWrap<T, As>>::unpack(reader)?.map(UnpackAsWrap::into_inner))
+        Ok(Option::<AsWrap<T, As>>::unpack(reader)?.map(AsWrap::into_inner))
     }
 }

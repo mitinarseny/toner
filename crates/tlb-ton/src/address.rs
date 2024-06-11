@@ -18,10 +18,23 @@ use tlb::{
     Error, ResultExt, StringError,
 };
 
-use crate::StateInit;
+use crate::state_init::StateInit;
 
 const CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
 
+/// [MsgAddress](https://docs.ton.org/develop/data-formats/msg-tlb#msgaddressext-tl-b)
+/// ```tlb
+/// addr_none$00 = MsgAddressExt;
+/// addr_extern$01 len:(## 9) external_address:(bits len) = MsgAddressExt;
+///
+/// addr_std$10 anycast:(Maybe Anycast)
+/// workchain_id:int8 address:bits256  = MsgAddressInt;
+/// addr_var$11 anycast:(Maybe Anycast) addr_len:(## 9)
+/// workchain_id:int32 address:(bits addr_len) = MsgAddressInt;
+///
+/// _ _:MsgAddressInt = MsgAddress;
+/// _ _:MsgAddressExt = MsgAddress;
+/// ```
 #[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(
     feature = "serde",
@@ -38,6 +51,8 @@ impl MsgAddress {
         address: [0; 32],
     };
 
+    /// [Derive](https://docs.ton.org/learn/overviews/addresses#address-of-smart-contract)
+    /// [`MsgAddress`] of a smart-contract by its workchain and [`StateInit`]
     #[inline]
     pub fn derive(workchain_id: i32, state_init: StateInit) -> Result<Self, CellBuilderError> {
         Ok(Self {
@@ -60,46 +75,60 @@ impl MsgAddress {
         })
     }
 
+    /// [Raw Address](https://docs.ton.org/learn/overviews/addresses#raw-address)
+    /// representation
     #[inline]
     pub fn to_hex(&self) -> String {
         format!("{}:{}", self.workchain_id, hex::encode(self.address))
     }
 
+    /// Shortcut for [`.from_base64_url_flags()?.0`](MsgAddress::from_base64_url_flags)
     #[inline]
     pub fn from_base64_url(s: impl AsRef<str>) -> Result<Self, StringError> {
         Self::from_base64_url_flags(s).map(|(addr, _, _)| addr)
     }
 
+    /// Parse address from URL-base64
+    /// [user-friendly](https://docs.ton.org/learn/overviews/addresses#user-friendly-address)
+    /// representation and its flags: `(address, non_bouncible, non_production)`
     #[inline]
     pub fn from_base64_url_flags(s: impl AsRef<str>) -> Result<(Self, bool, bool), StringError> {
         Self::from_base64_repr(URL_SAFE_NO_PAD, s)
     }
 
+    /// Shortcut for [`.from_base64_std_flags()?.0`](MsgAddress::from_base64_std_flags)
     #[inline]
     pub fn from_base64_std(s: impl AsRef<str>) -> Result<Self, StringError> {
         Self::from_base64_std_flags(s).map(|(addr, _, _)| addr)
     }
 
+    /// Parse address from standard base64
+    /// [user-friendly](https://docs.ton.org/learn/overviews/addresses#user-friendly-address)
+    /// representation and its flags: `(address, non_bouncible, non_production)`
     #[inline]
     pub fn from_base64_std_flags(s: impl AsRef<str>) -> Result<(Self, bool, bool), StringError> {
         Self::from_base64_repr(STANDARD_NO_PAD, s)
     }
 
+    /// Shortcut for [`.to_base64_url_flags(false, false)`](MsgAddress::to_base64_url_flags)
     #[inline]
     pub fn to_base64_url(self) -> String {
         self.to_base64_url_flags(false, false)
     }
 
+    /// Encode address as URL base64
     #[inline]
     pub fn to_base64_url_flags(self, non_bounceable: bool, non_production: bool) -> String {
         self.to_base64_flags(non_bounceable, non_production, URL_SAFE_NO_PAD)
     }
 
+    /// Shortcut for [`.to_base64_std_flags(false, false)`](MsgAddress::to_base64_std_flags)
     #[inline]
     pub fn to_base64_std(self) -> String {
         self.to_base64_std_flags(false, false)
     }
 
+    /// Encode address as standard base64
     #[inline]
     pub fn to_base64_std_flags(self, non_bounceable: bool, non_production: bool) -> String {
         self.to_base64_flags(non_bounceable, non_production, STANDARD_NO_PAD)
@@ -169,6 +198,7 @@ impl MsgAddress {
         engine.encode(bytes)
     }
 
+    /// Returns whether this address is [`NULL`](MsgAddress::NULL)
     #[inline]
     pub fn is_null(&self) -> bool {
         *self == Self::NULL

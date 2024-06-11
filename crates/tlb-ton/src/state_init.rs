@@ -1,3 +1,4 @@
+//! Collection of types related to [StateInit](https://docs.ton.org/develop/data-formats/msg-tlb#stateinit-tl-b)
 use impl_tools::autoimpl;
 use tlb::{
     bits::{
@@ -13,6 +14,7 @@ use tlb::{
 
 use crate::hashmap::HashmapE;
 
+/// [StateInit](https://docs.ton.org/develop/data-formats/msg-tlb#stateinit-tl-b)
 /// ```tlb
 /// _ split_depth:(Maybe (## 5)) special:(Maybe TickTock)
 /// code:(Maybe ^Cell) data:(Maybe ^Cell)
@@ -97,6 +99,7 @@ where
     }
 }
 
+/// `tick_tock` field for [`StateInit`]
 /// ```tlb
 /// tick_tock$_ tick:Bool tock:Bool = TickTock;
 /// ```
@@ -130,6 +133,7 @@ impl BitUnpack for TickTock {
     }
 }
 
+/// `library` field for [`StateInit`]
 /// ```tlb
 /// simple_lib$_ public:Bool root:^Cell = SimpleLib;
 /// ```

@@ -15,8 +15,14 @@ use super::{
 };
 
 type CellBitWriter = LimitWriter<BitVec<u8, Msb0>>;
+
+/// [`Error`] for [`CellBuilder`]
 pub type CellBuilderError = <CellBuilder as BitWriter>::Error;
 
+/// Cell builder created with [`Cell::builder()`].
+///
+/// [`CellBuilder`] can then be converted to constructed [`Cell`] by using
+/// [`.into_cell()`](CellBuilder::into_cell).
 pub struct CellBuilder {
     data: CellBitWriter,
     references: Vec<Arc<Cell>>,
@@ -35,6 +41,7 @@ impl CellBuilder {
         }
     }
 
+    /// Store the value using its [`CellSerialize`] implementation
     #[inline]
     pub fn store<T>(&mut self, value: T) -> Result<&mut Self, CellBuilderError>
     where
@@ -44,6 +51,8 @@ impl CellBuilder {
         Ok(self)
     }
 
+    /// Store the value with args using its [`CellSerializeWithArgs`]
+    /// implementation
     #[inline]
     pub fn store_with<T>(&mut self, value: T, args: T::Args) -> Result<&mut Self, CellBuilderError>
     where
@@ -53,6 +62,8 @@ impl CellBuilder {
         Ok(self)
     }
 
+    /// Store all values from given iterator using [`CellSerialize`]
+    /// implementation of its item type.
     #[inline]
     pub fn store_many<T>(
         &mut self,
@@ -67,6 +78,8 @@ impl CellBuilder {
         Ok(self)
     }
 
+    /// Store all values from given iterator with args using
+    /// [`CellSerializeWithArgs`] implementation of its item type.
     #[inline]
     pub fn store_many_with<T>(
         &mut self,
@@ -84,6 +97,8 @@ impl CellBuilder {
         Ok(self)
     }
 
+    /// Store given value using an adapter.  
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     pub fn store_as<T, As>(&mut self, value: T) -> Result<&mut Self, CellBuilderError>
     where
@@ -93,6 +108,8 @@ impl CellBuilder {
         Ok(self)
     }
 
+    /// Store given value with args using an adapter.  
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     pub fn store_as_with<T, As>(
         &mut self,
@@ -106,6 +123,8 @@ impl CellBuilder {
         Ok(self)
     }
 
+    /// Store all values from iterator using an adapter.  s
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     pub fn store_many_as<T, As>(
         &mut self,
@@ -121,6 +140,8 @@ impl CellBuilder {
         Ok(self)
     }
 
+    /// Store all values from iterator with args using an adapter.  
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     pub fn store_many_as_with<T, As>(
         &mut self,
@@ -177,6 +198,7 @@ impl CellBuilder {
         Ok(self)
     }
 
+    /// Convert builder to [`Cell`]
     #[inline]
     #[must_use]
     pub fn into_cell(self) -> Cell {

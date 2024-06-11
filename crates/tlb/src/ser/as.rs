@@ -1,24 +1,17 @@
 use std::{rc::Rc, sync::Arc};
 
-pub use crate::bits::ser::r#as::PackAsWrap;
-use crate::{either::Either, ResultExt};
+use crate::{either::Either, r#as::AsWrap, ResultExt};
 
 use super::{CellBuilder, CellBuilderError, CellSerialize};
 
+/// Adapter to **ser**ialize `T`.  
+/// See [`as`](crate::as) module-level documentation for more.
+///
+/// For dynamic arguments, see
+/// [`CellSerializeAsWithArgs`](super::args::as::CellSerializeAsWithArgs).
 pub trait CellSerializeAs<T: ?Sized> {
+    /// Store given value using an adapter
     fn store_as(source: &T, builder: &mut CellBuilder) -> Result<(), CellBuilderError>;
-}
-
-impl<'a, T, As> CellSerialize for PackAsWrap<'a, T, As>
-where
-    T: ?Sized,
-    As: ?Sized,
-    As: CellSerializeAs<T>,
-{
-    #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        As::store_as(self.into_inner(), builder)
-    }
 }
 
 impl<'a, T, As> CellSerializeAs<&'a T> for &'a As
@@ -28,7 +21,7 @@ where
 {
     #[inline]
     fn store_as(source: &&T, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        PackAsWrap::<T, As>::new(source).store(builder)
+        AsWrap::<&T, As>::new(source).store(builder)
     }
 }
 
@@ -39,7 +32,7 @@ where
 {
     #[inline]
     fn store_as(source: &&mut T, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        PackAsWrap::<T, As>::new(source).store(builder)
+        AsWrap::<&T, As>::new(source).store(builder)
     }
 }
 
@@ -102,7 +95,7 @@ where
 {
     #[inline]
     fn store_as(source: &Box<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        PackAsWrap::<T, As>::new(source).store(builder)
+        AsWrap::<&T, As>::new(source).store(builder)
     }
 }
 
@@ -112,7 +105,7 @@ where
 {
     #[inline]
     fn store_as(source: &Rc<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        PackAsWrap::<T, As>::new(source).store(builder)
+        AsWrap::<&T, As>::new(source).store(builder)
     }
 }
 
@@ -122,10 +115,15 @@ where
 {
     #[inline]
     fn store_as(source: &Arc<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        PackAsWrap::<T, As>::new(source).store(builder)
+        AsWrap::<&T, As>::new(source).store(builder)
     }
 }
 
+/// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
+/// ```tlb
+/// left$0 {X:Type} {Y:Type} value:X = Either X Y;
+/// right$1 {X:Type} {Y:Type} value:Y = Either X Y;
+/// ```
 impl<Left, Right, AsLeft, AsRight> CellSerializeAs<Either<Left, Right>> for Either<AsLeft, AsRight>
 where
     AsLeft: CellSerializeAs<Left>,
@@ -138,10 +136,7 @@ where
     ) -> Result<(), CellBuilderError> {
         source
             .as_ref()
-            .map_either(
-                PackAsWrap::<Left, AsLeft>::new,
-                PackAsWrap::<Right, AsRight>::new,
-            )
+            .map_either(AsWrap::<&Left, AsLeft>::new, AsWrap::<&Right, AsRight>::new)
             .store(builder)
     }
 }
@@ -154,29 +149,34 @@ where
     fn store_as(source: &Option<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         match source.as_ref() {
             None => Either::Left(()),
-            Some(v) => Either::Right(PackAsWrap::<T, As>::new(v)),
+            Some(v) => Either::Right(AsWrap::<&T, As>::new(v)),
         }
         .store(builder)
     }
 }
 
+/// Implementation of [`Maybe X`](https://docs.ton.org/develop/data-formats/tl-b-types#maybe):
+/// ```tlb
+/// nothing$0 {X:Type} = Maybe X;
+/// just$1 {X:Type} value:X = Maybe X;
+/// ```
 impl<T, As> CellSerializeAs<Option<T>> for Option<As>
 where
     As: CellSerializeAs<T>,
 {
     #[inline]
     fn store_as(source: &Option<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        source.as_ref().map(PackAsWrap::<_, As>::new).store(builder)
+        source.as_ref().map(AsWrap::<_, As>::new).store(builder)
     }
 }
 
 pub trait CellSerializeWrapAsExt {
     #[inline]
-    fn wrap_as<As>(&self) -> PackAsWrap<'_, Self, As>
+    fn wrap_as<As>(&self) -> AsWrap<&'_ Self, As>
     where
         As: CellSerializeAs<Self> + ?Sized,
     {
-        PackAsWrap::new(self)
+        AsWrap::new(self)
     }
 }
 impl<T> CellSerializeWrapAsExt for T {}

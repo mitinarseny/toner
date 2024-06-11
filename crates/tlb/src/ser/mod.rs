@@ -1,3 +1,4 @@
+//! **Ser**ialization for [TL-B](https://docs.ton.org/develop/data-formats/tl-b-language)
 pub mod args;
 pub mod r#as;
 mod builder;
@@ -15,8 +16,10 @@ use crate::{
     Cell, ResultExt,
 };
 
+/// A type that can be **ser**ilalized into [`CellBuilder`].
 #[autoimpl(for <T: trait + ?Sized> &T, &mut T, Box<T>, Rc<T>, Arc<T>)]
 pub trait CellSerialize {
+    /// Store the value into [`CellBuilder`]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError>;
 }
 
@@ -75,6 +78,11 @@ impl_cell_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
 impl_cell_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
 impl_cell_serialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
 
+/// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
+/// ```tlb
+/// left$0 {X:Type} {Y:Type} value:X = Either X Y;
+/// right$1 {X:Type} {Y:Type} value:Y = Either X Y;
+/// ```
 impl<L, R> CellSerialize for Either<L, R>
 where
     L: CellSerialize,
@@ -98,7 +106,11 @@ where
     }
 }
 
-/// [Maybe](https://docs.ton.org/develop/data-formats/tl-b-types#maybe)
+/// Implementation of [`Maybe X`](https://docs.ton.org/develop/data-formats/tl-b-types#maybe):
+/// ```tlb
+/// nothing$0 {X:Type} = Maybe X;
+/// just$1 {X:Type} value:X = Maybe X;
+/// ```
 impl<T> CellSerialize for Option<T>
 where
     T: CellSerialize,

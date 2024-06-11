@@ -1,37 +1,38 @@
 use std::{rc::Rc, sync::Arc};
 
+use bitvec::{order::Msb0, vec::BitVec};
 use either::Either;
 
 use crate::{
-    r#as::args::NoArgs,
-    ser::{r#as::PackAsWrap, BitWriter, BitWriterExt},
+    r#as::{args::NoArgs, AsWrap},
+    ser::{BitWriter, BitWriterExt},
+    StringError,
 };
 
 use super::BitPackWithArgs;
 
+/// Adapter to **ser**ialize `T` with args.  
+/// See [`as`](crate::as) module-level documentation for more.
+///
+/// For version without arguments, see [`BitPackAs`](super::super::as::BitPackAs).
 pub trait BitPackAsWithArgs<T: ?Sized> {
     type Args;
 
+    /// Packs the value with args using an adapter
     fn pack_as_with<W>(source: &T, writer: W, args: Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter;
 }
 
-impl<'a, T, As> BitPackWithArgs for PackAsWrap<'a, T, As>
+/// **Ser**ialize given value into [`BitVec`] with argmuments using an adapter
+#[inline]
+pub fn pack_as_with<T, As>(value: T, args: As::Args) -> Result<BitVec<u8, Msb0>, StringError>
 where
-    T: ?Sized,
-    As: ?Sized,
-    As: BitPackAsWithArgs<T>,
+    As: BitPackAsWithArgs<T> + ?Sized,
 {
-    type Args = As::Args;
-
-    #[inline]
-    fn pack_with<W>(&self, writer: W, args: Self::Args) -> Result<(), W::Error>
-    where
-        W: BitWriter,
-    {
-        As::pack_as_with(self.into_inner(), writer, args)
-    }
+    let mut writer = BitVec::new();
+    writer.pack_as_with::<_, As>(value, args)?;
+    Ok(writer)
 }
 
 impl<'a, T, As> BitPackAsWithArgs<&'a T> for &'a As
@@ -46,7 +47,7 @@ where
     where
         W: BitWriter,
     {
-        PackAsWrap::<T, As>::new(source).pack_with(writer, args)
+        AsWrap::<&T, As>::new(source).pack_with(writer, args)
     }
 }
 
@@ -62,7 +63,7 @@ where
     where
         W: BitWriter,
     {
-        PackAsWrap::<T, As>::new(source).pack_with(writer, args)
+        AsWrap::<&T, As>::new(source).pack_with(writer, args)
     }
 }
 
@@ -142,7 +143,7 @@ where
     where
         W: BitWriter,
     {
-        PackAsWrap::<T, As>::new(source).pack_with(writer, args)
+        AsWrap::<&T, As>::new(source).pack_with(writer, args)
     }
 }
 
@@ -157,10 +158,15 @@ where
     where
         W: BitWriter,
     {
-        PackAsWrap::<T, As>::new(source).pack_with(writer, args)
+        AsWrap::<&T, As>::new(source).pack_with(writer, args)
     }
 }
 
+/// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
+/// ```tlb
+/// left$0 {X:Type} {Y:Type} value:X = Either X Y;
+/// right$1 {X:Type} {Y:Type} value:Y = Either X Y;
+/// ```
 impl<Left, Right, AsLeft, AsRight> BitPackAsWithArgs<Either<Left, Right>>
     for Either<AsLeft, AsRight>
 where
@@ -180,10 +186,7 @@ where
     {
         source
             .as_ref()
-            .map_either(
-                PackAsWrap::<Left, AsLeft>::new,
-                PackAsWrap::<Right, AsRight>::new,
-            )
+            .map_either(AsWrap::<&Left, AsLeft>::new, AsWrap::<&Right, AsRight>::new)
             .pack_with(writer, args)
     }
 }
@@ -201,8 +204,8 @@ where
     {
         BitPackWithArgs::pack_with(
             &match source.as_ref() {
-                None => Either::Left(PackAsWrap::<_, NoArgs<_>>::new(&())),
-                Some(v) => Either::Right(PackAsWrap::<T, As>::new(v)),
+                None => Either::Left(AsWrap::<_, NoArgs<_>>::new(&())),
+                Some(v) => Either::Right(AsWrap::<&T, As>::new(v)),
             },
             writer,
             args,
@@ -210,6 +213,11 @@ where
     }
 }
 
+/// Implementation of [`Maybe X`](https://docs.ton.org/develop/data-formats/tl-b-types#maybe):
+/// ```tlb
+/// nothing$0 {X:Type} = Maybe X;
+/// just$1 {X:Type} value:X = Maybe X;
+/// ```
 impl<T, As> BitPackAsWithArgs<Option<T>> for Option<As>
 where
     As: BitPackAsWithArgs<T>,
@@ -223,7 +231,7 @@ where
     {
         source
             .as_ref()
-            .map(PackAsWrap::<T, As>::new)
+            .map(AsWrap::<&T, As>::new)
             .pack_with(writer, args)
     }
 }

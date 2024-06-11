@@ -2,14 +2,13 @@ use tlb::{
     bits::{
         bitvec::{order::Msb0, slice::BitSlice, vec::BitVec},
         de::{args::r#as::BitUnpackAsWithArgs, BitReader, BitReaderExt},
-        r#as::{NBits, VarNBits},
+        r#as::{NBits, Unary, VarNBits},
         ser::{args::r#as::BitPackAsWithArgs, BitWriter, BitWriterExt},
     },
     Error,
 };
 
-use crate::Unary;
-
+/// `HmLabel ~n m` for [`Hashmap`](super::Hashmap)
 /// ```tlb
 /// hml_short$0 {m:#} {n:#} len:(Unary ~n) {n <= m} s:(n * Bit) = HmLabel ~n m;
 /// hml_long$10 {m:#} n:(#<= m) s:(n * Bit) = HmLabel ~n m;

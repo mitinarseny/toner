@@ -14,6 +14,56 @@ use crate::{
 
 use super::Same;
 
+/// Adapter to implement cell **de**/**ser**ialization from/into binary data.
+///
+/// ```rust
+/// # use tlb::{
+/// #       r#as::Data,
+/// #       bits::{
+/// #           de::{BitUnpack, BitReader, BitReaderExt},
+/// #           ser::{BitPack, BitWriter, BitWriterExt},
+/// #       },
+/// #       Cell,
+/// #       StringError,
+/// # };
+/// # #[derive(Debug, Clone, Copy, PartialEq)]
+/// struct BinaryData {
+///     field: u8,
+/// }
+///
+/// impl BitPack for BinaryData {
+///     fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+///         where W: BitWriter,
+///     {
+///         writer.pack(self.field)?;
+///         Ok(())
+///     }
+/// }
+///
+/// impl BitUnpack for BinaryData {
+///     fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+///         where R: BitReader,
+///     {
+///         Ok(Self {
+///             field: reader.unpack()?,
+///         })
+///     }
+/// }
+///
+/// # fn main() -> Result<(), StringError> {
+/// let v = BinaryData { field: 123 };
+/// # let mut builder = Cell::builder();
+/// // store as binary data
+/// builder.store_as::<_, Data>(v)?;
+/// # let cell = builder.into_cell();
+/// # let mut parser = cell.parser();
+/// # let got = 
+/// // parse as binary data
+/// parser.parse_as::<BinaryData, Data>()?;
+/// # assert_eq!(got, v);
+/// # Ok(())
+/// # }
+/// ```
 pub struct Data<As: ?Sized = Same>(PhantomData<As>);
 
 impl<T, As> CellSerializeAs<T> for Data<As>
