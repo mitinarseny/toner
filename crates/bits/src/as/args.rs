@@ -7,6 +7,8 @@ use crate::{
 
 use super::Same;
 
+/// Adapter to implement **de**/**ser**ialize with dynamic args for types
+/// that do not require args for seralization.
 pub struct NoArgs<Args, As: ?Sized = Same>(PhantomData<(Args, As)>);
 
 impl<T, As, Args> BitPackAsWithArgs<T> for NoArgs<Args, As>
@@ -39,6 +41,7 @@ where
     }
 }
 
+/// Adapter to implement **de**/**ser**ialize with [`Default`] args.
 pub struct DefaultArgs<As: ?Sized = Same>(PhantomData<As>);
 
 impl<T, As> BitPackAs<T> for DefaultArgs<As>

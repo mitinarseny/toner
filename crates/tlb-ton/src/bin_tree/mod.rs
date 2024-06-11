@@ -1,3 +1,4 @@
+//! Collection of bintree-like **de**/**ser**ializable data structures
 pub mod aug;
 
 use std::ops::Deref;
@@ -7,6 +8,7 @@ use tlb::de::args::r#as::CellDeserializeAsWithArgs;
 use tlb::de::{CellParser, CellParserError};
 use tlb::r#as::Ref;
 
+/// [`BinTree X`](https://docs.ton.org/develop/data-formats/tl-b-types#bintree)
 /// ```tlb
 /// bt_leaf$0 {X:Type} leaf:X = BinTree X;
 /// bt_fork$1 {X:Type} left:^(BinTree X) right:^(BinTree X) = BinTree X;

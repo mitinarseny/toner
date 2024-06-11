@@ -1,8 +1,8 @@
-use ::bitvec::{order::Msb0, slice::BitSlice, store::BitStore, vec::BitVec, view::AsBits};
+use ::bitvec::{order::Msb0, slice::BitSlice, store::BitStore, vec::BitVec};
 use impl_tools::autoimpl;
 
 use crate::{
-    adapters::{BitCounter, Tee},
+    adapters::{BitCounter, MapErr, Tee},
     Error, ResultExt, StringError,
 };
 
@@ -12,12 +12,17 @@ use super::{
     BitPack,
 };
 
+/// Bitwise writer.
 #[autoimpl(for <W: trait + ?Sized> &mut W, Box<W>)]
 pub trait BitWriter {
+    // An error ocurred while writing
     type Error: Error;
 
+    /// Writes a single bit.
     fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error>;
 
+    /// Writes given bitslice.  
+    /// Might be optimized by the implementation.
     #[inline]
     fn write_bitslice(&mut self, bits: &BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
         for bit in bits {
@@ -26,6 +31,8 @@ pub trait BitWriter {
         Ok(())
     }
 
+    /// Writes given `bit` exactly `n` times.  
+    /// Might be optimized by the implementation.
     #[inline]
     fn repeat_bit(&mut self, n: usize, bit: bool) -> Result<(), Self::Error> {
         for _ in 0..n {
@@ -35,34 +42,17 @@ pub trait BitWriter {
     }
 }
 
+/// Extension helper for [`BitWriter`].
 pub trait BitWriterExt: BitWriter {
-    #[inline]
-    fn with_bit(&mut self, bit: bool) -> Result<&mut Self, Self::Error> {
-        self.write_bit(bit)?;
-        Ok(self)
-    }
-
-    #[inline]
-    fn with_bits(
-        &mut self,
-        bits: impl AsRef<BitSlice<u8, Msb0>>,
-    ) -> Result<&mut Self, Self::Error> {
-        self.write_bitslice(bits.as_ref())?;
-        Ok(self)
-    }
-
+    /// Same as [`.repeat_bit()`](BitWriter::repeat_bit) but can be used
+    /// for chaining
     #[inline]
     fn with_repeat_bit(&mut self, n: usize, bit: bool) -> Result<&mut Self, Self::Error> {
         self.repeat_bit(n, bit)?;
         Ok(self)
     }
 
-    #[inline]
-    fn with_bytes(&mut self, bytes: impl AsRef<[u8]>) -> Result<&mut Self, Self::Error> {
-        self.with_bits(bytes.as_bits::<Msb0>())?;
-        Ok(self)
-    }
-
+    /// Pack given value using its [`BitPack`] implementation
     #[inline]
     fn pack<T>(&mut self, value: T) -> Result<&mut Self, Self::Error>
     where
@@ -72,6 +62,7 @@ pub trait BitWriterExt: BitWriter {
         Ok(self)
     }
 
+    /// Pack given value with args using its [`BitPackWithArgs`] implementation
     #[inline]
     fn pack_with<T>(&mut self, value: T, args: T::Args) -> Result<&mut Self, Self::Error>
     where
@@ -81,6 +72,8 @@ pub trait BitWriterExt: BitWriter {
         Ok(self)
     }
 
+    /// Pack all values from given iterator using [`BitPack`] implementation
+    /// of its item type.
     #[inline]
     fn pack_many<T>(
         &mut self,
@@ -95,6 +88,8 @@ pub trait BitWriterExt: BitWriter {
         Ok(self)
     }
 
+    /// Pack all values with args from given iterator using [`BitPackWithArgs`]
+    /// implementation of its item type.
     #[inline]
     fn pack_many_with<T>(
         &mut self,
@@ -112,6 +107,8 @@ pub trait BitWriterExt: BitWriter {
         Ok(self)
     }
 
+    /// Pack given value using an adapter.  
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     fn pack_as<T, As>(&mut self, value: T) -> Result<&mut Self, Self::Error>
     where
@@ -121,6 +118,8 @@ pub trait BitWriterExt: BitWriter {
         Ok(self)
     }
 
+    /// Pack given value with args using an adapter.  
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     fn pack_as_with<T, As>(&mut self, value: T, args: As::Args) -> Result<&mut Self, Self::Error>
     where
@@ -130,6 +129,8 @@ pub trait BitWriterExt: BitWriter {
         Ok(self)
     }
 
+    /// Pack all values from iterator using an adapter.  
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     fn pack_many_as<T, As>(
         &mut self,
@@ -144,6 +145,8 @@ pub trait BitWriterExt: BitWriter {
         Ok(self)
     }
 
+    /// Pack all values from iterator with args using an adapter.  
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     fn pack_many_as_with<T, As>(
         &mut self,
@@ -161,11 +164,23 @@ pub trait BitWriterExt: BitWriter {
         Ok(self)
     }
 
+    /// Borrows writer, rather than consuming it.
     #[inline]
     fn as_mut(&mut self) -> &mut Self {
         self
     }
 
+    /// Map [`Error`](BitWriter::Error) by given closure
+    #[inline]
+    fn map_err<F>(self, f: F) -> MapErr<Self, F>
+    where
+        Self: Sized,
+    {
+        MapErr { inner: self, f }
+    }
+
+    /// Wrap this writer to count written bits by using
+    /// [`.bit_count()`](BitCounter::bit_count).
     #[inline]
     fn counted(self) -> BitCounter<Self>
     where
@@ -174,6 +189,10 @@ pub trait BitWriterExt: BitWriter {
         BitCounter::new(self)
     }
 
+    /// Sets given limit on this writer.  
+    /// Returned wrapped writer will return an error when caller tries to
+    /// write value which will exceed the total limit by using
+    /// [`.pack()`](BitWriterExt::pack) or any similar method.
     #[inline]
     fn limit(self, n: usize) -> LimitWriter<Self>
     where
@@ -182,6 +201,7 @@ pub trait BitWriterExt: BitWriter {
         LimitWriter::new(self, n)
     }
 
+    /// Mirror all written data to given writer as well.
     #[inline]
     fn tee<W>(self, writer: W) -> Tee<Self, W>
     where
@@ -194,7 +214,6 @@ pub trait BitWriterExt: BitWriter {
         }
     }
 }
-
 impl<T> BitWriterExt for T where T: BitWriter {}
 
 impl<W> BitWriter for BitCounter<W>
@@ -225,6 +244,7 @@ where
     }
 }
 
+/// Adapter returned by [`.limit()`](BitWriterExt::limit)
 #[autoimpl(Deref using self.inner)]
 pub struct LimitWriter<W> {
     inner: BitCounter<W>,
@@ -338,6 +358,16 @@ where
     #[inline]
     fn repeat_bit(&mut self, n: usize, bit: bool) -> Result<(), Self::Error> {
         self.resize(self.len() + n, bit);
+        Ok(())
+    }
+}
+
+/// Binary string, e.g. `"0010110...."`
+impl BitWriter for String {
+    type Error = StringError;
+
+    fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error> {
+        self.push(if bit { '1' } else { '0' });
         Ok(())
     }
 }

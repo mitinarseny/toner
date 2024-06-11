@@ -1,11 +1,14 @@
+//! Adapters for [`BitReader`](crate::de::BitReader) / [`BitWriter`](crate::ser::BitWriter)
 use impl_tools::autoimpl;
 
+/// Adapter that maps an error using given closure
 #[autoimpl(Deref using self.inner)]
 pub struct MapErr<T, F> {
     pub(crate) inner: T,
     pub(crate) f: F,
 }
 
+/// `tee`-like adapter for mirroring data read/written
 #[autoimpl(Deref using self.inner)]
 pub struct Tee<T, W> {
     pub(crate) inner: T,
@@ -24,6 +27,7 @@ impl<T, W> Tee<T, W> {
     }
 }
 
+/// Adapter for counting the number of bits read/written.
 #[autoimpl(Deref using self.inner)]
 pub struct BitCounter<T> {
     pub(crate) inner: T,
@@ -36,6 +40,7 @@ impl<T> BitCounter<T> {
         Self { inner, counter: 0 }
     }
 
+    /// Return total number of recorded bits
     #[inline]
     pub const fn bit_count(&self) -> usize {
         self.counter

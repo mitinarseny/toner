@@ -11,6 +11,7 @@ use crate::{
     },
 };
 
+/// Adapter to convert from `*As` to regular **de**/**ser**ialization traits.
 pub struct Same;
 
 impl<T> BitPackAs<T> for Same

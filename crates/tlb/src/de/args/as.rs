@@ -1,39 +1,37 @@
 use core::mem::MaybeUninit;
 use std::{rc::Rc, sync::Arc};
 
-use crate::{bits::de::r#as::UnpackAsWrap, either::Either, r#as::NoArgs, ResultExt};
+use crate::{
+    either::Either,
+    r#as::{AsWrap, NoArgs},
+    ResultExt,
+};
 
 use super::{
     super::{CellParser, CellParserError},
     CellDeserializeWithArgs,
 };
 
+/// Adaper to **de**serialize `T` with args.  
+/// See [`as`](crate::as) module-level documentation for more.
+///
+/// For version without arguments, see
+/// [`CellDeserializeAs`](super::super::as::CellDeserializeAs).
 pub trait CellDeserializeAsWithArgs<'de, T> {
     type Args;
 
+    /// Parse value with args using an adapter
     fn parse_as_with(
         parser: &mut CellParser<'de>,
         args: Self::Args,
     ) -> Result<T, CellParserError<'de>>;
 }
 
+/// Owned version of [`CellDeserializeAsWithArgs`]
 pub trait CellDeserializeAsWithArgsOwned<T>: for<'de> CellDeserializeAsWithArgs<'de, T> {}
-impl<T, As> CellDeserializeAsWithArgsOwned<As> for T
-    where T: for<'de> CellDeserializeAsWithArgs<'de, As> + ?Sized {
-}
-
-impl<'de, T, As> CellDeserializeWithArgs<'de> for UnpackAsWrap<T, As>
-where
-    As: CellDeserializeAsWithArgs<'de, T> + ?Sized,
+impl<T, As> CellDeserializeAsWithArgsOwned<As> for T where
+    T: for<'de> CellDeserializeAsWithArgs<'de, As> + ?Sized
 {
-    type Args = As::Args;
-
-    fn parse_with(
-        parser: &mut CellParser<'de>,
-        args: Self::Args,
-    ) -> Result<Self, CellParserError<'de>> {
-        As::parse_as_with(parser, args).map(Self::new)
-    }
 }
 
 impl<'de, T, As, const N: usize> CellDeserializeAsWithArgs<'de, [T; N]> for [As; N]
@@ -114,8 +112,8 @@ where
         parser: &mut CellParser<'de>,
         args: Self::Args,
     ) -> Result<Box<T>, CellParserError<'de>> {
-        UnpackAsWrap::<T, As>::parse_with(parser, args)
-            .map(UnpackAsWrap::into_inner)
+        AsWrap::<T, As>::parse_with(parser, args)
+            .map(AsWrap::into_inner)
             .map(Into::into)
     }
 }
@@ -131,8 +129,8 @@ where
         parser: &mut CellParser<'de>,
         args: Self::Args,
     ) -> Result<Rc<T>, CellParserError<'de>> {
-        UnpackAsWrap::<T, As>::parse_with(parser, args)
-            .map(UnpackAsWrap::into_inner)
+        AsWrap::<T, As>::parse_with(parser, args)
+            .map(AsWrap::into_inner)
             .map(Into::into)
     }
 }
@@ -148,12 +146,17 @@ where
         parser: &mut CellParser<'de>,
         args: Self::Args,
     ) -> Result<Arc<T>, CellParserError<'de>> {
-        UnpackAsWrap::<T, As>::parse_with(parser, args)
-            .map(UnpackAsWrap::into_inner)
+        AsWrap::<T, As>::parse_with(parser, args)
+            .map(AsWrap::into_inner)
             .map(Into::into)
     }
 }
 
+/// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
+/// ```tlb
+/// left$0 {X:Type} {Y:Type} value:X = Either X Y;
+/// right$1 {X:Type} {Y:Type} value:Y = Either X Y;
+/// ```
 impl<'de, Left, Right, AsLeft, AsRight> CellDeserializeAsWithArgs<'de, Either<Left, Right>>
     for Either<AsLeft, AsRight>
 where
@@ -168,10 +171,8 @@ where
         args: Self::Args,
     ) -> Result<Either<Left, Right>, CellParserError<'de>> {
         Ok(
-            Either::<UnpackAsWrap<Left, AsLeft>, UnpackAsWrap<Right, AsRight>>::parse_with(
-                parser, args,
-            )?
-            .map_either(UnpackAsWrap::into_inner, UnpackAsWrap::into_inner),
+            Either::<AsWrap<Left, AsLeft>, AsWrap<Right, AsRight>>::parse_with(parser, args)?
+                .map_either(AsWrap::into_inner, AsWrap::into_inner),
         )
     }
 }
@@ -193,6 +194,11 @@ where
     }
 }
 
+/// Implementation of [`Maybe X`](https://docs.ton.org/develop/data-formats/tl-b-types#maybe):
+/// ```tlb
+/// nothing$0 {X:Type} = Maybe X;
+/// just$1 {X:Type} value:X = Maybe X;
+/// ```
 impl<'de, T, As> CellDeserializeAsWithArgs<'de, Option<T>> for Option<As>
 where
     As: CellDeserializeAsWithArgs<'de, T>,
@@ -204,6 +210,6 @@ where
         parser: &mut CellParser<'de>,
         args: Self::Args,
     ) -> Result<Option<T>, CellParserError<'de>> {
-        Ok(Option::<UnpackAsWrap<T, As>>::parse_with(parser, args)?.map(UnpackAsWrap::into_inner))
+        Ok(Option::<AsWrap<T, As>>::parse_with(parser, args)?.map(AsWrap::into_inner))
     }
 }

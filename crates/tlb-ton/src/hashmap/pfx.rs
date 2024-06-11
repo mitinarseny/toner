@@ -14,6 +14,7 @@ use tlb::{
 
 use super::{aug::HashmapAugNode, hm_label::HmLabel, Hashmap, HashmapE, HashmapNode};
 
+/// [`PfxHashmapE n X`](https://docs.ton.org/develop/data-formats/tl-b-types#pfxhashmap)
 /// ```tlb
 /// phme_empty$0 {n:#} {X:Type} = PfxHashmapE n X;
 /// phme_root$1 {n:#} {X:Type} root:^(PfxHashmap n X) = PfxHashmapE n X;
@@ -73,6 +74,7 @@ where
     }
 }
 
+/// [`PfxHashmap n X`](https://docs.ton.org/develop/data-formats/tl-b-types#pfxhashmap)
 /// ```tlb
 /// phm_edge#_ {n:#} {X:Type} {l:#} {m:#} label:(HmLabel ~l n)
 /// {n = (~m) + l} node:(PfxHashmapNode m X) = PfxHashmap n X;
@@ -140,6 +142,7 @@ where
     }
 }
 
+/// [`PfxHashmapNode n X`](https://docs.ton.org/develop/data-formats/tl-b-types#pfxhashmap)
 /// ```tlb
 /// phmn_leaf$0 {n:#} {X:Type} value:X = PfxHashmapNode n X;
 /// phmn_fork$1 {n:#} {X:Type} left:^(PfxHashmap n X)

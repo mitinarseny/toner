@@ -7,6 +7,7 @@ use tlb::{
     Error,
 };
 
+/// Adapter to **de**/**ser**ialize UNIX timestamp as `u32` from [`DateTime`]
 pub struct UnixTimestamp;
 
 impl BitPackAs<DateTime<Utc>> for UnixTimestamp {

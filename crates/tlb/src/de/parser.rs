@@ -17,8 +17,10 @@ use super::{
     CellDeserialize,
 };
 
+/// [`Error`] for [`CellParser`]
 pub type CellParserError<'de> = <CellParser<'de> as BitReader>::Error;
 
+/// Cell parser created with [`Cell::parser()`].
 pub struct CellParser<'de> {
     pub(super) data: &'de BitSlice<u8, Msb0>,
     pub(super) references: &'de [Arc<Cell>],
@@ -30,6 +32,7 @@ impl<'de> CellParser<'de> {
         Self { data, references }
     }
 
+    /// Parse the value using its [`CellDeserialize`] implementation
     #[inline]
     pub fn parse<T>(&mut self) -> Result<T, CellParserError<'de>>
     where
@@ -38,6 +41,8 @@ impl<'de> CellParser<'de> {
         T::parse(self)
     }
 
+    /// Return iterator that parses values using [`CellDeserialize`]
+    /// implementation.
     #[inline]
     pub fn parse_iter<T>(&mut self) -> impl Iterator<Item = Result<T, CellParserError<'de>>> + '_
     where
@@ -48,6 +53,8 @@ impl<'de> CellParser<'de> {
             .map(|(i, v)| v.with_context(|| format!("[{i}]")))
     }
 
+    /// Parse the value with args using its [`CellDeserializeWithArgs`]
+    /// implementation.
     #[inline]
     pub fn parse_with<T>(&mut self, args: T::Args) -> Result<T, CellParserError<'de>>
     where
@@ -56,6 +63,8 @@ impl<'de> CellParser<'de> {
         T::parse_with(self, args)
     }
 
+    /// Return iterator that parses values with args using
+    /// [`CellDeserializeWithArgs`] implementation.
     #[inline]
     pub fn parse_iter_with<'a: 'de, T>(
         &mut self,
@@ -70,6 +79,8 @@ impl<'de> CellParser<'de> {
             .map(|(i, v)| v.with_context(|| format!("[{i}]")))
     }
 
+    /// Parse the value using an adapter.  
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     pub fn parse_as<T, As>(&mut self) -> Result<T, CellParserError<'de>>
     where
@@ -78,6 +89,8 @@ impl<'de> CellParser<'de> {
         As::parse_as(self)
     }
 
+    /// Returns iterator that parses values using an adapter.  
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     pub fn parse_iter_as<T, As>(
         &mut self,
@@ -90,6 +103,8 @@ impl<'de> CellParser<'de> {
             .map(|(i, v)| v.with_context(|| format!("[{i}]")))
     }
 
+    /// Parse value with args using an adapter.  
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     pub fn parse_as_with<T, As>(&mut self, args: As::Args) -> Result<T, CellParserError<'de>>
     where
@@ -98,6 +113,8 @@ impl<'de> CellParser<'de> {
         As::parse_as_with(self, args)
     }
 
+    /// Returns iterator that parses values with args using an adapter.  
+    /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
     pub fn parse_iter_as_with<'a: 'de, T, As>(
         &mut self,
@@ -141,11 +158,13 @@ impl<'de> CellParser<'de> {
         self.pop_reference()?.parse_fully_as_with::<T, As>(args)
     }
 
+    /// Returns whether this parser has no more data and references.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.data.is_empty() && self.references.is_empty()
     }
 
+    /// Returns an error if this parser has more data or references.
     #[inline]
     pub fn ensure_empty(&self) -> Result<(), CellParserError<'de>> {
         if !self.is_empty() {

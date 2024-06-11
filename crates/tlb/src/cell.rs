@@ -17,6 +17,7 @@ use crate::{
     ser::CellBuilder,
 };
 
+/// A [Cell](https://docs.ton.org/develop/data-formats/cell-boc#cell).  
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct Cell {
     pub data: BitVec<u8, Msb0>,
@@ -24,12 +25,14 @@ pub struct Cell {
 }
 
 impl Cell {
+    /// Create new [`CellBuilder`]
     #[inline]
     #[must_use]
     pub const fn builder() -> CellBuilder {
         CellBuilder::new()
     }
 
+    /// Create empty cell
     #[inline]
     #[must_use]
     pub const fn new() -> Self {
@@ -39,12 +42,14 @@ impl Cell {
         }
     }
 
+    /// Return [`CellParser`] for this cell
     #[inline]
     #[must_use]
     pub fn parser(&self) -> CellParser<'_> {
         CellParser::new(&self.data, &self.references)
     }
 
+    /// Shortcut for [`.parser()`](Cell::parser)[`.parse()`](CellParser::parse)[`.ensure_empty()`](CellParser::ensure_empty).
     #[inline]
     pub fn parse_fully<'de, T>(&'de self) -> Result<T, CellParserError<'de>>
     where
@@ -56,6 +61,7 @@ impl Cell {
         Ok(v)
     }
 
+    /// Shortcut for [`.parser()`](Cell::parser)[`.parse_with()`](CellParser::parse_with)[`.ensure_empty()`](CellParser::ensure_empty).
     #[inline]
     pub fn parse_fully_with<'de, T>(&'de self, args: T::Args) -> Result<T, CellParserError<'de>>
     where
@@ -67,6 +73,7 @@ impl Cell {
         Ok(v)
     }
 
+    /// Shortcut for [`.parser()`](Cell::parser)[`.parse_as()`](CellParser::parse_as)[`.ensure_empty()`](CellParser::ensure_empty).
     #[inline]
     pub fn parse_fully_as<'de, T, As>(&'de self) -> Result<T, CellParserError<'de>>
     where
@@ -78,6 +85,7 @@ impl Cell {
         Ok(v)
     }
 
+    /// Shortcut for [`.parser()`](Cell::parser)[`.parse_as_with()`](CellParser::parse_as_with)[`.ensure_empty()`](CellParser::ensure_empty).
     #[inline]
     pub fn parse_fully_as_with<'de, T, As>(
         &'de self,
@@ -92,6 +100,7 @@ impl Cell {
         Ok(v)
     }
 
+    /// Returns whether this cell has no data and zero references.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.data.is_empty() && self.references.is_empty()
@@ -175,7 +184,7 @@ impl Cell {
         buf
     }
 
-    /// See [cell hash](https://docs.ton.org/develop/data-formats/cell-boc#cell-hash)
+    /// Calculates [standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#cell-hash)
     #[inline]
     pub fn hash(&self) -> [u8; 32] {
         let mut hasher = Sha256::new();

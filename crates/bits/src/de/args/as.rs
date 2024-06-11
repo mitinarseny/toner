@@ -1,36 +1,42 @@
 use core::mem::MaybeUninit;
 use std::{rc::Rc, sync::Arc};
 
+use bitvec::{order::Msb0, slice::BitSlice};
 use either::Either;
 
 use super::{
-    super::{r#as::UnpackAsWrap, BitReader, BitReaderExt},
+    super::{BitReader, BitReaderExt},
     BitUnpackWithArgs,
 };
 
-use crate::{r#as::args::NoArgs, ResultExt};
+use crate::{
+    r#as::{args::NoArgs, AsWrap},
+    ResultExt, StringError,
+};
 
+/// Adapter to **de**serialize `T` with args.  
+/// See [`as`](crate::as) module-level documentation for more.
+///
+/// For version without arguments, see [`BitUnpackAs`](super::super::as::BitUnpackAs).
 pub trait BitUnpackAsWithArgs<T> {
     type Args;
 
+    /// Unpacks value with args using an adapter
     fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<T, R::Error>
     where
         R: BitReader;
 }
 
-impl<T, As> BitUnpackWithArgs for UnpackAsWrap<T, As>
+/// **De**serialize value from [`BitSlice`] with args using an adapter
+#[inline]
+pub fn unpack_as_with<T, As>(
+    bits: impl AsRef<BitSlice<u8, Msb0>>,
+    args: As::Args,
+) -> Result<T, StringError>
 where
-    As: BitUnpackAsWithArgs<T> + ?Sized,
+    As: BitUnpackAsWithArgs<T>,
 {
-    type Args = As::Args;
-
-    #[inline]
-    fn unpack_with<R>(reader: R, args: Self::Args) -> Result<Self, R::Error>
-    where
-        R: BitReader,
-    {
-        As::unpack_as_with(reader, args).map(Self::new)
-    }
+    bits.as_ref().unpack_as_with::<_, As>(args)
 }
 
 impl<T, As, const N: usize> BitUnpackAsWithArgs<[T; N]> for [As; N]
@@ -116,8 +122,8 @@ where
     where
         R: BitReader,
     {
-        UnpackAsWrap::<T, As>::unpack_with(reader, args)
-            .map(UnpackAsWrap::into_inner)
+        AsWrap::<T, As>::unpack_with(reader, args)
+            .map(AsWrap::into_inner)
             .map(Into::into)
     }
 }
@@ -133,8 +139,8 @@ where
     where
         R: BitReader,
     {
-        UnpackAsWrap::<T, As>::unpack_with(reader, args)
-            .map(UnpackAsWrap::into_inner)
+        AsWrap::<T, As>::unpack_with(reader, args)
+            .map(AsWrap::into_inner)
             .map(Into::into)
     }
 }
@@ -150,12 +156,17 @@ where
     where
         R: BitReader,
     {
-        UnpackAsWrap::<T, As>::unpack_with(reader, args)
-            .map(UnpackAsWrap::into_inner)
+        AsWrap::<T, As>::unpack_with(reader, args)
+            .map(AsWrap::into_inner)
             .map(Into::into)
     }
 }
 
+/// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
+/// ```tlb
+/// left$0 {X:Type} {Y:Type} value:X = Either X Y;
+/// right$1 {X:Type} {Y:Type} value:Y = Either X Y;
+/// ```
 impl<Left, Right, AsLeft, AsRight> BitUnpackAsWithArgs<Either<Left, Right>>
     for Either<AsLeft, AsRight>
 where
@@ -170,10 +181,8 @@ where
         R: BitReader,
     {
         Ok(
-            Either::<UnpackAsWrap<Left, AsLeft>, UnpackAsWrap<Right, AsRight>>::unpack_with(
-                reader, args,
-            )?
-            .map_either(UnpackAsWrap::into_inner, UnpackAsWrap::into_inner),
+            Either::<AsWrap<Left, AsLeft>, AsWrap<Right, AsRight>>::unpack_with(reader, args)?
+                .map_either(AsWrap::into_inner, AsWrap::into_inner),
         )
     }
 }
@@ -195,6 +204,11 @@ where
     }
 }
 
+/// Implementation of [`Maybe X`](https://docs.ton.org/develop/data-formats/tl-b-types#maybe):
+/// ```tlb
+/// nothing$0 {X:Type} = Maybe X;
+/// just$1 {X:Type} value:X = Maybe X;
+/// ```
 impl<T, As> BitUnpackAsWithArgs<Option<T>> for Option<As>
 where
     As: BitUnpackAsWithArgs<T>,
@@ -206,6 +220,6 @@ where
     where
         R: BitReader,
     {
-        Ok(Option::<UnpackAsWrap<T, As>>::unpack_with(reader, args)?.map(UnpackAsWrap::into_inner))
+        Ok(Option::<AsWrap<T, As>>::unpack_with(reader, args)?.map(AsWrap::into_inner))
     }
 }

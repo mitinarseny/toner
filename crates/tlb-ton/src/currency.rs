@@ -1,4 +1,7 @@
+//! Collection of types to work with currencies
+use lazy_static::lazy_static;
 use num_bigint::BigUint;
+use num_traits::One;
 use tlb::{
     bits::{de::BitReaderExt, r#as::VarInt, ser::BitWriterExt},
     de::{CellDeserialize, CellParser, CellParserError},
@@ -8,9 +11,26 @@ use tlb::{
 
 use crate::hashmap::HashmapE;
 
+lazy_static! {
+    /// 1 gram (nano-TON)
+    pub static ref ONE_GRAM: BigUint = BigUint::one();
+    /// 1 TON
+    pub static ref ONE_TON: BigUint = &*ONE_GRAM * 1_000_000_000u64;
+}
+
+/// Alias for `VarUInteger 16`
+/// ```tlb
+/// nanograms$_ amount:(VarUInteger 16) = Grams;
+/// ```
 pub type Coins = VarInt<4>;
+
+/// Alias for `VarUInteger 16`
+/// ```tlb
+/// nanograms$_ amount:(VarUInteger 16) = Grams;
+/// ```
 pub type Grams = Coins;
 
+/// [`CurrencyCollection`](https://docs.ton.org/develop/data-formats/msg-tlb#currencycollection)
 /// ```tlb
 /// currencies$_ grams:Grams other:ExtraCurrencyCollection = CurrencyCollection;
 /// ```

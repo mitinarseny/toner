@@ -13,9 +13,14 @@ use crate::{
 
 use super::{BitReader, BitReaderExt};
 
+/// A type that can be bitwise-**de**serialized from any [`BitReader`].  
+/// In contrast with [`BitUnpack`](super::BitUnpack) it allows to pass
+/// [`Args`](BitUnpackWithArgs::Args) and these arguments can be
+/// calculated dynamically in runtime.
 pub trait BitUnpackWithArgs: Sized {
     type Args;
 
+    /// Unpacks the value with args
     fn unpack_with<R>(reader: R, args: Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader;
@@ -78,6 +83,7 @@ where
     T: BitUnpackWithArgs,
     T::Args: Clone,
 {
+    /// (len, T::Args)
     type Args = (usize, T::Args);
 
     #[inline]
@@ -134,6 +140,11 @@ where
     }
 }
 
+/// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
+/// ```tlb
+/// left$0 {X:Type} {Y:Type} value:X = Either X Y;
+/// right$1 {X:Type} {Y:Type} value:Y = Either X Y;
+/// ```
 impl<Left, Right> BitUnpackWithArgs for Either<Left, Right>
 where
     Left: BitUnpackWithArgs,
@@ -153,7 +164,11 @@ where
     }
 }
 
-/// [Maybe](https://docs.ton.org/develop/data-formats/tl-b-types#maybe)
+/// Implementation of [`Maybe X`](https://docs.ton.org/develop/data-formats/tl-b-types#maybe):
+/// ```tlb
+/// nothing$0 {X:Type} = Maybe X;
+/// just$1 {X:Type} value:X = Maybe X;
+/// ```
 impl<T> BitUnpackWithArgs for Option<T>
 where
     T: BitUnpackWithArgs,

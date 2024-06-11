@@ -16,12 +16,25 @@ lazy_static! {
         .collect();
 }
 
+/// An ordered set of 24 words used to deterministically generate keypair
+/// according to [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki).
+///
+/// ```rust
+/// # use hex_literal::hex;
+/// # use ton_contracts::wallet::mnemonic::{Keypair, Mnemonic};
+/// let mnemonic: Mnemonic = "dose ice enrich trigger test dove century still betray gas diet dune use other base gym mad law immense village world example praise game"
+///     .parse()
+///     .unwrap();
+/// let kp: Keypair = mnemonic.generate_keypair(None).unwrap();
+/// # assert_eq!(kp.skey, hex!("119dcf2840a3d56521d260b2f125eedc0d4f3795b9e627269a4b5a6dca8257bdc04ad1885c127fe863abb00752fa844e6439bb04f264d70de7cea580b32637ab"));
+/// ```
 #[derive(Debug, Clone)]
 pub struct Mnemonic([&'static str; 24]);
 
 impl Mnemonic {
     const PBKDF_ITERATIONS: u32 = 100000;
 
+    /// Generate [`Keypair`] with optional password
     pub fn generate_keypair(&self, password: impl Into<Option<String>>) -> anyhow::Result<Keypair> {
         let entropy = self.entropy(password)?;
         let seed = Self::pbkdf2_sha512(
@@ -73,21 +86,5 @@ impl FromStr for Mnemonic {
                 words.len()
             )
         })?))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use hex_literal::hex;
-
-    use super::*;
-
-    #[test]
-    fn key_pair() {
-        let mnemonic: Mnemonic =
-                "dose ice enrich trigger test dove century still betray gas diet dune use other base gym mad law immense village world example praise game"
-            .parse().unwrap();
-        let kp = mnemonic.generate_keypair(None).unwrap();
-        assert_eq!(kp.skey, hex!("119dcf2840a3d56521d260b2f125eedc0d4f3795b9e627269a4b5a6dca8257bdc04ad1885c127fe863abb00752fa844e6439bb04f264d70de7cea580b32637ab"));
     }
 }

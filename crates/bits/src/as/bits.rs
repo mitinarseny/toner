@@ -5,6 +5,7 @@ use crate::{
     ser::{r#as::BitPackAs, BitPack, BitWriter, BitWriterExt},
 };
 
+/// **Ser**ialize value by taking a reference to [`BitSlice`] on it.
 pub struct AsBitSlice;
 
 impl<T> BitPackAs<T> for AsBitSlice
@@ -20,6 +21,7 @@ where
     }
 }
 
+/// **Ser**ialize value by taking a reference to `[u8]` on it.
 pub struct AsBytes;
 
 impl<T> BitPackAs<T> for AsBytes
@@ -35,8 +37,10 @@ where
     }
 }
 
+/// **De**/**ser**ialize value from/into exactly `N` bits.
 pub struct NBits<const BITS: usize>;
 
+/// **De**/**ser**ialize bytes by prefixing its length with `N`-bit integer.
 pub struct VarBytes<const BITS_FOR_BYTES_LEN: usize>;
 
 impl<const BITS_FOR_BYTES_LEN: usize, T> BitPackAs<T> for VarBytes<BITS_FOR_BYTES_LEN>

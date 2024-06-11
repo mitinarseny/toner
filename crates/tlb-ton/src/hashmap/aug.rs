@@ -19,6 +19,8 @@ use tlb::{
 
 use super::hm_label::HmLabel;
 
+/// [`HashmapAugE n X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#hashmapauge).  
+/// When `E = ()` it is equivalent to [`HashmapE n X`](https://docs.ton.org/develop/data-formats/tl-b-types#hashmap)
 /// ```tlb
 /// ahme_empty$0 {n:#} {X:Type} {Y:Type} extra:Y = HashmapAugE n X Y;      
 /// ahme_root$1 {n:#} {X:Type} {Y:Type} root:^(HashmapAug n X Y)
@@ -84,6 +86,9 @@ where
     }
 }
 
+/// [`HashmapE n X`](https://docs.ton.org/develop/data-formats/tl-b-types#hashmap).  
+/// Type parameter `E` is optional and stands for `extra`, so it can be reused
+/// for [`HashmapAugE n X E`](HashmapAugE)
 /// ```tlb
 /// hme_empty$0 {n:#} {X:Type} = HashmapE n X;
 /// hme_root$1 {n:#} {X:Type} root:^(Hashmap n X) = HashmapE n X;
@@ -102,16 +107,19 @@ impl<T, E> Default for HashmapE<T, E> {
 }
 
 impl<T, E> HashmapE<T, E> {
+    /// Create empty hashmap
     #[inline]
     pub const fn new() -> Self {
         Self::Empty
     }
 
+    /// Return whether this hashmap is empty
     #[inline]
     pub fn is_empty(&self) -> bool {
         matches!(self, Self::Empty)
     }
 
+    /// Return number of leaf nodes in this hashmap
     #[inline]
     pub fn len(&self) -> usize {
         match self {
@@ -120,6 +128,7 @@ impl<T, E> HashmapE<T, E> {
         }
     }
 
+    /// Returns whether this hashmap contains given key
     #[inline]
     pub fn contains_key(&self, key: impl AsRef<BitSlice<u8, Msb0>>) -> bool {
         match self {
@@ -128,6 +137,7 @@ impl<T, E> HashmapE<T, E> {
         }
     }
 
+    /// Returns reference to leaf value associated with given key
     #[inline]
     pub fn get(&self, key: impl AsRef<BitSlice<u8, Msb0>>) -> Option<&T> {
         match self {
@@ -136,6 +146,7 @@ impl<T, E> HashmapE<T, E> {
         }
     }
 
+    /// Returns mutable reference to leaf value associated with given key
     #[inline]
     pub fn get_mut(&mut self, key: impl AsRef<BitSlice<u8, Msb0>>) -> Option<&mut T> {
         match self {
@@ -240,73 +251,12 @@ where
     }
 }
 
-// pub struct HashmapEN<const N: u32, AsT: ?Sized = Same, AsE: ?Sized = Same>(PhantomData<(AsT, AsE)>);
-
-// impl<const N: u32, T, AsT, E, AsE> CellSerializeAsWithArgs<HashmapE<T, E>>
-//     for HashmapEN<N, AsT, AsE>
-// where
-//     AsT: CellSerializeAsWithArgs<T>,
-//     AsT::Args: Clone,
-//     AsE: CellSerializeAsWithArgs<E>,
-//     AsE::Args: Clone,
-// {
-//     type Args = (AsT::Args, AsE::Args);
-
-//     fn store_as_with(
-//         source: &HashmapE<T, E>,
-//         builder: &mut CellBuilder,
-//         (node_args, extra_args): Self::Args,
-//     ) -> Result<(), CellBuilderError> {
-//         builder.store_as_with::<_, &HashmapE<AsT, AsE>>(source, (N, node_args, extra_args))?;
-//         Ok(())
-//     }
-// }
-
-// impl<const N: u32, T, AsT, E, AsE> CellSerializeAs<HashmapE<T, E>> for HashmapEN<N, AsT, AsE>
-// where
-//     AsT: CellSerializeAs<T>,
-//     AsE: CellSerializeAs<E>,
-// {
-//     fn store_as(
-//         source: &HashmapE<T, E>,
-//         builder: &mut CellBuilder,
-//     ) -> Result<(), CellBuilderError> {
-//         builder
-//             .store_as_with::<_, &HashmapE<NoArgs<_, AsT>, NoArgs<_, AsE>>>(source, (N, (), ()))?;
-//         Ok(())
-//     }
-// }
-//
-// impl<'de, const N: u32, T, As> CellDeserializeAsWithArgs<'de, HashmapE<T>> for HashmapEN<N, As>
-// where
-//     As: CellDeserializeAsWithArgs<'de, T>,
-//     As::Args: Clone,
-// {
-//     type Args = As::Args;
-
-//     #[inline]
-//     fn parse_as_with(
-//         parser: &mut CellParser<'de>,
-//         args: Self::Args,
-//     ) -> Result<HashmapE<T>, CellParserError<'de>> {
-//         parser.parse_as_with::<_, HashmapE<As>>((N, args))
-//     }
-// }
-
-// impl<'de, const N: u32, T, As> CellDeserializeAs<'de, HashmapE<T>> for HashmapEN<N, As>
-// where
-//     As: CellDeserializeAs<'de, T>,
-// {
-//     #[inline]
-//     fn parse_as(parser: &mut CellParser<'de>) -> Result<HashmapE<T>, CellParserError<'de>> {
-//         parser.parse_as_with::<_, HashmapE<NoArgs<_, As>>>((N, ()))
-//     }
-// }
-
+/// [`Hashmap n X`](https://docs.ton.org/develop/data-formats/tl-b-types#hashmap)  
+/// Type parameter `E` is optional and stands for `extra`, so it can be reused
+/// for [`HashmapAug n X E`](HashmapAugE)
 /// ```tlb
-/// ahm_edge#_ {n:#} {X:Type} {Y:Type} {l:#} {m:#}
-/// label:(HmLabel ~l n) {n = (~m) + l}
-/// node:(HashmapAugNode m X Y) = HashmapAug n X Y;
+/// hm_edge#_ {n:#} {X:Type} {l:#} {m:#} label:(HmLabel ~l n)
+/// {n = (~m) + l} node:(HashmapNode m X) = Hashmap n X;
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Hashmap<T, E = ()> {
@@ -415,6 +365,9 @@ where
     }
 }
 
+/// [`HashmapNode n X`](https://docs.ton.org/develop/data-formats/tl-b-types#hashmap)  
+/// Type parameter `E` is optional and stands for `extra`, so it can be reused
+/// for [`HashmapAugNode n X E`](HashmapAugNode)
 /// ```tlb
 /// hmn_leaf#_ {X:Type} value:X = HashmapNode 0 X;
 /// hmn_fork#_ {n:#} {X:Type} left:^(Hashmap n X)
@@ -555,6 +508,8 @@ where
     }
 }
 
+/// [`HashmapAugNode n X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#hashmapauge)  
+/// When `E = ()` it is equivalent to [`HashmapNode n X`](https://docs.ton.org/develop/data-formats/tl-b-types#hashmap)
 /// ```tlb
 /// ahmn_leaf#_ {X:Type} {Y:Type} extra:Y value:X = HashmapAugNode 0 X Y;
 /// ahmn_fork#_ {n:#} {X:Type} {Y:Type} left:^(HashmapAug n X Y)

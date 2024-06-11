@@ -3,21 +3,27 @@ use std::error::Error as StdError;
 
 use thiserror::Error as ThisError;
 
+/// **De**/**ser**ialization error
 pub trait Error: StdError + Sized {
+    /// Returns a custom error from given message
     fn custom<T>(msg: T) -> Self
     where
         T: Display;
 
+    /// Wraps current error in given context
     fn context<C>(self, context: C) -> Self
     where
         C: Display;
 }
 
+/// Adapter for providing context on [`Result`]
 pub trait ResultExt: Sized {
+    /// Wrap [`Err`] in context by calling given function
     fn with_context<C>(self, context: impl FnOnce() -> C) -> Self
     where
         C: Display;
 
+    /// Wrap [`Err`] in given context
     #[inline]
     fn context<C>(self, context: C) -> Self
     where
@@ -40,6 +46,7 @@ where
     }
 }
 
+/// [`String`]-backed [`Error`]
 #[derive(Debug, ThisError)]
 #[error("{0}")]
 pub struct StringError(String);

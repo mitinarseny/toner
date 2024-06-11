@@ -14,7 +14,7 @@ use crate::{
     Error,
 };
 
-pub use crate::bits::r#as::{FromInto, FromIntoRef, TryFromInto};
+pub use crate::bits::r#as::{FromInto, FromIntoRef, TryFromInto, TryFromIntoRef};
 
 impl<T, As> CellSerializeAs<T> for FromInto<As>
 where
@@ -172,6 +172,69 @@ where
 }
 
 impl<'de, T, As> CellDeserializeAsWithArgs<'de, T> for TryFromInto<As>
+where
+    As: TryInto<T> + CellDeserializeWithArgs<'de>,
+    <As as TryInto<T>>::Error: Display,
+{
+    type Args = As::Args;
+
+    #[inline]
+    fn parse_as_with(
+        parser: &mut CellParser<'de>,
+        args: Self::Args,
+    ) -> Result<T, CellParserError<'de>> {
+        As::parse_with(parser, args)?
+            .try_into()
+            .map_err(Error::custom)
+    }
+}
+
+impl<T, As> CellSerializeAs<T> for TryFromIntoRef<As>
+where
+    for<'a> &'a T: TryInto<As>,
+    for<'a> <&'a T as TryInto<As>>::Error: Display,
+    As: CellSerialize,
+{
+    #[inline]
+    fn store_as(source: &T, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+        source.try_into().map_err(Error::custom)?.store(builder)
+    }
+}
+
+impl<T, As> CellSerializeAsWithArgs<T> for TryFromIntoRef<As>
+where
+    for<'a> &'a T: TryInto<As> + Clone,
+    for<'a> <&'a T as TryInto<As>>::Error: Display,
+    As: CellSerializeWithArgs,
+{
+    type Args = As::Args;
+
+    #[inline]
+    fn store_as_with(
+        source: &T,
+        builder: &mut CellBuilder,
+        args: Self::Args,
+    ) -> Result<(), CellBuilderError> {
+        source
+            .clone()
+            .try_into()
+            .map_err(Error::custom)?
+            .store_with(builder, args)
+    }
+}
+
+impl<'de, T, As> CellDeserializeAs<'de, T> for TryFromIntoRef<As>
+where
+    As: TryInto<T> + CellDeserialize<'de>,
+    <As as TryInto<T>>::Error: Display,
+{
+    #[inline]
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
+        As::parse(parser)?.try_into().map_err(Error::custom)
+    }
+}
+
+impl<'de, T, As> CellDeserializeAsWithArgs<'de, T> for TryFromIntoRef<As>
 where
     As: TryInto<T> + CellDeserializeWithArgs<'de>,
     <As as TryInto<T>>::Error: Display,

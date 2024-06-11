@@ -11,15 +11,21 @@ use crate::{
 
 use super::{CellParser, CellParserError};
 
+/// A type that can be **de**serialized.  
+/// In contrast with [`CellDeserialize`](super::CellDeserialize) it allows to
+/// pass [`Args`](CellDeserializeWithArgs::Args) and these arguments can be
+/// calculated dynamically in runtime.
 pub trait CellDeserializeWithArgs<'de>: Sized {
     type Args;
 
+    /// Parses the value with args
     fn parse_with(
         parser: &mut CellParser<'de>,
         args: Self::Args,
     ) -> Result<Self, CellParserError<'de>>;
 }
 
+/// Owned version of [`CellDeserializeWithArgs`]
 pub trait CellDeserializeWithArgsOwned: for<'de> CellDeserializeWithArgs<'de> {}
 impl<T> CellDeserializeWithArgsOwned for T where T: for<'de> CellDeserializeWithArgs<'de> {}
 
@@ -133,6 +139,11 @@ where
     }
 }
 
+/// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
+/// ```tlb
+/// left$0 {X:Type} {Y:Type} value:X = Either X Y;
+/// right$1 {X:Type} {Y:Type} value:Y = Either X Y;
+/// ```
 impl<'de, Left, Right> CellDeserializeWithArgs<'de> for Either<Left, Right>
 where
     Left: CellDeserializeWithArgs<'de>,
@@ -152,7 +163,11 @@ where
     }
 }
 
-/// [Maybe](https://docs.ton.org/develop/data-formats/tl-b-types#maybe)
+/// Implementation of [`Maybe X`](https://docs.ton.org/develop/data-formats/tl-b-types#maybe):
+/// ```tlb
+/// nothing$0 {X:Type} = Maybe X;
+/// just$1 {X:Type} value:X = Maybe X;
+/// ```
 impl<'de, T> CellDeserializeWithArgs<'de> for Option<T>
 where
     T: CellDeserializeWithArgs<'de>,

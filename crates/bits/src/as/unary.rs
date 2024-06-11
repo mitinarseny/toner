@@ -1,14 +1,13 @@
-use core::iter;
-
 use num_traits::{ConstZero, One, ToPrimitive, Unsigned};
-use tlb::{
-    bits::{
-        de::{r#as::BitUnpackAs, BitReader},
-        ser::{r#as::BitPackAs, BitWriter, BitWriterExt},
-    },
+
+use crate::{
+    de::{r#as::BitUnpackAs, BitReader},
+    ser::{r#as::BitPackAs, BitWriter, BitWriterExt},
     Error,
 };
 
+/// [`Unary ~n`](https://docs.ton.org/develop/data-formats/tl-b-types#unary)
+/// adapter
 /// ```tlb
 /// unary_zero$0 = Unary ~0;
 /// unary_succ$1 {n:#} x:(Unary ~n) = Unary ~(n + 1);
@@ -26,11 +25,10 @@ where
     {
         writer
             // unary_succ$1 {n:#} x:(Unary ~n) = Unary ~(n + 1);
-            .pack_many(
-                iter::repeat(true).take(
-                    num.to_usize()
-                        .ok_or_else(|| Error::custom("cannot be represented as usize"))?,
-                ),
+            .with_repeat_bit(
+                num.to_usize()
+                    .ok_or_else(|| Error::custom("cannot be represented as usize"))?,
+                true,
             )?
             // unary_zero$0 = Unary ~0;
             .pack(false)?;

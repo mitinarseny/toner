@@ -1,3 +1,4 @@
+//! TON [Wallet](https://docs.ton.org/participate/wallets/contracts)
 pub mod mnemonic;
 pub mod v4r2;
 
@@ -14,10 +15,29 @@ use tlb::{
     ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
     Cell,
 };
-use tlb_ton::{CommonMsgInfo, ExternalInMsgInfo, Message, MsgAddress, StateInit};
+use tlb_ton::{
+    message::{CommonMsgInfo, ExternalInMsgInfo, Message},
+    state_init::StateInit,
+    MsgAddress,
+};
 
 pub const DEFAULT_WALLET_ID: u32 = 0x29a9a317;
 
+/// Generic wallet for signing messages
+///
+/// ```rust
+/// # use ton_contracts::wallet::{mnemonic::Mnemonic, Wallet, v4r2::V4R2};
+/// let mnemonic: Mnemonic = "jewel loop vast intact snack drip fatigue lunch erode green indoor balance together scrub hen monster hour narrow banner warfare increase panel sound spell"
+///     .parse()
+///     .unwrap();
+/// let keypair = mnemonic.generate_keypair(None).unwrap();
+/// let wallet = Wallet::<V4R2>::derive_default(keypair).unwrap();
+///
+/// assert_eq!(
+///     wallet.address(),
+///     "UQA7RMTgzvcyxNNLmK2HdklOvFE8_KNMa-btKZ0dPU1UsqfC".parse().unwrap(),
+/// )
+/// ```
 pub struct Wallet<V> {
     address: MsgAddress,
     wallet_id: u32,
@@ -29,38 +49,77 @@ impl<V> Wallet<V>
 where
     V: WalletVersion,
 {
+    /// Derive wallet from its workchain, keypair and id
     pub fn derive(workchain_id: i32, key_pair: Keypair, wallet_id: u32) -> anyhow::Result<Self> {
-        let state_init = StateInit::<_, _> {
-            code: Some(V::code()),
-            data: Some(V::init_data(wallet_id, key_pair.pkey)),
-            ..Default::default()
-        }
-        .to_cell()?;
-
-        let state_init_hash = state_init.hash();
         Ok(Self {
-            address: MsgAddress {
+            address: MsgAddress::derive(
                 workchain_id,
-                address: state_init_hash,
-            },
+                StateInit::<_, _> {
+                    code: Some(V::code()),
+                    data: Some(V::init_data(wallet_id, key_pair.pkey)),
+                    ..Default::default()
+                }
+                .normalize()?,
+            )?,
             wallet_id,
             key_pair,
             _phantom: PhantomData,
         })
     }
 
+    /// Shortcut for [`Wallet::derive()`] with default workchain and wallet id
     pub fn derive_default(key_pair: Keypair) -> anyhow::Result<Self> {
         Self::derive(0, key_pair, DEFAULT_WALLET_ID)
     }
 
-    pub fn address(&self) -> MsgAddress {
+    /// Address of the wallet
+    #[inline]
+    pub const fn address(&self) -> MsgAddress {
         self.address
     }
 
-    pub fn wallet_id(&self) -> u32 {
+    /// ID of the wallet
+    #[inline]
+    pub const fn wallet_id(&self) -> u32 {
         self.wallet_id
     }
 
+    /// Shortcut to [create](Wallet::create_external_body),
+    /// [sign](Wallet::sign_body) and [wrap](Wallet::wrap_signed) external
+    /// message ready for sending to TON blockchain.
+    ///
+    /// ```rust
+    /// # use tlb_ton::{message::Message, currency::ONE_TON};
+    /// # use ton_contracts::wallet::{
+    /// #   mnemonic::Mnemonic,
+    /// #   v4r2::V4R2,
+    /// #   Wallet,
+    /// #   WalletOpSendMessage,
+    /// # };
+    /// # let mnemonic: Mnemonic = "jewel loop vast intact snack drip fatigue lunch erode green indoor balance together scrub hen monster hour narrow banner warfare increase panel sound spell"
+    /// #     .parse()
+    /// #     .unwrap();
+    /// # let keypair = mnemonic.generate_keypair(None).unwrap();
+    /// # let wallet = Wallet::<V4R2>::derive_default(keypair).unwrap();
+    /// let msg = wallet.create_external_message(
+    ///     Default::default(), // DateTime::UNIX_EPOCH means no deadline
+    ///     0, // seqno
+    ///     [WalletOpSendMessage {
+    ///         mode: 3,
+    ///         message: Message::<()>::transfer(
+    ///             "EQAWezezpqKTbO6xjCussXDdIeJ7XxTcErjA6uD3T3r7AwTk"
+    ///                 .parse()
+    ///                 .unwrap(),
+    ///             ONE_TON.clone(),
+    ///             false,
+    ///         )
+    ///             .normalize()
+    ///             .unwrap(),
+    ///     }],
+    ///     false, // do not deploy wallet
+    /// );
+    /// ```
+    #[inline]
     pub fn create_external_message(
         &self,
         expire_at: DateTime<Utc>,
@@ -74,6 +133,8 @@ where
         Ok(wrapped)
     }
 
+    /// Create external body for this wallet.
+    #[inline]
     pub fn create_external_body(
         &self,
         expire_at: DateTime<Utc>,
@@ -83,6 +144,8 @@ where
         V::create_external_body(self.wallet_id, expire_at, seqno, msgs)
     }
 
+    /// Sign body from [`.create_external_body()`](Wallet::create_external_body)
+    /// using this wallet's private key
     pub fn sign_body(&self, msg: &V::MessageBody) -> anyhow::Result<SignedBody> {
         let msg = msg.to_cell()?;
         Ok(SignedBody {
@@ -99,6 +162,9 @@ where
         })
     }
 
+    /// Wrap signed body from [`.sign_body()`](Wallet::sign_body) in a message
+    /// ready for sending to TON blockchain.
+    #[inline]
     pub fn wrap_signed(
         &self,
         body: SignedBody,
@@ -120,6 +186,7 @@ where
     }
 }
 
+/// Signed body retuned from [`Wallet::sign_body()`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignedBody<T = Cell> {
     pub sig: [u8; 64],
@@ -130,6 +197,7 @@ impl<T> CellSerialize for SignedBody<T>
 where
     T: CellSerialize,
 {
+    #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder.pack(self.sig)?.store(&self.msg)?;
         Ok(())
@@ -140,6 +208,7 @@ impl<'de, T> CellDeserialize<'de> for SignedBody<T>
 where
     T: CellDeserialize<'de>,
 {
+    #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             sig: parser.unpack()?,
@@ -148,14 +217,18 @@ where
     }
 }
 
+/// Version of [`Wallet`]
 pub trait WalletVersion {
     type Data: CellSerialize;
     type MessageBody: CellSerialize;
 
+    /// Code of the wallet for use with [`StateInit`]
     fn code() -> Arc<Cell>;
 
+    /// Init data for use with [`StateInit`]
     fn init_data(wallet_id: u32, pubkey: [u8; PUBLIC_KEY_LENGTH]) -> Self::Data;
 
+    /// Creates external body for [`Wallet::sign_body()`]
     fn create_external_body(
         wallet_id: u32,
         expire_at: DateTime<Utc>,
@@ -164,6 +237,7 @@ pub trait WalletVersion {
     ) -> Self::MessageBody;
 }
 
+/// Operation for [`Wallet`] to send message
 pub struct WalletOpSendMessage<T = Cell, IC = Cell, ID = Cell> {
     /// See <https://docs.ton.org/develop/func/stdlib#send_raw_message>
     pub mode: u8,
@@ -176,6 +250,7 @@ where
     IC: CellSerialize,
     ID: CellSerialize,
 {
+    #[inline]
     pub fn normalize(&self) -> Result<WalletOpSendMessage, CellBuilderError> {
         Ok(WalletOpSendMessage {
             mode: self.mode,
@@ -190,34 +265,9 @@ where
     IC: CellSerialize,
     ID: CellSerialize,
 {
+    #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder.pack(self.mode)?.store_as::<_, Ref>(&self.message)?;
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use tlb_ton::MsgAddress;
-
-    use crate::wallet::{mnemonic::Mnemonic, v4r2::V4R2, Wallet};
-
-    #[test]
-    fn derive() {
-        const MNEMONIC: &str = "jewel loop vast intact snack drip fatigue lunch erode green indoor balance together scrub hen monster hour narrow banner warfare increase panel sound spell";
-
-        let expected_address: MsgAddress = "UQA7RMTgzvcyxNNLmK2HdklOvFE8_KNMa-btKZ0dPU1UsqfC"
-            .parse()
-            .unwrap();
-
-        let key_pair = MNEMONIC
-            .parse::<Mnemonic>()
-            .unwrap()
-            .generate_keypair(None)
-            .unwrap();
-
-        let wallet = Wallet::<V4R2>::derive_default(key_pair).unwrap();
-
-        assert_eq!(wallet.address, expected_address)
     }
 }
