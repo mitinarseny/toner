@@ -1,6 +1,6 @@
+//! Collection of bintree-like **de**/**ser**ializable data structures
 pub mod aug;
 
-use std::iter::once;
 use std::ops::Deref;
 
 use tlb::bits::de::BitReaderExt;
@@ -8,6 +8,7 @@ use tlb::de::args::r#as::CellDeserializeAsWithArgs;
 use tlb::de::{CellParser, CellParserError};
 use tlb::r#as::Ref;
 
+/// [`BinTree X`](https://docs.ton.org/develop/data-formats/tl-b-types#bintree)
 /// ```tlb
 /// bt_leaf$0 {X:Type} leaf:X = BinTree X;
 /// bt_fork$1 {X:Type} left:^(BinTree X) right:^(BinTree X) = BinTree X;
@@ -73,9 +74,8 @@ where
     }
 }
 
-impl<'de, T, As, C> CellDeserializeAsWithArgs<'de, C> for BinTree<As>
+impl<'de, T, As> CellDeserializeAsWithArgs<'de, Vec<T>> for BinTree<As>
 where
-    C: IntoIterator<Item = T> + Extend<T> + Default, // IntoIterator used as type constraint for T
     As: CellDeserializeAsWithArgs<'de, T>,
     As::Args: Clone,
 {
@@ -85,24 +85,23 @@ where
     fn parse_as_with(
         parser: &mut CellParser<'de>,
         args: Self::Args,
-    ) -> Result<C, CellParserError<'de>> {
-        let mut output = C::default();
+    ) -> Result<Vec<T>, CellParserError<'de>> {
+        let mut output = Vec::new();
         let mut stack: Vec<CellParser<'de>> = Vec::new();
 
         #[inline]
-        fn parse<'de, T, As, C>(
+        fn parse<'de, T, As>(
             parser: &mut CellParser<'de>,
             stack: &mut Vec<CellParser<'de>>,
-            output: &mut C,
+            output: &mut Vec<T>,
             args: As::Args,
         ) -> Result<(), CellParserError<'de>>
         where
-            C: Extend<T>,
             As: CellDeserializeAsWithArgs<'de, T>,
         {
             match parser.unpack()? {
                 // bt_leaf$0
-                false => output.extend(once(parser.parse_as_with::<_, As>(args)?)),
+                false => output.push(parser.parse_as_with::<_, As>(args)?),
                 // bt_fork$1
                 true => stack.extend(
                     parser
@@ -115,12 +114,13 @@ where
             Ok(())
         }
 
-        parse::<_, As, C>(parser, &mut stack, &mut output, args.clone())?;
+        parse::<_, As>(parser, &mut stack, &mut output, args.clone())?;
 
         while let Some(mut parser) = stack.pop() {
-            parse::<_, As, C>(&mut parser, &mut stack, &mut output, args.clone())?;
+            parse::<_, As>(&mut parser, &mut stack, &mut output, args.clone())?;
         }
 
+        output.shrink_to_fit();
         Ok(output)
     }
 }
@@ -128,7 +128,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::BinTree;
-    use std::collections::BTreeSet;
     use tlb::bits::bitvec::bits;
     use tlb::bits::bitvec::order::Msb0;
     use tlb::r#as::{Data, NoArgs, Ref, Same};
@@ -198,23 +197,6 @@ mod tests {
             .unwrap();
 
         assert_eq!(got, vec![5, 3]);
-    }
-
-    #[test]
-    fn bin_tree_as_btreeset_fork() {
-        let data = (
-            bits![u8, Msb0; 1].wrap_as::<Data>(),
-            bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 1].wrap_as::<Ref<Data>>(),
-            bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 1].wrap_as::<Ref<Data>>(),
-        )
-            .to_cell()
-            .unwrap();
-
-        let got: BTreeSet<u8> = data
-            .parse_fully_as_with::<_, BinTree<Data<NoArgs<_>>>>(())
-            .unwrap();
-
-        assert_eq!(got.into_iter().collect::<Vec<_>>(), vec![5]);
     }
 
     #[test]

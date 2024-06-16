@@ -1,3 +1,4 @@
+//! Binary **ser**ialization for [TL-B](https://docs.ton.org/develop/data-formats/tl-b-language)
 pub mod args;
 pub mod r#as;
 mod writer;
@@ -17,13 +18,16 @@ use crate::{
 
 use self::args::BitPackWithArgs;
 
+/// A type that can be bitwise-**ser**ilalized into any [`BitWriter`].
 #[autoimpl(for<S: trait + ?Sized> &S, &mut S, Box<S>, Rc<S>, Arc<S>)]
 pub trait BitPack {
+    /// Pack value into the writer.
     fn pack<W>(&self, writer: W) -> Result<(), W::Error>
     where
         W: BitWriter;
 }
 
+/// **Ser**ialize given value into [`BitVec`]
 #[inline]
 pub fn pack<T>(value: T) -> Result<BitVec<u8, Msb0>, StringError>
 where
@@ -34,6 +38,7 @@ where
     Ok(writer)
 }
 
+/// Serialize given value with args into [`BitVec`]
 #[inline]
 pub fn pack_with<T>(value: T, args: T::Args) -> Result<BitVec<u8, Msb0>, StringError>
 where
@@ -133,6 +138,11 @@ impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
 impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
 impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
 
+/// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
+/// ```tlb
+/// left$0 {X:Type} {Y:Type} value:X = Either X Y;
+/// right$1 {X:Type} {Y:Type} value:Y = Either X Y;
+/// ```
 impl<L, R> BitPack for Either<L, R>
 where
     L: BitPack,
@@ -151,7 +161,11 @@ where
     }
 }
 
-/// [Maybe](https://docs.ton.org/develop/data-formats/tl-b-types#maybe)
+/// Implementation of [`Maybe X`](https://docs.ton.org/develop/data-formats/tl-b-types#maybe):
+/// ```tlb
+/// nothing$0 {X:Type} = Maybe X;
+/// just$1 {X:Type} value:X = Maybe X;
+/// ```
 impl<T> BitPack for Option<T>
 where
     T: BitPack,
@@ -166,7 +180,7 @@ where
     }
 }
 
-impl<'a> BitPack for &'a BitSlice<u8, Msb0> {
+impl BitPack for BitSlice<u8, Msb0> {
     #[inline]
     fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
     where
@@ -194,5 +208,15 @@ impl BitPack for str {
     {
         writer.pack_as::<_, AsBytes>(self)?;
         Ok(())
+    }
+}
+
+impl BitPack for String {
+    #[inline]
+    fn pack<W>(&self, writer: W) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        self.as_str().pack(writer)
     }
 }

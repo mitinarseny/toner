@@ -1,3 +1,4 @@
+//! **De**serialization for [TL-B](https://docs.ton.org/develop/data-formats/tl-b-language)
 pub mod args;
 pub mod r#as;
 mod parser;
@@ -14,10 +15,13 @@ use crate::{
     Cell, ResultExt,
 };
 
+/// A type that can be **de**serialized from [`CellParser`].
 pub trait CellDeserialize<'de>: Sized {
+    /// Parse value
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>>;
 }
 
+/// Owned version of [`CellDeserialize`]
 pub trait CellDeserializeOwned: for<'de> CellDeserialize<'de> {}
 impl<T> CellDeserializeOwned for T where T: for<'de> CellDeserialize<'de> {}
 
@@ -100,6 +104,11 @@ where
     }
 }
 
+/// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
+/// ```tlb
+/// left$0 {X:Type} {Y:Type} value:X = Either X Y;
+/// right$1 {X:Type} {Y:Type} value:Y = Either X Y;
+/// ```
 impl<'de, Left, Right> CellDeserialize<'de> for Either<Left, Right>
 where
     Left: CellDeserialize<'de>,
@@ -114,7 +123,11 @@ where
     }
 }
 
-/// [Maybe](https://docs.ton.org/develop/data-formats/tl-b-types#maybe)
+/// Implementation of [`Maybe X`](https://docs.ton.org/develop/data-formats/tl-b-types#maybe):
+/// ```tlb
+/// nothing$0 {X:Type} = Maybe X;
+/// just$1 {X:Type} value:X = Maybe X;
+/// ```
 impl<'de, T> CellDeserialize<'de> for Option<T>
 where
     T: CellDeserialize<'de>,

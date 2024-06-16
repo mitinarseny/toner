@@ -1,12 +1,12 @@
 [package]
 name = "ton-contracts"
-version = "0.2.20"
+version = "0.2.21"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Common smart-contracts for TON blockchain"
+description = "Bindings for common smart-contracts on TON blockchain"
 
 [dependencies]
 tlb.workspace = true

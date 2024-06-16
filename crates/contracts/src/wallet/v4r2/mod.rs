@@ -12,7 +12,8 @@ use tlb::{
     Cell,
 };
 use tlb_ton::{
-    currency::Grams, hashmap::HashmapE, BagOfCells, MsgAddress, StateInit, UnixTimestamp,
+    boc::BagOfCells, currency::Grams, hashmap::HashmapE, state_init::StateInit, MsgAddress,
+    UnixTimestamp,
 };
 
 use super::{WalletOpSendMessage, WalletVersion};
@@ -27,6 +28,7 @@ lazy_static! {
     };
 }
 
+/// Wallet [v4r2](https://github.com/ton-blockchain/wallet-contract/blob/4111fd9e3313ec17d99ca9b5b1656445b5b49d8f/README.md).
 pub struct V4R2;
 
 impl WalletVersion for V4R2 {
@@ -209,7 +211,7 @@ impl<'de> CellDeserialize<'de> for WalletV4R2OpPlugin {
 #[cfg(test)]
 mod tests {
     use tlb::bits::{de::unpack_fully, ser::pack_with};
-    use tlb_ton::{BagOfCellsArgs, BoC};
+    use tlb_ton::boc::{BagOfCellsArgs, BoC};
 
     use super::*;
 

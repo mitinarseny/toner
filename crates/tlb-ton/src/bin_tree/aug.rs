@@ -5,9 +5,12 @@ use tlb::{
     ser::{args::r#as::CellSerializeAsWithArgs, CellBuilder, CellBuilderError},
 };
 
+/// [`BinTreeAug X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#bintree)  
+/// ```tlb
 /// bta_leaf$0 {X:Type} {Y:Type} extra:Y leaf:X = BinTreeAug X Y;
 /// bta_fork$1 {X:Type} {Y:Type} left:^(BinTreeAug X Y)
 /// right:^(BinTreeAug X Y) extra:Y = BinTreeAug X Y;
+/// ```
 pub struct BinTreeAug<T, E = ()> {
     pub node: BinTreeNode<T, E>,
     pub extra: E,
@@ -57,9 +60,14 @@ where
     }
 }
 
-/// bt_leaf$0 {X:Type} {Y:Type} leaf:X = BinTree X Y;
-/// bt_fork$1 {X:Type} {Y:Type} left:^(BinTree X Y)
-/// right:^(BinTreeAug X Y) = BinTree X Y;
+/// [`BinTreeAugNode X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#bintree)
+/// Type parameter `E` is optional and stands for `extra`, so it can be reused
+/// for [`BinTree X`](super::BinTree)
+/// ```tlb
+/// bta_leaf$0 {X:Type} {Y:Type} extra:Y leaf:X = BinTreeAug X Y;
+/// bta_fork$1 {X:Type} {Y:Type} left:^(BinTreeAug X Y)
+/// right:^(BinTreeAug X Y) extra:Y = BinTreeAug X Y;
+/// ```
 pub enum BinTreeNode<T, E = ()> {
     Leaf(T),
     Fork([Box<BinTreeAug<T, E>>; 2]),

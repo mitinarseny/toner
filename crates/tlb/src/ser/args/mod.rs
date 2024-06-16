@@ -8,10 +8,15 @@ use crate::{bits::ser::BitWriterExt, either::Either, r#as::Same, ResultExt};
 
 use super::{CellBuilder, CellBuilderError};
 
+/// A type that can be **ser**ialized.  
+/// In contrast with [`CellSerialize`](super::CellSerialize) it allows to pass
+/// [`Args`](CellSerializeWithArgs::Args) and these arguments can be
+/// calculated dynamically in runtime.
 #[autoimpl(for <T: trait + ?Sized> &T, &mut T, Box<T>, Rc<T>, Arc<T>)]
 pub trait CellSerializeWithArgs {
     type Args;
 
+    /// Stores the value with args
     fn store_with(
         &self,
         builder: &mut CellBuilder,
@@ -37,6 +42,11 @@ where
     }
 }
 
+/// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
+/// ```tlb
+/// left$0 {X:Type} {Y:Type} value:X = Either X Y;
+/// right$1 {X:Type} {Y:Type} value:Y = Either X Y;
+/// ```
 impl<L, R> CellSerializeWithArgs for Either<L, R>
 where
     L: CellSerializeWithArgs,
@@ -66,7 +76,11 @@ where
     }
 }
 
-/// [Maybe](https://docs.ton.org/develop/data-formats/tl-b-types#maybe)
+/// Implementation of [`Maybe X`](https://docs.ton.org/develop/data-formats/tl-b-types#maybe):
+/// ```tlb
+/// nothing$0 {X:Type} = Maybe X;
+/// just$1 {X:Type} value:X = Maybe X;
+/// ```
 impl<T> CellSerializeWithArgs for Option<T>
 where
     T: CellSerializeWithArgs,

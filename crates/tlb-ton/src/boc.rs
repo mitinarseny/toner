@@ -1,3 +1,4 @@
+//! Collection of types related to [Bag Of Cells](https://docs.ton.org/develop/data-formats/cell-boc#bag-of-cells)
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -15,14 +16,50 @@ use tlb::{
     Cell, Error, ResultExt, StringError,
 };
 
+/// Alias to [`BagOfCells`]
 pub type BoC = BagOfCells;
 
+/// [Bag Of Cells](https://docs.ton.org/develop/data-formats/cell-boc#bag-of-cells) is used to **de**/**ser**ialize a set of cells from/into
+/// bytes.
+///
+/// ```rust
+/// # use tlb::{
+/// #     r#as::Data,
+/// #     bits::{de::unpack_fully, ser::{BitWriterExt, pack_with}},
+/// #     Cell,
+/// #     ser::CellSerializeExt,
+/// #     StringError,
+/// # };
+/// # use tlb_ton::{boc::{BagOfCells, BagOfCellsArgs}, MsgAddress};
+/// # fn main() -> Result<(), StringError> {
+/// let addr = MsgAddress::NULL;
+/// let mut builder = Cell::builder();
+/// builder.pack(addr)?;
+/// let root = builder.into_cell();
+///
+/// let boc = BagOfCells::from_root(root);
+/// let packed = pack_with(boc, BagOfCellsArgs {
+///     has_idx: false,
+///     has_crc32c: true,
+/// })?;
+///
+/// let unpacked: BagOfCells = unpack_fully(packed)?;
+/// let got: MsgAddress = unpacked
+///     .single_root()
+///     .unwrap()
+///     .parse_fully_as::<_, Data>()?;
+///
+/// assert_eq!(got, addr);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone)]
 pub struct BagOfCells {
     roots: Vec<Arc<Cell>>,
 }
 
 impl BagOfCells {
+    /// Create from single root cell
     #[inline]
     pub fn from_root(root: impl Into<Arc<Cell>>) -> Self {
         Self {
@@ -30,11 +67,13 @@ impl BagOfCells {
         }
     }
 
+    /// Add root
     #[inline]
     pub fn add_root(&mut self, root: impl Into<Arc<Cell>>) {
         self.roots.push(root.into())
     }
 
+    /// Return single root or `None` otherwise
     #[inline]
     pub fn single_root(&self) -> Option<&Arc<Cell>> {
         let [root]: &[_; 1] = self.roots.as_slice().try_into().ok()?;
@@ -59,23 +98,61 @@ impl BagOfCells {
         Ok(())
     }
 
+    /// Parse hexadecimal string
     pub fn parse_hex(s: impl AsRef<[u8]>) -> Result<Self, StringError> {
         let bytes = hex::decode(s).map_err(Error::custom)?;
         Self::unpack(bytes.as_bits())
     }
 
+    /// Parse base64-encoded string
     pub fn parse_base64(s: impl AsRef<[u8]>) -> Result<Self, StringError> {
         let bytes = STANDARD.decode(s).map_err(Error::custom)?;
         Self::unpack(bytes.as_bits())
     }
 }
 
+/// [`BitPackWithArgs::Args`] for [`BagOfCells`]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BagOfCellsArgs {
     pub has_idx: bool,
     pub has_crc32c: bool,
 }
 
+/// ```tlb
+/// serialized_boc_idx#68ff65f3 size:(## 8) { size <= 4 }
+///   off_bytes:(## 8) { off_bytes <= 8 }
+///   cells:(##(size * 8))
+///   roots:(##(size * 8)) { roots = 1 }
+///   absent:(##(size * 8)) { roots + absent <= cells }
+///   tot_cells_size:(##(off_bytes * 8))
+///   index:(cells * ##(off_bytes * 8))
+///   cell_data:(tot_cells_size * [ uint8 ])
+///   = BagOfCells;///
+
+/// serialized_boc_idx_crc32c#acc3a728 size:(## 8) { size <= 4 }
+///   off_bytes:(## 8) { off_bytes <= 8 }
+///   cells:(##(size * 8))
+///   roots:(##(size * 8)) { roots = 1 }
+///   absent:(##(size * 8)) { roots + absent <= cells }
+///   tot_cells_size:(##(off_bytes * 8))
+///   index:(cells * ##(off_bytes * 8))
+///   cell_data:(tot_cells_size * [ uint8 ])
+///   crc32c:uint32 = BagOfCells;///
+
+/// serialized_boc#b5ee9c72 has_idx:(## 1) has_crc32c:(## 1)
+///   has_cache_bits:(## 1) flags:(## 2) { flags = 0 }
+///   size:(## 3) { size <= 4 }
+///   off_bytes:(## 8) { off_bytes <= 8 }
+///   cells:(##(size * 8))
+///   roots:(##(size * 8)) { roots >= 1 }
+///   absent:(##(size * 8)) { roots + absent <= cells }
+///   tot_cells_size:(##(off_bytes * 8))
+///   root_list:(roots * ##(size * 8))
+///   index:has_idx?(cells * ##(off_bytes * 8))
+///   cell_data:(tot_cells_size * [ uint8 ])
+///   crc32c:has_crc32c?uint32
+///   = BagOfCells;
+/// ```
 impl BitPackWithArgs for BagOfCells {
     type Args = BagOfCellsArgs;
 
@@ -137,6 +214,41 @@ impl BitPackWithArgs for BagOfCells {
     }
 }
 
+/// ```tlb
+/// serialized_boc_idx#68ff65f3 size:(## 8) { size <= 4 }
+///   off_bytes:(## 8) { off_bytes <= 8 }
+///   cells:(##(size * 8))
+///   roots:(##(size * 8)) { roots = 1 }
+///   absent:(##(size * 8)) { roots + absent <= cells }
+///   tot_cells_size:(##(off_bytes * 8))
+///   index:(cells * ##(off_bytes * 8))
+///   cell_data:(tot_cells_size * [ uint8 ])
+///   = BagOfCells;///
+
+/// serialized_boc_idx_crc32c#acc3a728 size:(## 8) { size <= 4 }
+///   off_bytes:(## 8) { off_bytes <= 8 }
+///   cells:(##(size * 8))
+///   roots:(##(size * 8)) { roots = 1 }
+///   absent:(##(size * 8)) { roots + absent <= cells }
+///   tot_cells_size:(##(off_bytes * 8))
+///   index:(cells * ##(off_bytes * 8))
+///   cell_data:(tot_cells_size * [ uint8 ])
+///   crc32c:uint32 = BagOfCells;///
+
+/// serialized_boc#b5ee9c72 has_idx:(## 1) has_crc32c:(## 1)
+///   has_cache_bits:(## 1) flags:(## 2) { flags = 0 }
+///   size:(## 3) { size <= 4 }
+///   off_bytes:(## 8) { off_bytes <= 8 }
+///   cells:(##(size * 8))
+///   roots:(##(size * 8)) { roots >= 1 }
+///   absent:(##(size * 8)) { roots + absent <= cells }
+///   tot_cells_size:(##(off_bytes * 8))
+///   root_list:(roots * ##(size * 8))
+///   index:has_idx?(cells * ##(off_bytes * 8))
+///   cell_data:(tot_cells_size * [ uint8 ])
+///   crc32c:has_crc32c?uint32
+///   = BagOfCells;
+/// ```
 impl BitUnpack for BagOfCells {
     fn unpack<R>(reader: R) -> Result<Self, R::Error>
     where
@@ -438,32 +550,5 @@ impl RawCell {
     fn size(&self, ref_size_bytes: u32) -> u32 {
         let data_len: u32 = (self.data.len() as u32 + 7) / 8;
         2 + data_len + self.references.len() as u32 * ref_size_bytes
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use tlb::{
-        bits::{de::unpack_fully, ser::pack_with},
-        ser::CellSerializeExt,
-    };
-
-    use super::*;
-
-    #[test]
-    fn boc_serde() {
-        let packed = pack_with(
-            BoC::from_root(().to_cell().unwrap()),
-            BagOfCellsArgs {
-                has_idx: false,
-                has_crc32c: true,
-            },
-        )
-        .unwrap();
-
-        let unpacked: BoC = unpack_fully(packed).unwrap();
-
-        let got: () = unpacked.single_root().unwrap().parse_fully().unwrap();
-        assert_eq!(got, ());
     }
 }

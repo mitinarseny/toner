@@ -1,37 +1,28 @@
 use std::{rc::Rc, sync::Arc};
 
-use crate::{bits::ser::r#as::PackAsWrap, either::Either, r#as::NoArgs};
+use crate::{
+    either::Either,
+    r#as::{AsWrap, NoArgs},
+};
 
 use super::{
     super::{CellBuilder, CellBuilderError},
     CellSerializeWithArgs,
 };
 
+/// Adapter to **ser**ialize `T` with args.  
+/// See [`as`](crate::as) module-level documentation for more.
+///
+/// For version without arguments, see [`CellSerializeAs`](super::super::as::CellSerializeAs).
 pub trait CellSerializeAsWithArgs<T: ?Sized> {
     type Args;
 
+    /// Stores the value with args using an adapter
     fn store_as_with(
         source: &T,
         builder: &mut CellBuilder,
         args: Self::Args,
     ) -> Result<(), CellBuilderError>;
-}
-
-impl<'a, T, As> CellSerializeWithArgs for PackAsWrap<'a, T, As>
-where
-    T: ?Sized,
-    As: CellSerializeAsWithArgs<T> + ?Sized,
-{
-    type Args = As::Args;
-
-    #[inline]
-    fn store_with(
-        &self,
-        builder: &mut CellBuilder,
-        args: Self::Args,
-    ) -> Result<(), CellBuilderError> {
-        As::store_as_with(self.into_inner(), builder, args)
-    }
 }
 
 impl<'a, T, As> CellSerializeAsWithArgs<&'a T> for &'a As
@@ -47,7 +38,7 @@ where
         builder: &mut CellBuilder,
         args: Self::Args,
     ) -> Result<(), CellBuilderError> {
-        PackAsWrap::<T, As>::new(source).store_with(builder, args)
+        AsWrap::<&T, As>::new(source).store_with(builder, args)
     }
 }
 
@@ -64,7 +55,7 @@ where
         builder: &mut CellBuilder,
         args: Self::Args,
     ) -> Result<(), CellBuilderError> {
-        PackAsWrap::<T, As>::new(source).store_with(builder, args)
+        AsWrap::<&T, As>::new(source).store_with(builder, args)
     }
 }
 
@@ -144,7 +135,7 @@ where
         builder: &mut CellBuilder,
         args: Self::Args,
     ) -> Result<(), CellBuilderError> {
-        PackAsWrap::<T, As>::new(source).store_with(builder, args)
+        AsWrap::<&T, As>::new(source).store_with(builder, args)
     }
 }
 
@@ -160,7 +151,7 @@ where
         builder: &mut CellBuilder,
         args: Self::Args,
     ) -> Result<(), CellBuilderError> {
-        PackAsWrap::<T, As>::new(source).store_with(builder, args)
+        AsWrap::<&T, As>::new(source).store_with(builder, args)
     }
 }
 
@@ -176,10 +167,15 @@ where
         builder: &mut CellBuilder,
         args: Self::Args,
     ) -> Result<(), CellBuilderError> {
-        PackAsWrap::<T, As>::new(source).store_with(builder, args)
+        AsWrap::<&T, As>::new(source).store_with(builder, args)
     }
 }
 
+/// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
+/// ```tlb
+/// left$0 {X:Type} {Y:Type} value:X = Either X Y;
+/// right$1 {X:Type} {Y:Type} value:Y = Either X Y;
+/// ```
 impl<Left, Right, AsLeft, AsRight> CellSerializeAsWithArgs<Either<Left, Right>>
     for Either<AsLeft, AsRight>
 where
@@ -196,10 +192,7 @@ where
     ) -> Result<(), CellBuilderError> {
         source
             .as_ref()
-            .map_either(
-                PackAsWrap::<Left, AsLeft>::new,
-                PackAsWrap::<Right, AsRight>::new,
-            )
+            .map_either(AsWrap::<&Left, AsLeft>::new, AsWrap::<&Right, AsRight>::new)
             .store_with(builder, args)
     }
 }
@@ -217,13 +210,18 @@ where
         args: Self::Args,
     ) -> Result<(), CellBuilderError> {
         match source.as_ref() {
-            None => Either::Left(PackAsWrap::<_, NoArgs<_>>::new(&())),
-            Some(v) => Either::Right(PackAsWrap::<T, As>::new(v)),
+            None => Either::Left(AsWrap::<_, NoArgs<_>>::new(&())),
+            Some(v) => Either::Right(AsWrap::<&T, As>::new(v)),
         }
         .store_with(builder, args)
     }
 }
 
+/// Implementation of [`Maybe X`](https://docs.ton.org/develop/data-formats/tl-b-types#maybe):
+/// ```tlb
+/// nothing$0 {X:Type} = Maybe X;
+/// just$1 {X:Type} value:X = Maybe X;
+/// ```
 impl<T, As> CellSerializeAsWithArgs<Option<T>> for Option<As>
 where
     As: CellSerializeAsWithArgs<T>,
@@ -238,7 +236,7 @@ where
     ) -> Result<(), CellBuilderError> {
         source
             .as_ref()
-            .map(PackAsWrap::<_, As>::new)
+            .map(AsWrap::<_, As>::new)
             .store_with(builder, args)
     }
 }

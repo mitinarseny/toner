@@ -1,3 +1,4 @@
+//! Collection of typs related to [Message](https://docs.ton.org/develop/data-formats/msg-tlb#message-tl-b)
 use chrono::{DateTime, Utc};
 use num_bigint::BigUint;
 use tlb::{
@@ -8,16 +9,19 @@ use tlb::{
     },
     de::{CellDeserialize, CellParser, CellParserError},
     either::Either,
-    r#as::{Ref, Same},
+    r#as::{DefaultOnNone, Ref, Same},
     ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
     Cell,
 };
 
 use crate::{
-    currency::{CurrencyCollection, Grams},
-    MsgAddress, StateInit, UnixTimestamp,
+    currency::{CurrencyCollection, ExtraCurrencyCollection, Grams},
+    hashmap::HashmapE,
+    state_init::StateInit,
+    MsgAddress, UnixTimestamp,
 };
 
+/// [Message](https://docs.ton.org/develop/data-formats/msg-tlb#message-tl-b)
 /// ```tlb
 /// message$_ {X:Type} info:CommonMsgInfo
 /// init:(Maybe (Either StateInit ^StateInit))
@@ -36,12 +40,29 @@ where
     IC: CellSerialize,
     ID: CellSerialize,
 {
+    pub fn with_state_init(mut self, state_init: impl Into<Option<StateInit<IC, ID>>>) -> Self {
+        self.init = state_init.into();
+        self
+    }
+
     pub fn normalize(&self) -> Result<Message, CellBuilderError> {
         Ok(Message {
             info: self.info.clone(),
             init: self.init.as_ref().map(StateInit::normalize).transpose()?,
             body: self.body.to_cell()?,
         })
+    }
+}
+
+impl Message<()> {
+    /// Simple native transfer message
+    #[inline]
+    pub const fn transfer(dst: MsgAddress, grams: BigUint, bounce: bool) -> Self {
+        Self {
+            info: CommonMsgInfo::transfer(dst, grams, bounce),
+            init: None,
+            body: (),
+        }
     }
 }
 
@@ -83,6 +104,7 @@ where
     }
 }
 
+/// `info` field for [`Message`]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommonMsgInfo {
     /// ```tlb
@@ -99,6 +121,13 @@ pub enum CommonMsgInfo {
     /// ext_out_msg_info$11
     /// ```
     ExternalOut(ExternalOutMsgInfo),
+}
+
+impl CommonMsgInfo {
+    #[inline]
+    pub const fn transfer(dst: MsgAddress, grams: BigUint, bounce: bool) -> Self {
+        Self::Internal(InternalMsgInfo::transfer(dst, grams, bounce))
+    }
 }
 
 impl CellSerialize for CommonMsgInfo {
@@ -136,6 +165,7 @@ impl<'de> CellDeserialize<'de> for CommonMsgInfo {
     }
 }
 
+/// [`int_msg_info$0`](https://docs.ton.org/develop/data-formats/msg-tlb#int_msg_info0)
 /// ```tlb
 /// int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
 /// src:MsgAddressInt dest:MsgAddressInt
@@ -167,6 +197,27 @@ pub struct InternalMsgInfo {
     pub created_at: Option<DateTime<Utc>>,
 }
 
+impl InternalMsgInfo {
+    #[inline]
+    pub const fn transfer(dst: MsgAddress, grams: BigUint, bounce: bool) -> Self {
+        InternalMsgInfo {
+            ihr_disabled: true,
+            bounce,
+            bounced: false,
+            src: MsgAddress::NULL,
+            dst,
+            value: CurrencyCollection {
+                grams,
+                other: ExtraCurrencyCollection(HashmapE::Empty),
+            },
+            ihr_fee: BigUint::ZERO,
+            fwd_fee: BigUint::ZERO,
+            created_lt: 0,
+            created_at: None,
+        }
+    }
+}
+
 impl CellSerialize for InternalMsgInfo {
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder
@@ -179,7 +230,7 @@ impl CellSerialize for InternalMsgInfo {
             .pack_as::<_, &Grams>(&self.ihr_fee)?
             .pack_as::<_, &Grams>(&self.fwd_fee)?
             .pack(self.created_lt)?
-            .pack_as::<_, UnixTimestamp>(self.created_at.unwrap_or(DateTime::UNIX_EPOCH))?;
+            .pack_as::<_, DefaultOnNone<UnixTimestamp>>(self.created_at)?;
         Ok(())
     }
 }
@@ -202,6 +253,7 @@ impl<'de> CellDeserialize<'de> for InternalMsgInfo {
     }
 }
 
+/// [`ext_in_msg_info$10`](https://docs.ton.org/develop/data-formats/msg-tlb#ext_in_msg_info10)
 /// ```tlb
 /// ext_in_msg_info$10 src:MsgAddressExt dest:MsgAddressInt
 /// import_fee:Grams = CommonMsgInfo;
@@ -239,6 +291,7 @@ impl BitUnpack for ExternalInMsgInfo {
     }
 }
 
+/// [`ext_out_msg_info$11`](https://docs.ton.org/develop/data-formats/msg-tlb#ext_out_msg_info11)
 /// ```tlb
 /// ext_out_msg_info$11 src:MsgAddressInt dest:MsgAddressExt
 /// created_lt:uint64 created_at:uint32 = CommonMsgInfo;

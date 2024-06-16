@@ -1,26 +1,22 @@
 use core::mem::MaybeUninit;
 use std::{rc::Rc, sync::Arc};
 
-use crate::{bits::de::r#as::UnpackAsWrap, either::Either, ResultExt};
+use crate::{either::Either, r#as::AsWrap, ResultExt};
 
 use super::{CellDeserialize, CellParser, CellParserError};
 
+/// Adapter to **de**serialize `T`.  
+/// See [`as`](crate::as) module-level documentation for more.
+///
+/// For dynamic arguments, see
+/// [`CellDeserializeAsWithArgs`](super::args::as::CellDeserializeAsWithArgs).
 pub trait CellDeserializeAs<'de, T> {
     fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>>;
 }
 
+/// Owned version of [`CellDeserializeAs`]
 pub trait CellDeserializeAsOwned<T>: for<'de> CellDeserializeAs<'de, T> {}
 impl<T, As> CellDeserializeAsOwned<As> for T where T: for<'de> CellDeserializeAs<'de, As> + ?Sized {}
-
-impl<'de, T, As> CellDeserialize<'de> for UnpackAsWrap<T, As>
-where
-    As: CellDeserializeAs<'de, T> + ?Sized,
-{
-    #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        As::parse_as(parser).map(Self::new)
-    }
-}
 
 impl<'de, T, As, const N: usize> CellDeserializeAs<'de, [T; N]> for [As; N]
 where
@@ -46,7 +42,7 @@ macro_rules! impl_cell_deserialize_as_for_tuple {
             #[inline]
             fn parse_as(parser: &mut CellParser<'de>) -> Result<($($t,)+), CellParserError<'de>> {
                 Ok(($(
-                    UnpackAsWrap::<$t, $a>::parse(parser)
+                    AsWrap::<$t, $a>::parse(parser)
                         .context(concat!(".", stringify!($n)))?
                         .into_inner(),
                 )+))
@@ -71,8 +67,8 @@ where
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<Box<T>, CellParserError<'de>> {
-        UnpackAsWrap::<T, As>::parse(parser)
-            .map(UnpackAsWrap::into_inner)
+        AsWrap::<T, As>::parse(parser)
+            .map(AsWrap::into_inner)
             .map(Box::new)
     }
 }
@@ -83,8 +79,8 @@ where
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<Rc<T>, CellParserError<'de>> {
-        UnpackAsWrap::<T, As>::parse(parser)
-            .map(UnpackAsWrap::into_inner)
+        AsWrap::<T, As>::parse(parser)
+            .map(AsWrap::into_inner)
             .map(Rc::new)
     }
 }
@@ -95,12 +91,17 @@ where
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<Arc<T>, CellParserError<'de>> {
-        UnpackAsWrap::<T, As>::parse(parser)
-            .map(UnpackAsWrap::into_inner)
+        AsWrap::<T, As>::parse(parser)
+            .map(AsWrap::into_inner)
             .map(Arc::new)
     }
 }
 
+/// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
+/// ```tlb
+/// left$0 {X:Type} {Y:Type} value:X = Either X Y;
+/// right$1 {X:Type} {Y:Type} value:Y = Either X Y;
+/// ```
 impl<'de, Left, Right, AsLeft, AsRight> CellDeserializeAs<'de, Either<Left, Right>>
     for Either<AsLeft, AsRight>
 where
@@ -110,8 +111,8 @@ where
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<Either<Left, Right>, CellParserError<'de>> {
         Ok(
-            Either::<UnpackAsWrap<Left, AsLeft>, UnpackAsWrap<Right, AsRight>>::parse(parser)?
-                .map_either(UnpackAsWrap::into_inner, UnpackAsWrap::into_inner),
+            Either::<AsWrap<Left, AsLeft>, AsWrap<Right, AsRight>>::parse(parser)?
+                .map_either(AsWrap::into_inner, AsWrap::into_inner),
         )
     }
 }
@@ -122,18 +123,23 @@ where
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<Option<T>, CellParserError<'de>> {
-        Ok(Either::<(), UnpackAsWrap<T, As>>::parse(parser)?
-            .map_right(UnpackAsWrap::into_inner)
+        Ok(Either::<(), AsWrap<T, As>>::parse(parser)?
+            .map_right(AsWrap::into_inner)
             .right())
     }
 }
 
+/// Implementation of [`Maybe X`](https://docs.ton.org/develop/data-formats/tl-b-types#maybe):
+/// ```tlb
+/// nothing$0 {X:Type} = Maybe X;
+/// just$1 {X:Type} value:X = Maybe X;
+/// ```
 impl<'de, T, As> CellDeserializeAs<'de, Option<T>> for Option<As>
 where
     As: CellDeserializeAs<'de, T>,
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<Option<T>, CellParserError<'de>> {
-        Ok(Option::<UnpackAsWrap<T, As>>::parse(parser)?.map(UnpackAsWrap::into_inner))
+        Ok(Option::<AsWrap<T, As>>::parse(parser)?.map(AsWrap::into_inner))
     }
 }

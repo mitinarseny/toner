@@ -1,3 +1,4 @@
+//! Binary **de**serialization for [TL-B](https://docs.ton.org/develop/data-formats/tl-b-language)
 pub mod args;
 pub mod r#as;
 mod reader;
@@ -15,12 +16,15 @@ use crate::{
     Error, ResultExt, StringError,
 };
 
+/// A type that can be bitwise-**de**serialized from any [`BitReader`].
 pub trait BitUnpack: Sized {
+    /// Unpack value from the reader.
     fn unpack<R>(reader: R) -> Result<Self, R::Error>
     where
         R: BitReader;
 }
 
+/// **De**serialize the value from [`BitSlice`]
 #[inline]
 pub fn unpack<T>(bits: impl AsRef<BitSlice<u8, Msb0>>) -> Result<T, StringError>
 where
@@ -29,6 +33,7 @@ where
     bits.as_ref().unpack()
 }
 
+/// **De**serialize the value from bytes slice
 #[inline]
 pub fn unpack_bytes<T>(bytes: impl AsRef<[u8]>) -> Result<T, StringError>
 where
@@ -37,6 +42,7 @@ where
     unpack(bytes.as_bits())
 }
 
+/// **De**serialize the value from [`BitSlice`] and ensure that no more data left.
 #[inline]
 pub fn unpack_fully<T>(bits: impl AsRef<BitSlice<u8, Msb0>>) -> Result<T, StringError>
 where
@@ -49,6 +55,8 @@ where
     }
     Ok(v)
 }
+
+/// **De**serialize the value from bytes slice and ensure that no more data left.
 
 #[inline]
 pub fn unpack_bytes_fully<T>(bytes: impl AsRef<[u8]>) -> Result<T, StringError>
@@ -164,6 +172,11 @@ where
     }
 }
 
+/// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
+/// ```tlb
+/// left$0 {X:Type} {Y:Type} value:X = Either X Y;
+/// right$1 {X:Type} {Y:Type} value:Y = Either X Y;
+/// ```
 impl<Left, Right> BitUnpack for Either<Left, Right>
 where
     Left: BitUnpack,
@@ -181,7 +194,11 @@ where
     }
 }
 
-/// [Maybe](https://docs.ton.org/develop/data-formats/tl-b-types#maybe)
+/// Implementation of [`Maybe X`](https://docs.ton.org/develop/data-formats/tl-b-types#maybe):
+/// ```tlb
+/// nothing$0 {X:Type} = Maybe X;
+/// just$1 {X:Type} value:X = Maybe X;
+/// ```
 impl<T> BitUnpack for Option<T>
 where
     T: BitUnpack,
