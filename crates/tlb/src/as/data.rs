@@ -57,7 +57,7 @@ use super::Same;
 /// builder.store_as::<_, Data>(v)?;
 /// # let cell = builder.into_cell();
 /// # let mut parser = cell.parser();
-/// # let got = 
+/// # let got =
 /// // parse as binary data
 /// parser.parse_as::<BinaryData, Data>()?;
 /// # assert_eq!(got, v);

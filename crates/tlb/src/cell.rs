@@ -215,7 +215,6 @@ impl Debug for Cell {
 
 #[cfg(test)]
 mod tests {
-
     use hex_literal::hex;
 
     use crate::{
