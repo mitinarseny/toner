@@ -1,6 +1,7 @@
 //! Collection of types related to [Bag Of Cells](https://docs.ton.org/develop/data-formats/cell-boc#bag-of-cells)
 use std::{
     collections::{HashMap, HashSet},
+    fmt::Debug,
     sync::Arc,
 };
 
@@ -53,7 +54,7 @@ pub type BoC = BagOfCells;
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct BagOfCells {
     roots: Vec<Arc<Cell>>,
 }
@@ -108,6 +109,12 @@ impl BagOfCells {
     pub fn parse_base64(s: impl AsRef<[u8]>) -> Result<Self, StringError> {
         let bytes = STANDARD.decode(s).map_err(Error::custom)?;
         Self::unpack(bytes.as_bits())
+    }
+}
+
+impl Debug for BagOfCells {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_set().entries(&self.roots).finish()
     }
 }
 
@@ -493,7 +500,7 @@ impl BitUnpackWithArgs for RawCell {
         let num_bytes: usize = ((bits_descriptor >> 1) + (bits_descriptor & 1)) as usize;
         let full_bytes = (bits_descriptor & 1) == 0;
 
-        let mut data = reader.read_bitvec(num_bytes * 8)?;
+        let mut data: BitVec<u8, Msb0> = reader.unpack_with(num_bytes * 8)?;
         if !data.is_empty() && !full_bytes {
             let trailing_zeros = data.trailing_zeros();
             if trailing_zeros >= 8 {

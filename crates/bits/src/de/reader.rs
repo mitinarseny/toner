@@ -1,6 +1,6 @@
 use core::iter;
 
-use ::bitvec::{order::Msb0, slice::BitSlice, vec::BitVec, view::AsMutBits};
+use ::bitvec::{order::Msb0, slice::BitSlice, view::AsMutBits};
 use impl_tools::autoimpl;
 
 use crate::{
@@ -46,15 +46,6 @@ pub trait BitReader {
 
 /// Extension helper for [`BitReader`].
 pub trait BitReaderExt: BitReader {
-    /// Reads `n` bits and returns newly created [`BitVec`]
-    #[inline]
-    fn read_bitvec(&mut self, n: usize) -> Result<BitVec<u8, Msb0>, Self::Error> {
-        let mut dst = BitVec::with_capacity(n);
-        dst.resize(n, false);
-        self.read_bits_into(&mut dst)?;
-        Ok(dst)
-    }
-
     /// Reads `dst.len()` bytes into given byte slice
     #[inline]
     fn read_bytes_into(&mut self, mut dst: impl AsMut<[u8]>) -> Result<(), Self::Error> {
@@ -67,14 +58,6 @@ pub trait BitReaderExt: BitReader {
         let mut arr = [0; N];
         self.read_bits_into(arr.as_mut_bits())?;
         Ok(arr)
-    }
-
-    /// Read `n` bytes and return [`Vec`]
-    #[inline]
-    fn read_bytes_vec(&mut self, n: usize) -> Result<Vec<u8>, Self::Error> {
-        let mut v = vec![0; n];
-        self.read_bytes_into(&mut v)?;
-        Ok(v)
     }
 
     /// Unpack value using its [`BitUnpack`] implementation

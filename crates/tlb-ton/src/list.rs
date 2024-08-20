@@ -1,13 +1,10 @@
 use core::marker::PhantomData;
 
 use tlb::{
-    de::{
-        r#as::{CellDeserializeAs, CellDeserializeAsOwned},
-        CellParser, CellParserError,
-    },
+    de::{r#as::CellDeserializeAs, CellParser, CellParserError},
     r#as::{Ref, Same},
     ser::{r#as::CellSerializeAs, CellBuilder, CellBuilderError},
-    Cell,
+    Cell, ResultExt,
 };
 
 /// ```tlb
@@ -23,10 +20,10 @@ where
 {
     #[inline]
     fn store_as(source: &T, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.store(source.into_iter().try_fold(Cell::new(), |prev, v| {
+        builder.store(source.into_iter().try_fold(Cell::builder(), |prev, v| {
             let mut list = Cell::builder();
             list.store_as::<_, Ref>(prev)?.store_as::<_, As>(v)?;
-            Ok(list.into_cell())
+            Ok(list)
         })?)?;
         Ok(())
     }
@@ -34,16 +31,18 @@ where
 
 impl<'de, T, As> CellDeserializeAs<'de, Vec<T>> for List<As>
 where
-    As: CellDeserializeAsOwned<T>,
+    As: CellDeserializeAs<'de, T>,
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<Vec<T>, CellParserError<'de>> {
         let mut v = Vec::new();
-        let mut cell: Cell = parser.parse()?;
-        while !cell.references.is_empty() {
-            let mut p = cell.parser();
-            v.push(p.parse_as::<_, As>()?);
-            cell = p.parse_as::<_, Ref>()?;
+        let mut p: CellParser<'de> = parser.parse()?;
+        while !p.no_references_left() {
+            v.push(
+                p.parse_as::<_, As>()
+                    .with_context(|| format!("[{}]", v.len()))?,
+            );
+            p = p.parse_as::<_, Ref>()?;
         }
         v.reverse();
         Ok(v)

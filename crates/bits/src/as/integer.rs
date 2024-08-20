@@ -44,7 +44,7 @@ impl<const BITS: usize> BitUnpackAs<BigUint> for NBits<BITS> {
     where
         R: BitReader,
     {
-        let mut bits = reader.read_bitvec(BITS)?;
+        let mut bits: BitVec<u8, Msb0> = reader.unpack_with(BITS)?;
         let total_bits = (BITS + 7) & !7;
         bits.resize(total_bits, false);
         bits.shift_right(total_bits - BITS);
@@ -81,7 +81,7 @@ impl<const BITS: usize> BitUnpackAs<BigInt> for NBits<BITS> {
     where
         R: BitReader,
     {
-        let mut bits = reader.read_bitvec(BITS)?;
+        let mut bits: BitVec<u8, Msb0> = reader.unpack_with(BITS)?;
         let total_bits = (BITS + 7) & !7;
         bits.resize(total_bits, false);
         bits.shift_right(total_bits - BITS);

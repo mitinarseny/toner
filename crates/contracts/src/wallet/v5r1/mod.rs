@@ -8,7 +8,7 @@ use tlb::{
     de::{CellDeserialize, CellParser, CellParserError},
     r#as::{Data, NoArgs},
     ser::{CellBuilder, CellBuilderError, CellSerialize},
-    Cell, Error,
+    Cell, Error, ResultExt,
 };
 use tlb_ton::{
     action::{OutAction, SendMsgAction},
@@ -67,7 +67,7 @@ impl WalletVersion for V5R1 {
             msg_seqno,
             inner: WalletV5R1InnerRequest {
                 out_actions: msgs.into_iter().map(OutAction::SendMsg).collect(),
-                other_actions: [].into(),
+                extended: [].into(),
             },
         }
     }
@@ -126,7 +126,7 @@ impl<'de> CellDeserialize<'de> for WalletV5R1Data {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV5R1InnerRequest {
     pub out_actions: Vec<OutAction>,
-    pub other_actions: Vec<ExtendedAction>,
+    pub extended: Vec<ExtendedAction>,
 }
 
 impl CellSerialize for WalletV5R1InnerRequest {
@@ -135,9 +135,7 @@ impl CellSerialize for WalletV5R1InnerRequest {
             .store_as::<_, Option<&List>>(
                 Some(&self.out_actions).filter(|actions| !actions.is_empty()),
             )?
-            .store_as::<_, Option<&List>>(
-                Some(&self.other_actions).filter(|other| !other.is_empty()),
-            )?;
+            .store_as::<_, Option<&List>>(Some(&self.extended).filter(|other| !other.is_empty()))?;
         Ok(())
     }
 }
@@ -145,8 +143,14 @@ impl CellSerialize for WalletV5R1InnerRequest {
 impl<'de> CellDeserialize<'de> for WalletV5R1InnerRequest {
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
-            out_actions: parser.parse_as::<_, Option<List>>()?.unwrap_or_default(),
-            other_actions: parser.parse_as::<_, Option<List>>()?.unwrap_or_default(),
+            out_actions: parser
+                .parse_as::<_, Option<List>>()
+                .context("out_actions")?
+                .unwrap_or_default(),
+            extended: parser
+                .parse_as::<_, Option<List>>()
+                .context("extended")?
+                .unwrap_or_default(),
         })
     }
 }
@@ -288,10 +292,7 @@ pub enum WalletV5R1MsgBody {
     /// ```tlb
     /// internal_extension#6578746e query_id:(## 64) inner:InnerRequest = InternalMsgBody;
     /// ```
-    InternalExtension {
-        query_id: u64,
-        inner: WalletV5R1InnerRequest,
-    },
+    InternalExtension(InternalExtensionWalletV5R1MsgBody),
 
     /// ```tlb
     /// external_signed#7369676e signed:SignedRequest = ExternalMsgBody;
@@ -309,10 +310,9 @@ impl CellSerialize for WalletV5R1MsgBody {
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         match self {
             Self::InternalSigned(msg) => builder.pack(Self::INTERNAL_SIGNED_PREFIX)?.store(msg)?,
-            Self::InternalExtension { query_id, inner } => builder
-                .pack(Self::INTERNAL_EXTENSION_PREFIX)?
-                .pack(query_id)?
-                .store(inner)?,
+            Self::InternalExtension(msg) => {
+                builder.pack(Self::INTERNAL_EXTENSION_PREFIX)?.store(msg)?
+            }
             Self::ExternalSigned(msg) => builder.pack(Self::EXTERNAL_SIGNED_PREFIX)?.store(msg)?,
         };
         Ok(())
@@ -322,13 +322,38 @@ impl CellSerialize for WalletV5R1MsgBody {
 impl<'de> CellDeserialize<'de> for WalletV5R1MsgBody {
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(match parser.unpack()? {
-            Self::INTERNAL_SIGNED_PREFIX => Self::InternalSigned(parser.parse()?),
-            Self::INTERNAL_EXTENSION_PREFIX => Self::InternalExtension {
-                query_id: parser.unpack()?,
-                inner: parser.parse()?,
-            },
-            Self::EXTERNAL_SIGNED_PREFIX => Self::ExternalSigned(parser.parse()?),
+            Self::INTERNAL_SIGNED_PREFIX => {
+                Self::InternalSigned(parser.parse().context("internal_signed")?)
+            }
+            Self::INTERNAL_EXTENSION_PREFIX => {
+                Self::InternalExtension(parser.parse().context("internal_extension")?)
+            }
+            Self::EXTERNAL_SIGNED_PREFIX => {
+                Self::ExternalSigned(parser.parse().context("external_signed")?)
+            }
             prefix => return Err(Error::custom(format!("unknown prefix: {prefix:#0x}"))),
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InternalExtensionWalletV5R1MsgBody {
+    query_id: u64,
+    inner: WalletV5R1InnerRequest,
+}
+
+impl CellSerialize for InternalExtensionWalletV5R1MsgBody {
+    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+        builder.pack(self.query_id)?.store(&self.inner)?;
+        Ok(())
+    }
+}
+
+impl<'de> CellDeserialize<'de> for InternalExtensionWalletV5R1MsgBody {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        Ok(Self {
+            query_id: parser.unpack()?,
+            inner: parser.parse()?,
         })
     }
 }

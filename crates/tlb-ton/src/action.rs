@@ -3,7 +3,7 @@ use tlb::{
     de::{CellDeserialize, CellParser, CellParserError},
     r#as::Ref,
     ser::{CellBuilder, CellBuilderError, CellSerialize},
-    Cell, Error,
+    Cell, Error, ResultExt,
 };
 
 use crate::{currency::CurrencyCollection, library::LibRef, message::Message};
@@ -39,6 +39,7 @@ impl OutAction {
 }
 
 impl CellSerialize for OutAction {
+    #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         match self {
             OutAction::SendMsg(action) => builder.pack(Self::SEND_MSG_PREFIX)?.store(action)?,
@@ -57,12 +58,19 @@ impl CellSerialize for OutAction {
 }
 
 impl<'de> CellDeserialize<'de> for OutAction {
+    #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(match parser.unpack()? {
-            Self::SEND_MSG_PREFIX => Self::SendMsg(parser.parse()?),
-            Self::SET_CODE_PREFIX => Self::SetCode(parser.parse_as::<_, Ref>()?),
-            Self::RESERVE_CURRENCY_PREFIX => Self::ReserveCurrency(parser.parse()?),
-            Self::CHANGE_LIBRARY_PREFIX => Self::ChangeLibrary(parser.parse()?),
+            Self::SEND_MSG_PREFIX => Self::SendMsg(parser.parse().context("action_send_msg")?),
+            Self::SET_CODE_PREFIX => {
+                Self::SetCode(parser.parse_as::<_, Ref>().context("action_set_code")?)
+            }
+            Self::RESERVE_CURRENCY_PREFIX => {
+                Self::ReserveCurrency(parser.parse().context("action_reserve_currency")?)
+            }
+            Self::CHANGE_LIBRARY_PREFIX => {
+                Self::ChangeLibrary(parser.parse().context("action_change_library")?)
+            }
             prefix => return Err(Error::custom(format!("unknown prefix {prefix:#0x}"))),
         })
     }
@@ -84,6 +92,7 @@ where
     IC: CellSerialize,
     ID: CellSerialize,
 {
+    #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder.pack(self.mode)?.store_as::<_, Ref>(&self.message)?;
         Ok(())
@@ -96,10 +105,11 @@ where
     IC: CellDeserialize<'de>,
     ID: CellDeserialize<'de>,
 {
+    #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             mode: parser.unpack()?,
-            message: parser.parse()?,
+            message: parser.parse_as::<_, Ref>()?,
         })
     }
 }
@@ -114,6 +124,7 @@ pub struct ReserveCurrencyAction {
 }
 
 impl CellSerialize for ReserveCurrencyAction {
+    #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder.pack(self.mode)?.store(&self.currency)?;
         Ok(())
@@ -121,6 +132,7 @@ impl CellSerialize for ReserveCurrencyAction {
 }
 
 impl<'de> CellDeserialize<'de> for ReserveCurrencyAction {
+    #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             mode: parser.unpack()?,
@@ -142,6 +154,7 @@ impl<R> CellSerialize for ChangeLibraryAction<R>
 where
     R: CellSerialize,
 {
+    #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder
             .pack_as::<_, NBits<7>>(self.mode)?
@@ -154,6 +167,7 @@ impl<'de, R> CellDeserialize<'de> for ChangeLibraryAction<R>
 where
     R: CellDeserialize<'de>,
 {
+    #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             mode: parser.unpack_as::<_, NBits<7>>()?,
