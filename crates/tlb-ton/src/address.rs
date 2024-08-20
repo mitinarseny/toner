@@ -14,7 +14,7 @@ use tlb::{
         r#as::NBits,
         ser::{BitPack, BitWriter, BitWriterExt},
     },
-    ser::{CellBuilderError, CellSerializeExt},
+    ser::{CellBuilderError, CellSerialize, CellSerializeExt},
     Error, ResultExt, StringError,
 };
 
@@ -54,7 +54,14 @@ impl MsgAddress {
     /// [Derive](https://docs.ton.org/learn/overviews/addresses#address-of-smart-contract)
     /// [`MsgAddress`] of a smart-contract by its workchain and [`StateInit`]
     #[inline]
-    pub fn derive(workchain_id: i32, state_init: StateInit) -> Result<Self, CellBuilderError> {
+    pub fn derive<C, D>(
+        workchain_id: i32,
+        state_init: StateInit<C, D>,
+    ) -> Result<Self, CellBuilderError>
+    where
+        C: CellSerialize,
+        D: CellSerialize,
+    {
         Ok(Self {
             workchain_id,
             address: state_init.to_cell()?.hash(),

@@ -7,7 +7,7 @@ use nacl::sign::generate_keypair;
 use pbkdf2::{password_hash::Output, pbkdf2_hmac};
 use sha2::Sha512;
 
-pub use nacl::sign::Keypair;
+use super::KeyPair;
 
 lazy_static! {
     static ref WORDLIST_EN: HashSet<&'static str> = include_str!("./wordlist_en.txt")
@@ -21,12 +21,12 @@ lazy_static! {
 ///
 /// ```rust
 /// # use hex_literal::hex;
-/// # use ton_contracts::wallet::mnemonic::{Keypair, Mnemonic};
+/// # use ton_contracts::wallet::{KeyPair, mnemonic::Mnemonic};
 /// let mnemonic: Mnemonic = "dose ice enrich trigger test dove century still betray gas diet dune use other base gym mad law immense village world example praise game"
 ///     .parse()
 ///     .unwrap();
-/// let kp: Keypair = mnemonic.generate_keypair(None).unwrap();
-/// # assert_eq!(kp.skey, hex!("119dcf2840a3d56521d260b2f125eedc0d4f3795b9e627269a4b5a6dca8257bdc04ad1885c127fe863abb00752fa844e6439bb04f264d70de7cea580b32637ab"));
+/// let kp: KeyPair = mnemonic.generate_keypair(None).unwrap();
+/// # assert_eq!(kp.secret_key, hex!("119dcf2840a3d56521d260b2f125eedc0d4f3795b9e627269a4b5a6dca8257bdc04ad1885c127fe863abb00752fa844e6439bb04f264d70de7cea580b32637ab"));
 /// ```
 #[derive(Debug, Clone)]
 pub struct Mnemonic([&'static str; 24]);
@@ -35,7 +35,7 @@ impl Mnemonic {
     const PBKDF_ITERATIONS: u32 = 100000;
 
     /// Generate [`Keypair`] with optional password
-    pub fn generate_keypair(&self, password: impl Into<Option<String>>) -> anyhow::Result<Keypair> {
+    pub fn generate_keypair(&self, password: impl Into<Option<String>>) -> anyhow::Result<KeyPair> {
         let entropy = self.entropy(password)?;
         let seed = Self::pbkdf2_sha512(
             entropy.as_slice(),
@@ -43,7 +43,7 @@ impl Mnemonic {
             Self::PBKDF_ITERATIONS,
             64,
         )?;
-        Ok(generate_keypair(&seed[0..32]))
+        Ok(generate_keypair(&seed[0..32]).into())
     }
 
     fn entropy(&self, password: impl Into<Option<String>>) -> anyhow::Result<[u8; 64]> {

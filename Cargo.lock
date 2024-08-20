@@ -742,6 +742,7 @@ dependencies = [
  "chrono",
  "hex-literal",
  "hmac",
+ "impl-tools",
  "lazy_static",
  "nacl",
  "num-bigint",

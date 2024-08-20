@@ -1,15 +1,21 @@
 //! TON [Wallet](https://docs.ton.org/participate/wallets/contracts)
 pub mod mnemonic;
+mod signer;
 pub mod v4r2;
 pub mod v5r1;
+mod version;
 
-use std::{marker::PhantomData, sync::Arc};
+pub use self::{signer::*, version::*};
 
-use anyhow::anyhow;
+use core::marker::PhantomData;
+use std::sync::Arc;
+
 use chrono::{DateTime, Utc};
-use nacl::sign::{signature, Keypair, PUBLIC_KEY_LENGTH};
 use num_bigint::BigUint;
-use tlb::{ser::CellSerialize, Cell};
+use tlb::{
+    ser::{CellBuilderError, CellSerializeExt},
+    Cell,
+};
 use tlb_ton::{
     action::SendMsgAction,
     message::{CommonMsgInfo, ExternalInMsgInfo, Message},
@@ -22,7 +28,12 @@ pub const DEFAULT_WALLET_ID: u32 = 0x29a9a317;
 /// Generic wallet for signing messages
 ///
 /// ```rust
-/// # use ton_contracts::wallet::{mnemonic::Mnemonic, Wallet, v4r2::V4R2};
+/// # use ton_contracts::wallet::{
+/// #   mnemonic::Mnemonic,
+/// #   KeyPair,
+/// #   Wallet,
+/// #   v4r2::V4R2,
+/// # };
 /// let mnemonic: Mnemonic = "jewel loop vast intact snack drip fatigue lunch erode green indoor balance together scrub hen monster hour narrow banner warfare increase panel sound spell"
 ///     .parse()
 ///     .unwrap();
@@ -37,7 +48,7 @@ pub const DEFAULT_WALLET_ID: u32 = 0x29a9a317;
 pub struct Wallet<V> {
     address: MsgAddress,
     wallet_id: u32,
-    key_pair: Keypair,
+    keypair: KeyPair,
     _phantom: PhantomData<V>,
 }
 
@@ -45,30 +56,34 @@ impl<V> Wallet<V>
 where
     V: WalletVersion,
 {
-    // TODO
-    // pub fn derive_state(workchain_id: i32, state: )
+    #[inline]
+    pub const fn new(address: MsgAddress, keypair: KeyPair, wallet_id: u32) -> Self {
+        Self {
+            address,
+            wallet_id,
+            keypair,
+            _phantom: PhantomData,
+        }
+    }
 
     /// Derive wallet from its workchain, keypair and id
-    pub fn derive(workchain_id: i32, key_pair: Keypair, wallet_id: u32) -> anyhow::Result<Self> {
-        Ok(Self {
-            address: MsgAddress::derive(
-                workchain_id,
-                StateInit::<_, _> {
-                    code: Some(V::code()),
-                    data: Some(V::init_data(wallet_id, key_pair.pkey)),
-                    ..Default::default()
-                }
-                .normalize()?,
-            )?,
+    #[inline]
+    pub fn derive(
+        workchain_id: i32,
+        keypair: KeyPair,
+        wallet_id: u32,
+    ) -> Result<Self, CellBuilderError> {
+        Ok(Self::new(
+            MsgAddress::derive(workchain_id, V::state_init(wallet_id, keypair.public_key))?,
+            keypair,
             wallet_id,
-            key_pair,
-            _phantom: PhantomData,
-        })
+        ))
     }
 
     /// Shortcut for [`Wallet::derive()`] with default workchain and wallet id
-    pub fn derive_default(key_pair: Keypair) -> anyhow::Result<Self> {
-        Self::derive(0, key_pair, DEFAULT_WALLET_ID)
+    #[inline]
+    pub fn derive_default(keypair: KeyPair) -> Result<Self, CellBuilderError> {
+        Self::derive(0, keypair, DEFAULT_WALLET_ID)
     }
 
     /// Address of the wallet
@@ -84,16 +99,24 @@ where
     }
 
     #[inline]
+    pub const fn public_key(&self) -> &[u8; PUBLIC_KEY_LENGTH] {
+        &self.keypair.public_key
+    }
+
+    /// Create external body for this wallet.
+    #[inline]
+    pub fn create_sign_body(
+        &self,
+        expire_at: DateTime<Utc>,
+        seqno: u32,
+        msgs: impl IntoIterator<Item = SendMsgAction>,
+    ) -> V::SignBody {
+        V::create_sign_body(self.wallet_id, expire_at, seqno, msgs)
+    }
+
+    #[inline]
     pub fn sign(&self, msg: impl AsRef<[u8]>) -> anyhow::Result<[u8; 64]> {
-        signature(msg.as_ref(), self.key_pair.skey.as_slice())
-            .map_err(|e| anyhow!("{}", e.message))?
-            .try_into()
-            .map_err(|sig: Vec<_>| {
-                anyhow!(
-                    "got signature of a wrong size, expected 64, got: {}",
-                    sig.len()
-                )
-            })
+        self.keypair.sign(msg)
     }
 
     /// Shortcut to [create](Wallet::create_external_body),
@@ -111,6 +134,7 @@ where
     /// # use ton_contracts::wallet::{
     /// #   mnemonic::Mnemonic,
     /// #   v5r1::V5R1,
+    /// #   KeyPair,
     /// #   Wallet,
     /// # };
     /// #
@@ -159,23 +183,11 @@ where
         Ok(wrapped)
     }
 
-    /// Create external body for this wallet.
-    #[inline]
-    pub fn create_sign_body(
-        &self,
-        expire_at: DateTime<Utc>,
-        seqno: u32,
-        msgs: impl IntoIterator<Item = SendMsgAction>,
-    ) -> V::SignBody {
-        V::create_sign_body(self.wallet_id, expire_at, seqno, msgs)
-    }
-
-    /// Sign body from [`.create_external_body()`](Wallet::create_external_body)
+    /// Sign body from [`.create_sign_body()`](Wallet::create_sign_body)
     /// using this wallet's private key
+    #[inline]
     pub fn sign_body(&self, msg: &V::SignBody) -> anyhow::Result<[u8; 64]> {
-        let mut b = Cell::builder();
-        b.store(msg)?;
-        self.sign(b.into_cell().hash())
+        self.sign(msg.to_cell()?.hash())
     }
 
     /// Wrap signed body from [`.sign_body()`](Wallet::sign_body) in a message
@@ -189,40 +201,16 @@ where
         Message {
             info: CommonMsgInfo::ExternalIn(ExternalInMsgInfo {
                 src: MsgAddress::NULL,
-                dst: self.address,
+                dst: self.address(),
                 import_fee: BigUint::ZERO,
             }),
-            init: state_init.then(|| StateInit::<_, _> {
-                code: Some(V::code()),
-                data: Some(V::init_data(self.wallet_id, self.key_pair.pkey)),
-                ..Default::default()
-            }),
+            init: state_init.then(|| self.state_init()),
             body,
         }
     }
-}
 
-/// Version of [`Wallet`]
-pub trait WalletVersion {
-    type Data: CellSerialize;
-    type SignBody: CellSerialize;
-    type ExternalMsgBody: CellSerialize;
-
-    /// Code of the wallet for use with [`StateInit`]
-    fn code() -> Arc<Cell>;
-
-    /// Init data for use with [`StateInit`]
-    fn init_data(wallet_id: u32, pubkey: [u8; PUBLIC_KEY_LENGTH]) -> Self::Data;
-
-    /// Creates body for further signing with
-    /// [`.wrap_signed_external()`](WalletVersion::wrap_signed_external)
-    fn create_sign_body(
-        wallet_id: u32,
-        expire_at: DateTime<Utc>,
-        seqno: u32,
-        msgs: impl IntoIterator<Item = SendMsgAction>,
-    ) -> Self::SignBody;
-
-    /// Wraps signed body into external [`Message::body`]
-    fn wrap_signed_external(body: Self::SignBody, signature: [u8; 64]) -> Self::ExternalMsgBody;
+    #[inline]
+    pub fn state_init(&self) -> StateInit<Arc<Cell>, V::Data> {
+        V::state_init(self.wallet_id(), *self.public_key())
+    }
 }

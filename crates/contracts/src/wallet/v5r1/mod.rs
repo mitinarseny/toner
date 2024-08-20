@@ -264,7 +264,7 @@ pub struct WalletV5R1SignedRequest {
 
 impl CellSerialize for WalletV5R1SignedRequest {
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.store(&self.body)?.pack(&self.signature)?;
+        builder.store(&self.body)?.pack(self.signature)?;
         Ok(())
     }
 }
