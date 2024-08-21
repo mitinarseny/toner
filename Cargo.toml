@@ -11,11 +11,11 @@ categories = ["encoding"]
 license-file = "LICENSE.txt"
 
 [workspace.dependencies]
-tlb = { path = "./crates/tlb", version = "0.2.22" }
-tlbits = { path = "./crates/bits", version = "0.2.22" }
-tlb-ton = { path = "./crates/tlb-ton", version = "0.2.22" }
-ton-contracts = { path = "./crates/contracts", version = "0.2.22" }
-toner = { path = "./crates/toner", version = "0.2.22" }
+tlb = { path = "./crates/tlb", version = "0.3.0" }
+tlbits = { path = "./crates/bits", version = "0.3.0" }
+tlb-ton = { path = "./crates/tlb-ton", version = "0.3.0" }
+ton-contracts = { path = "./crates/contracts", version = "0.3.0" }
+toner = { path = "./crates/toner", version = "0.3.0" }
 
 anyhow = "1"
 base64 = "0.21"
