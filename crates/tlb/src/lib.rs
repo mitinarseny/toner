@@ -30,7 +30,7 @@
 //! #   r#as::Ref,
 //! #   bits::{r#as::{NBits, VarInt}, ser::BitWriterExt},
 //! #   Cell,
-//! #   ser::{CellSerialize, CellBuilder, CellBuilderError},
+//! #   ser::{CellSerialize, CellBuilder, CellBuilderError, CellSerializeExt},
 //! #   StringError,
 //! # };
 //! #
@@ -55,16 +55,13 @@
 //! }
 //!
 //! # fn main() -> Result<(), StringError> {
-//! // create a builder
-//! let mut builder = Cell::builder();
-//! // serialize value into builder
-//! builder.store(Hello {
+//! // serialize value into cell
+//! let hello = Hello {
 //!     query_id: 0,
 //!     amount: 1_000u64.into(),
 //!     payload: None,
-//! })?;
-//! // convert builder into cell
-//! let cell = builder.into_cell();
+//! };
+//! let cell = hello.to_cell()?;
 //! # Ok(())
 //! # }
 //! ```
@@ -82,7 +79,7 @@
 //! #   Cell,
 //! #   de::{CellDeserialize, CellParser, CellParserError},
 //! #   Error,
-//! #   ser::{CellSerialize, CellBuilder, CellBuilderError},
+//! #   ser::{CellSerialize, CellBuilder, CellBuilderError, CellSerializeExt},
 //! #   StringError,
 //! # };
 //! # #[derive(Debug, PartialEq)]
@@ -129,9 +126,7 @@
 //! #     amount: 1_000u64.into(),
 //! #     payload: None,
 //! # };
-//! # let mut builder = Cell::builder();
-//! # builder.store(&orig)?;
-//! # let cell = builder.into_cell();
+//! # let cell = orig.to_cell()?;
 //! let mut parser = cell.parser();
 //! let hello: Hello = parser.parse()?;
 //! # assert_eq!(hello, orig);

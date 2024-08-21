@@ -10,11 +10,12 @@ use crc::Crc;
 use strum::Display;
 use tlb::{
     bits::{
+        bitvec::{order::Msb0, vec::BitVec},
         de::{BitReader, BitReaderExt, BitUnpack},
-        r#as::NBits,
+        r#as::{NBits, VarBits},
         ser::{BitPack, BitWriter, BitWriterExt},
     },
-    ser::{CellBuilderError, CellSerializeExt},
+    ser::{CellBuilderError, CellSerialize, CellSerializeExt},
     Error, ResultExt, StringError,
 };
 
@@ -54,7 +55,14 @@ impl MsgAddress {
     /// [Derive](https://docs.ton.org/learn/overviews/addresses#address-of-smart-contract)
     /// [`MsgAddress`] of a smart-contract by its workchain and [`StateInit`]
     #[inline]
-    pub fn derive(workchain_id: i32, state_init: StateInit) -> Result<Self, CellBuilderError> {
+    pub fn derive<C, D>(
+        workchain_id: i32,
+        state_init: StateInit<C, D>,
+    ) -> Result<Self, CellBuilderError>
+    where
+        C: CellSerialize,
+        D: CellSerialize,
+    {
         Ok(Self {
             workchain_id,
             address: state_init.to_cell()?.hash(),
@@ -245,7 +253,7 @@ impl BitPack for MsgAddress {
             writer
                 .pack(MsgAddressTag::Std)?
                 // anycast:(Maybe Anycast)
-                .pack(false)?
+                .pack::<Option<Anycast>>(None)?
                 // workchain_id:int8
                 .pack(self.workchain_id as i8)?
                 // address:bits256
@@ -264,11 +272,30 @@ impl BitUnpack for MsgAddress {
         match reader.unpack()? {
             MsgAddressTag::Null => Ok(Self::NULL),
             MsgAddressTag::Std => {
-                reader.skip(1)?; // anycast:(Maybe Anycast)
+                // anycast:(Maybe Anycast)
+                let _: Option<Anycast> = reader.unpack()?;
                 Ok(Self {
                     // workchain_id:int8
                     workchain_id: reader.unpack::<i8>()? as i32,
                     // address:bits256
+                    address: reader.unpack()?,
+                })
+            }
+            MsgAddressTag::Var => {
+                // anycast:(Maybe Anycast)
+                let _: Option<Anycast> = reader.unpack()?;
+                // addr_len:(## 9)
+                let addr_len: u16 = reader.unpack_as::<_, NBits<9>>()?;
+                if addr_len != 256 {
+                    // TODO
+                    return Err(Error::custom(format!(
+                        "only 256-bit addresses are supported for addr_var$11, got {addr_len} bits"
+                    )));
+                }
+                Ok(Self {
+                    // workchain_id:int32
+                    workchain_id: reader.unpack()?,
+                    // address:(bits addr_len)
                     address: reader.unpack()?,
                 })
             }
@@ -314,6 +341,39 @@ impl BitUnpack for MsgAddressTag {
             0b11 => Self::Var,
             _ => unreachable!(),
         })
+    }
+}
+
+/// ```tlb
+/// anycast_info$_ depth:(#<= 30) { depth >= 1 } rewrite_pfx:(bits depth) = Anycast;
+/// ```
+pub struct Anycast {
+    pub rewrite_pfx: BitVec<u8, Msb0>,
+}
+
+impl BitPack for Anycast {
+    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        if self.rewrite_pfx.is_empty() {
+            return Err(Error::custom("depth >= 1"));
+        }
+        writer.pack_as::<_, VarBits<5>>(&self.rewrite_pfx)?;
+        Ok(())
+    }
+}
+
+impl BitUnpack for Anycast {
+    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+    where
+        R: BitReader,
+    {
+        let rewrite_pfx = reader.unpack_as::<_, VarBits<5>>()?;
+        if rewrite_pfx.is_empty() {
+            return Err(Error::custom("depth >= 1"));
+        }
+        Ok(Self { rewrite_pfx })
     }
 }
 

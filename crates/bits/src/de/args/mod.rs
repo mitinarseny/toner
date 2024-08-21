@@ -185,12 +185,17 @@ where
 }
 
 impl BitUnpackWithArgs for BitVec<u8, Msb0> {
+    /// length
     type Args = usize;
 
+    #[inline]
     fn unpack_with<R>(mut reader: R, len: Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader,
     {
-        reader.read_bitvec(len)
+        let mut dst = BitVec::with_capacity(len);
+        dst.resize(len, false);
+        reader.read_bits_into(&mut dst)?;
+        Ok(dst)
     }
 }

@@ -1,3 +1,4 @@
+use core::iter;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
@@ -9,14 +10,14 @@ use tlb::{
     de::{CellDeserialize, CellParser, CellParserError},
     r#as::{NoArgs, Ref},
     ser::{CellBuilder, CellBuilderError, CellSerialize},
-    Cell,
+    Cell, Error,
 };
 use tlb_ton::{
-    boc::BagOfCells, currency::Grams, hashmap::HashmapE, state_init::StateInit, MsgAddress,
-    UnixTimestamp,
+    action::SendMsgAction, boc::BagOfCells, currency::Grams, hashmap::HashmapE,
+    state_init::StateInit, MsgAddress, UnixTimestamp,
 };
 
-use super::{WalletOpSendMessage, WalletVersion};
+use super::WalletVersion;
 
 lazy_static! {
     static ref WALLET_V4R2_CODE_CELL: Arc<Cell> = {
@@ -33,7 +34,8 @@ pub struct V4R2;
 
 impl WalletVersion for V4R2 {
     type Data = WalletV4R2Data;
-    type MessageBody = WalletV4R2Message;
+    type SignBody = WalletV4R2SignBody;
+    type ExternalMsgBody = WalletV4R2ExternalBody;
 
     fn code() -> Arc<Cell> {
         WALLET_V4R2_CODE_CELL.clone()
@@ -48,18 +50,22 @@ impl WalletVersion for V4R2 {
         }
     }
 
-    fn create_external_body(
+    fn create_sign_body(
         wallet_id: u32,
         expire_at: DateTime<Utc>,
         seqno: u32,
-        msgs: impl IntoIterator<Item = WalletOpSendMessage>,
-    ) -> Self::MessageBody {
-        WalletV4R2Message {
+        msgs: impl IntoIterator<Item = SendMsgAction>,
+    ) -> Self::SignBody {
+        WalletV4R2SignBody {
             wallet_id,
             expire_at,
             seqno,
             op: WalletV4R2Op::Send(msgs.into_iter().collect()),
         }
+    }
+
+    fn wrap_signed_external(body: Self::SignBody, signature: [u8; 64]) -> Self::ExternalMsgBody {
+        WalletV4R2ExternalBody { signature, body }
     }
 }
 
@@ -88,7 +94,7 @@ impl CellSerialize for WalletV4R2Data {
 
 impl<'de> CellDeserialize<'de> for WalletV4R2Data {
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        let d = Self {
+        Ok(Self {
             seqno: parser.unpack()?,
             wallet_id: parser.unpack()?,
             pubkey: parser.unpack()?,
@@ -97,19 +103,19 @@ impl<'de> CellDeserialize<'de> for WalletV4R2Data {
                 (),
                 (),
             ))?,
-        };
-        Ok(d)
+        })
     }
 }
 
-pub struct WalletV4R2Message {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WalletV4R2SignBody {
     pub wallet_id: u32,
     pub expire_at: DateTime<Utc>,
     pub seqno: u32,
     pub op: WalletV4R2Op,
 }
 
-impl CellSerialize for WalletV4R2Message {
+impl CellSerialize for WalletV4R2SignBody {
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder
             .pack(self.wallet_id)?
@@ -120,25 +126,67 @@ impl CellSerialize for WalletV4R2Message {
     }
 }
 
+impl<'de> CellDeserialize<'de> for WalletV4R2SignBody {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        Ok(Self {
+            wallet_id: parser.unpack()?,
+            expire_at: parser.unpack_as::<_, UnixTimestamp>()?,
+            seqno: parser.unpack()?,
+            op: parser.parse()?,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WalletV4R2Op {
-    Send(Vec<WalletOpSendMessage>),
+    Send(Vec<SendMsgAction>),
     DeployAndInstall(WalletV4R2OpDeployAndInstallPlugin),
     Install(WalletV4R2OpPlugin),
     Remove(WalletV4R2OpPlugin),
 }
 
+impl WalletV4R2Op {
+    const SEND_PREFIX: u8 = 0;
+    const DEPLOY_AND_INSTALL_PREFIX: u8 = 1;
+    const INSTALL_PREFIX: u8 = 2;
+    const REMOVE_PREFIX: u8 = 3;
+}
+
 impl CellSerialize for WalletV4R2Op {
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         match self {
-            Self::Send(msgs) => builder.pack(0u8)?.store_many(msgs)?,
-            Self::DeployAndInstall(msg) => builder.pack(1u8)?.store(msg)?,
-            Self::Install(msg) => builder.pack(2u8)?.store(msg)?,
-            Self::Remove(msg) => builder.pack(3u8)?.store(msg)?,
+            Self::Send(msgs) => builder.pack(Self::SEND_PREFIX)?.store_many(msgs)?,
+            Self::DeployAndInstall(msg) => {
+                builder.pack(Self::DEPLOY_AND_INSTALL_PREFIX)?.store(msg)?
+            }
+            Self::Install(msg) => builder.pack(Self::INSTALL_PREFIX)?.store(msg)?,
+            Self::Remove(msg) => builder.pack(Self::REMOVE_PREFIX)?.store(msg)?,
         };
         Ok(())
     }
 }
 
+impl<'de> CellDeserialize<'de> for WalletV4R2Op {
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        Ok(match parser.unpack()? {
+            Self::SEND_PREFIX => Self::Send(
+                iter::from_fn(|| {
+                    if parser.no_references_left() {
+                        return None;
+                    }
+                    Some(parser.parse())
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+            ),
+            Self::DEPLOY_AND_INSTALL_PREFIX => Self::DeployAndInstall(parser.parse()?),
+            Self::INSTALL_PREFIX => Self::Install(parser.parse()?),
+            Self::REMOVE_PREFIX => Self::Remove(parser.parse()?),
+            op => return Err(Error::custom(format!("unknown op: {op:0b}"))),
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV4R2OpDeployAndInstallPlugin<T = Cell, IC = Cell, ID = Cell> {
     pub plugin_workchain: i8,
     pub plugin_balance: BigUint,
@@ -178,6 +226,7 @@ where
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV4R2OpPlugin {
     pub plugin_address: MsgAddress,
     pub amount: BigUint,
@@ -204,6 +253,30 @@ impl<'de> CellDeserialize<'de> for WalletV4R2OpPlugin {
             },
             amount: parser.unpack_as::<_, Grams>()?,
             query_id: parser.unpack()?,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WalletV4R2ExternalBody {
+    pub signature: [u8; 64],
+    pub body: WalletV4R2SignBody,
+}
+
+impl CellSerialize for WalletV4R2ExternalBody {
+    #[inline]
+    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+        builder.pack(self.signature)?.store(&self.body)?;
+        Ok(())
+    }
+}
+
+impl<'de> CellDeserialize<'de> for WalletV4R2ExternalBody {
+    #[inline]
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        Ok(Self {
+            signature: parser.unpack()?,
+            body: parser.parse()?,
         })
     }
 }

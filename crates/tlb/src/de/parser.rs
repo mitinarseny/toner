@@ -158,10 +158,30 @@ impl<'de> CellParser<'de> {
         self.pop_reference()?.parse_fully_as_with::<T, As>(args)
     }
 
+    #[inline]
+    pub fn bits_left(&self) -> usize {
+        self.data.len()
+    }
+
+    #[inline]
+    pub fn no_bits_left(&self) -> bool {
+        self.bits_left() == 0
+    }
+
+    #[inline]
+    pub const fn references_left(&self) -> usize {
+        self.references.len()
+    }
+
+    #[inline]
+    pub const fn no_references_left(&self) -> bool {
+        self.references_left() == 0
+    }
+
     /// Returns whether this parser has no more data and references.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.data.is_empty() && self.references.is_empty()
+        self.no_bits_left() && self.no_references_left()
     }
 
     /// Returns an error if this parser has more data or references.

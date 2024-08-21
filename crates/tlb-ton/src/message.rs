@@ -11,7 +11,7 @@ use tlb::{
     either::Either,
     r#as::{DefaultOnNone, Ref, Same},
     ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
-    Cell,
+    Cell, ResultExt,
 };
 
 use crate::{
@@ -40,11 +40,13 @@ where
     IC: CellSerialize,
     ID: CellSerialize,
 {
+    #[inline]
     pub fn with_state_init(mut self, state_init: impl Into<Option<StateInit<IC, ID>>>) -> Self {
         self.init = state_init.into();
         self
     }
 
+    #[inline]
     pub fn normalize(&self) -> Result<Message, CellBuilderError> {
         Ok(Message {
             info: self.info.clone(),
@@ -93,12 +95,14 @@ where
 {
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
-            info: parser.parse()?,
+            info: parser.parse().context("info")?,
             init: parser
-                .parse_as::<_, Option<Either<Same, Ref>>>()?
+                .parse_as::<_, Option<Either<Same, Ref>>>()
+                .context("init")?
                 .map(Either::into_inner),
             body: parser
-                .parse_as::<Either<T, T>, Either<Same, Ref>>()?
+                .parse_as::<Either<T, T>, Either<Same, Ref>>()
+                .context("body")?
                 .into_inner(),
         })
     }
@@ -131,6 +135,7 @@ impl CommonMsgInfo {
 }
 
 impl CellSerialize for CommonMsgInfo {
+    #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         match self {
             Self::Internal(msg) => builder
@@ -151,15 +156,20 @@ impl CellSerialize for CommonMsgInfo {
 }
 
 impl<'de> CellDeserialize<'de> for CommonMsgInfo {
+    #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         match parser.unpack()? {
             // int_msg_info$0
-            false => Ok(Self::Internal(parser.parse()?)),
+            false => Ok(Self::Internal(parser.parse().context("int_msg_info")?)),
             true => match parser.unpack()? {
                 // ext_in_msg_info$10
-                false => Ok(Self::ExternalIn(parser.unpack()?)),
+                false => Ok(Self::ExternalIn(
+                    parser.unpack().context("ext_in_msg_info")?,
+                )),
                 // ext_out_msg_info$11
-                true => Ok(Self::ExternalOut(parser.unpack()?)),
+                true => Ok(Self::ExternalOut(
+                    parser.unpack().context("ext_out_msg_info")?,
+                )),
             },
         }
     }
@@ -241,9 +251,9 @@ impl<'de> CellDeserialize<'de> for InternalMsgInfo {
             ihr_disabled: parser.unpack()?,
             bounce: parser.unpack()?,
             bounced: parser.unpack()?,
-            src: parser.unpack()?,
-            dst: parser.unpack()?,
-            value: parser.parse()?,
+            src: parser.unpack().context("src")?,
+            dst: parser.unpack().context("dst")?,
+            value: parser.parse().context("value")?,
             ihr_fee: parser.unpack_as::<_, Grams>()?,
             fwd_fee: parser.unpack_as::<_, Grams>()?,
             created_lt: parser.unpack()?,

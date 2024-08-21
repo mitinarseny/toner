@@ -5,6 +5,7 @@ use crate::{
         bitvec::{order::Msb0, slice::BitSlice, vec::BitVec},
         ser::{BitWriter, LimitWriter},
     },
+    r#as::Ref,
     Cell, Error, ResultExt,
 };
 
@@ -226,5 +227,13 @@ impl BitWriter for CellBuilder {
     #[inline]
     fn repeat_bit(&mut self, n: usize, bit: bool) -> Result<(), Self::Error> {
         self.data.repeat_bit(n, bit)
+    }
+}
+
+impl CellSerialize for CellBuilder {
+    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+        builder.write_bitslice(&self.data)?;
+        builder.store_many_as::<_, Ref>(&self.references)?;
+        Ok(())
     }
 }
