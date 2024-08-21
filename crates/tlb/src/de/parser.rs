@@ -21,6 +21,7 @@ use super::{
 pub type CellParserError<'de> = <CellParser<'de> as BitReader>::Error;
 
 /// Cell parser created with [`Cell::parser()`].
+#[derive(Clone)]
 pub struct CellParser<'de> {
     pub(super) data: &'de BitSlice<u8, Msb0>,
     pub(super) references: &'de [Arc<Cell>],
@@ -202,17 +203,22 @@ impl<'de> BitReader for CellParser<'de> {
     type Error = <&'de BitSlice<u8, Msb0> as BitReader>::Error;
 
     #[inline]
-    fn read_bit(&mut self) -> Result<bool, Self::Error> {
+    fn bits_left(&self) -> usize {
+        self.data.len()
+    }
+
+    #[inline]
+    fn read_bit(&mut self) -> Result<Option<bool>, Self::Error> {
         self.data.read_bit()
     }
 
     #[inline]
-    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
+    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<usize, Self::Error> {
         self.data.read_bits_into(dst)
     }
 
     #[inline]
-    fn skip(&mut self, n: usize) -> Result<(), Self::Error> {
+    fn skip(&mut self, n: usize) -> Result<usize, Self::Error> {
         self.data.skip(n)
     }
 }

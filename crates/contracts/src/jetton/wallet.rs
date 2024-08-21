@@ -1,11 +1,17 @@
+use bitvec::{mem::bits_of, order::Msb0, vec::BitVec};
 use num_bigint::BigUint;
 use tlb::{
-    bits::{de::BitReaderExt, integer::ConstU32, r#as::VarInt, ser::BitWriterExt},
+    bits::{
+        de::{BitReader, BitReaderExt, BitUnpack},
+        integer::ConstU32,
+        r#as::{Remainder, VarInt},
+        ser::{BitPack, BitWriter, BitWriterExt},
+    },
     de::{CellDeserialize, CellParser, CellParserError},
     either::Either,
     r#as::{ParseFully, Ref, Same},
     ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
-    Cell,
+    Cell, Error,
 };
 use tlb_ton::MsgAddress;
 
@@ -23,7 +29,7 @@ pub struct JettonTransfer<P = Cell, F = Cell> {
     pub response_dst: MsgAddress,
     pub custom_payload: Option<P>,
     pub forward_ton_amount: BigUint,
-    pub forward_payload: F,
+    pub forward_payload: ForwardPayload<F>,
 }
 
 const JETTON_TRANSFER_TAG: u32 = 0x0f8a7ea5;
@@ -82,9 +88,91 @@ where
             forward_ton_amount: parser.unpack_as::<_, VarInt<4>>()?,
             // forward_payload:(Either Cell ^Cell)
             forward_payload: parser
-                .parse_as::<Either<F, F>, Either<ParseFully, Ref<ParseFully>>>()?
+                .parse_as::<Either<ForwardPayload<F>, ForwardPayload<F>>, Either<ParseFully, Ref<ParseFully>>>()?
                 .into_inner(),
         })
+    }
+}
+
+pub enum ForwardPayload<T = Cell> {
+    Data(T),
+    Comment(ForwardPayloadComment),
+}
+
+impl<T> ForwardPayload<T> {
+    const COMMENT_PREFIX: u32 = 0x00000000;
+}
+
+impl<T> CellSerialize for ForwardPayload<T>
+where
+    T: CellSerialize,
+{
+    #[inline]
+    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+        match self {
+            Self::Data(data) => builder.store(data)?,
+            Self::Comment(comment) => builder.pack(Self::COMMENT_PREFIX)?.pack(comment)?,
+        };
+        Ok(())
+    }
+}
+
+impl<'de, F> CellDeserialize<'de> for ForwardPayload<F>
+where
+    F: CellDeserialize<'de>,
+{
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        if parser.bits_left() >= bits_of::<u32>()
+            // clone, so we don't advance original parser
+            && parser.clone().unpack::<u32>()? == Self::COMMENT_PREFIX
+        {
+            // skip the prefix
+            let _ = parser.unpack::<u32>()?;
+            return parser.unpack().map(Self::Comment);
+        }
+        parser.parse().map(Self::Data)
+    }
+}
+
+pub enum ForwardPayloadComment {
+    Text(String),
+    Binary(Vec<u8>),
+}
+
+impl ForwardPayloadComment {
+    const BINARY_PREFIX: u8 = 0xff;
+}
+
+impl BitPack for ForwardPayloadComment {
+    #[inline]
+    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        match self {
+            Self::Text(comment) => writer.pack(comment)?,
+            Self::Binary(comment) => writer.pack(Self::BINARY_PREFIX)?.pack(comment)?,
+        };
+        Ok(())
+    }
+}
+
+impl BitUnpack for ForwardPayloadComment {
+    #[inline]
+    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+    where
+        R: BitReader,
+    {
+        let mut buf = BitVec::<u8, Msb0>::new();
+        let mut r = reader.tee(&mut buf);
+        if r.bits_left() >= bits_of::<u8>() && r.unpack::<u8>()? == Self::BINARY_PREFIX {
+            return r.unpack_as::<_, Remainder>().map(Self::Binary);
+        }
+        reader = r.into_inner();
+        let mut r = buf.join(reader);
+        r.unpack_as::<_, Remainder>()
+            .map(Self::Text)
+            .map_err(Error::custom)
     }
 }
 
@@ -98,7 +186,7 @@ pub struct JettonTransferNotification<P = Cell> {
     pub query_id: u64,
     pub amount: BigUint,
     pub sender: MsgAddress,
-    pub forward_payload: P,
+    pub forward_payload: ForwardPayload<P>,
 }
 
 const JETTON_TRANSFER_NOTIFICATION_TAG: u32 = 0x7362d09c;
@@ -129,7 +217,7 @@ where
             amount: parser.unpack_as::<_, VarInt<4>>()?,
             sender: parser.unpack()?,
             forward_payload: parser
-                .parse_as::<Either<P, P>, Either<Same, Ref<ParseFully>>>()?
+                .parse_as::<Either<ForwardPayload<P>, ForwardPayload<P>>, Either<Same, Ref<ParseFully>>>()?
                 .into_inner(),
         })
     }

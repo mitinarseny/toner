@@ -82,7 +82,7 @@ impl BitUnpack for bool {
     where
         R: BitReader,
     {
-        reader.read_bit()
+        reader.read_bit()?.ok_or_else(|| Error::custom("EOF"))
     }
 }
 

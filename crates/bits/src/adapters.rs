@@ -51,3 +51,5 @@ impl<T> BitCounter<T> {
         self.inner
     }
 }
+
+pub struct Join<T1, T2>(pub T1, pub T2);

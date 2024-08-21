@@ -4,7 +4,7 @@ use ::bitvec::{order::Msb0, slice::BitSlice, view::AsMutBits};
 use impl_tools::autoimpl;
 
 use crate::{
-    adapters::{MapErr, Tee},
+    adapters::{Join, MapErr, Tee},
     ser::BitWriter,
     Error, ResultExt, StringError,
 };
@@ -21,34 +21,48 @@ pub trait BitReader {
     // An error ocurred while reading
     type Error: Error;
 
+    /// Returns count of bits left to read more
+    fn bits_left(&self) -> usize;
+
     /// Reads only one bit.
-    fn read_bit(&mut self) -> Result<bool, Self::Error>;
+    fn read_bit(&mut self) -> Result<Option<bool>, Self::Error>;
 
     /// Reads `dst.len()` bits into given bitslice.
     /// Might be optimized by the implementation.
     #[inline]
-    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
-        for mut bit in dst.iter_mut() {
-            *bit = self.read_bit()?
+    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<usize, Self::Error> {
+        for (i, mut bit) in dst.iter_mut().enumerate() {
+            let Some(read) = self.read_bit()? else {
+                return Ok(i);
+            };
+            *bit = read;
         }
-        Ok(())
+        Ok(dst.len())
     }
 
     /// Reads and discards `n` bits
     #[inline]
-    fn skip(&mut self, n: usize) -> Result<(), Self::Error> {
-        for _ in 0..n {
-            self.read_bit()?;
+    fn skip(&mut self, n: usize) -> Result<usize, Self::Error> {
+        for i in 0..n {
+            if self.read_bit()?.is_none() {
+                return Ok(i);
+            }
         }
-        Ok(())
+        Ok(n)
     }
 }
 
 /// Extension helper for [`BitReader`].
 pub trait BitReaderExt: BitReader {
+    /// Returns wheather the reader is empty
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.bits_left() == 0
+    }
+
     /// Reads `dst.len()` bytes into given byte slice
     #[inline]
-    fn read_bytes_into(&mut self, mut dst: impl AsMut<[u8]>) -> Result<(), Self::Error> {
+    fn read_bytes_into(&mut self, mut dst: impl AsMut<[u8]>) -> Result<usize, Self::Error> {
         self.read_bits_into(dst.as_mut_bits())
     }
 
@@ -179,6 +193,15 @@ pub trait BitReaderExt: BitReader {
             writer,
         }
     }
+
+    #[inline]
+    fn join<R>(self, next: R) -> Join<Self, R>
+    where
+        Self: Sized,
+        R: BitReader,
+    {
+        Join(self, next)
+    }
 }
 impl<T> BitReaderExt for T where T: BitReader {}
 
@@ -190,17 +213,23 @@ where
 {
     type Error = E;
 
-    fn read_bit(&mut self) -> Result<bool, Self::Error> {
+    #[inline]
+    fn bits_left(&self) -> usize {
+        self.inner.bits_left()
+    }
+
+    #[inline]
+    fn read_bit(&mut self) -> Result<Option<bool>, Self::Error> {
         self.inner.read_bit().map_err(&mut self.f)
     }
 
     #[inline]
-    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
+    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<usize, Self::Error> {
         self.inner.read_bits_into(dst).map_err(&mut self.f)
     }
 
     #[inline]
-    fn skip(&mut self, n: usize) -> Result<(), Self::Error> {
+    fn skip(&mut self, n: usize) -> Result<usize, Self::Error> {
         self.inner.skip(n).map_err(&mut self.f)
     }
 }
@@ -213,22 +242,65 @@ where
     type Error = R::Error;
 
     #[inline]
-    fn read_bit(&mut self) -> Result<bool, Self::Error> {
-        let bit = self.inner.read_bit()?;
+    fn bits_left(&self) -> usize {
+        self.inner.bits_left()
+    }
+
+    #[inline]
+    fn read_bit(&mut self) -> Result<Option<bool>, Self::Error> {
+        let Some(bit) = self.inner.read_bit()? else {
+            return Ok(None);
+        };
         self.writer
             .write_bit(bit)
             .map_err(<R::Error>::custom)
             .context("writer")?;
-        Ok(bit)
+        Ok(Some(bit))
     }
 
     #[inline]
-    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
-        self.inner.read_bits_into(dst)?;
+    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<usize, Self::Error> {
+        let n = self.inner.read_bits_into(dst)?;
         self.writer
-            .write_bitslice(dst)
+            .write_bitslice(&dst[..n])
             .map_err(|err| <R::Error>::custom(err).context("writer"))?;
-        Ok(())
+        Ok(n)
+    }
+}
+
+impl<R1, R2> BitReader for Join<R1, R2>
+where
+    R1: BitReader,
+    R2: BitReader,
+{
+    type Error = R1::Error;
+
+    #[inline]
+    fn bits_left(&self) -> usize {
+        self.0.bits_left() + self.1.bits_left()
+    }
+
+    #[inline]
+    fn read_bit(&mut self) -> Result<Option<bool>, Self::Error> {
+        if let Some(bit) = self.0.read_bit()? {
+            return Ok(Some(bit));
+        }
+        self.1.read_bit().map_err(Error::custom)
+    }
+
+    #[inline]
+    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<usize, Self::Error> {
+        let n = self.0.read_bits_into(dst)?;
+        Ok(n + self
+            .1
+            .read_bits_into(&mut dst[n..])
+            .map_err(Error::custom)?)
+    }
+
+    #[inline]
+    fn skip(&mut self, n: usize) -> Result<usize, Self::Error> {
+        let skipped = self.0.skip(n)?;
+        Ok(skipped + self.1.skip(n - skipped).map_err(Error::custom)?)
     }
 }
 
@@ -236,30 +308,33 @@ impl BitReader for &BitSlice<u8, Msb0> {
     type Error = StringError;
 
     #[inline]
-    fn read_bit(&mut self) -> Result<bool, Self::Error> {
-        let (bit, rest) = self.split_first().ok_or_else(|| Error::custom("EOF"))?;
-        *self = rest;
-        Ok(*bit)
+    fn bits_left(&self) -> usize {
+        self.len()
     }
 
     #[inline]
-    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
-        if self.len() < dst.len() {
-            return Err(Error::custom("EOF"));
-        }
-        let (v, rest) = self.split_at(dst.len());
+    fn read_bit(&mut self) -> Result<Option<bool>, Self::Error> {
+        let Some((bit, rest)) = self.split_first() else {
+            return Ok(None);
+        };
+        *self = rest;
+        Ok(Some(*bit))
+    }
+
+    #[inline]
+    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<usize, Self::Error> {
+        let n = dst.len().min(self.bits_left());
+        let (v, rest) = self.split_at(n);
         dst.copy_from_bitslice(v);
         *self = rest;
-        Ok(())
+        Ok(n)
     }
 
     #[inline]
-    fn skip(&mut self, n: usize) -> Result<(), Self::Error> {
-        if self.len() < n {
-            return Err(Error::custom("EOF"));
-        }
+    fn skip(&mut self, mut n: usize) -> Result<usize, Self::Error> {
+        n = n.min(self.bits_left());
         let (_, rest) = self.split_at(n);
         *self = rest;
-        Ok(())
+        Ok(n)
     }
 }

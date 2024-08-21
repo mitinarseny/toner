@@ -9,6 +9,7 @@ mod bits;
 mod default;
 mod from_into;
 mod integer;
+mod remainder;
 mod same;
 mod unary;
 
@@ -29,7 +30,7 @@ use crate::{
     },
 };
 
-pub use self::{bits::*, default::*, from_into::*, integer::*, same::*, unary::*};
+pub use self::{bits::*, default::*, from_into::*, integer::*, remainder::*, same::*, unary::*};
 
 /// Helper to implement **de**/**ser**ialize trait for adapters
 #[autoimpl(Clone where T: Clone)]

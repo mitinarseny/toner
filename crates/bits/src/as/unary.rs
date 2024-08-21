@@ -46,7 +46,7 @@ where
         R: BitReader,
     {
         let mut n = T::ZERO;
-        while reader.read_bit()? {
+        while reader.read_bit()?.ok_or_else(|| Error::custom("EOF"))? {
             n = n + T::one();
         }
         Ok(n)
