@@ -9,8 +9,8 @@ use tlb::{
     },
     de::{CellDeserialize, CellParser, CellParserError},
     either::Either,
-    r#as::{ParseFully, Ref, Same},
-    ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
+    r#as::{EitherInlineOrRef, ParseFully, Ref, Same},
+    ser::{CellBuilder, CellBuilderError, CellSerialize},
     Cell, Error,
 };
 use tlb_ton::MsgAddress;
@@ -56,11 +56,8 @@ where
             // forward_ton_amount:(VarUInteger 16)
             .pack_as::<_, &VarInt<4>>(&self.forward_ton_amount)?
             // forward_payload:(Either Cell ^Cell)
-            .store_as::<_, Either<(), Ref>>(
-                Some(&self.forward_payload.to_cell()?)
-                    // store empty cell inline
-                    .filter(|cell| !cell.is_empty()),
-            )?;
+            .store_as::<_, EitherInlineOrRef>(&self.forward_payload)?;
+
         Ok(())
     }
 }

@@ -214,6 +214,11 @@ impl BitWriter for CellBuilder {
     type Error = <CellBitWriter as BitWriter>::Error;
 
     #[inline]
+    fn capacity_left(&self) -> usize {
+        self.data.capacity_left()
+    }
+
+    #[inline]
     fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error> {
         self.data.write_bit(bit)?;
         Ok(())

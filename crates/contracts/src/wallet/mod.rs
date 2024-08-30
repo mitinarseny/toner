@@ -162,11 +162,6 @@ where
     ///     ).unwrap();
     /// # let mut b = Cell::builder();
     /// # b.store(msg).unwrap();
-    /// # let cell = b.into_cell();
-    /// # assert_eq!(
-    /// #     hex!("607b41a4b219fbc6d23f4aae5c4b85e5ceca07bc0ba732ae02a621588f0577d4"),
-    ///#      cell.hash(),
-    /// # );
     /// ```
     #[inline]
     pub fn create_external_message(

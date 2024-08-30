@@ -9,7 +9,7 @@ use tlb::{
     },
     de::{CellDeserialize, CellParser, CellParserError},
     either::Either,
-    r#as::{DefaultOnNone, Ref, Same},
+    r#as::{DefaultOnNone, EitherInlineOrRef, Ref, Same},
     ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
     Cell, ResultExt,
 };
@@ -77,12 +77,8 @@ where
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder
             .store(&self.info)?
-            .store_as::<_, Option<Either<(), Ref>>>(self.init.as_ref().map(Some))?
-            .store_as::<_, Either<(), Ref>>(
-                Some(self.body.to_cell()?)
-                    // store empty cell inline
-                    .filter(|cell| !cell.is_empty()),
-            )?;
+            .store_as::<_, &Option<EitherInlineOrRef>>(&self.init)?
+            .store_as::<_, EitherInlineOrRef>(&self.body)?;
         Ok(())
     }
 }
