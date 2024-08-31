@@ -7,12 +7,14 @@ pub use self::writer::*;
 
 use std::{rc::Rc, sync::Arc};
 
+use args::r#as::BitPackAsWithArgs;
 use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
 use either::Either;
 use impl_tools::autoimpl;
+use r#as::BitPackAs;
 
 use crate::{
-    r#as::{AsBytes, Same},
+    r#as::{args::NoArgs, AsBytes, Same},
     ResultExt, StringError,
 };
 
@@ -47,6 +49,32 @@ where
     let mut writer = BitVec::new();
     BitWriterExt::pack_with(&mut writer, value, args)?;
     Ok(writer)
+}
+
+#[inline]
+pub fn bits_for<T>(value: T) -> Result<usize, StringError>
+where
+    T: BitPack,
+{
+    bits_for_as::<_, Same>(value)
+}
+
+#[inline]
+pub fn bits_for_as<T, As>(value: T) -> Result<usize, StringError>
+where
+    As: BitPackAs<T>,
+{
+    bits_for_as_with::<_, NoArgs<_, As>>(value, ())
+}
+
+#[inline]
+pub fn bits_for_as_with<T, As>(value: T, args: As::Args) -> Result<usize, StringError>
+where
+    As: BitPackAsWithArgs<T>,
+{
+    let mut writer = NoopBitWriter.counted();
+    BitWriterExt::pack_as_with::<_, As>(&mut writer, value, args)?;
+    Ok(writer.bit_count())
 }
 
 impl BitPack for () {

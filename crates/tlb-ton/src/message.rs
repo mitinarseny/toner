@@ -8,8 +8,7 @@ use tlb::{
         ser::{BitPack, BitWriter, BitWriterExt},
     },
     de::{CellDeserialize, CellParser, CellParserError},
-    either::Either,
-    r#as::{DefaultOnNone, EitherInlineOrRef, Ref, Same},
+    r#as::{DefaultOnNone, EitherInlineOrRef},
     ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
     Cell, ResultExt,
 };
@@ -76,8 +75,11 @@ where
 {
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder
+            // info:CommonMsgInfo
             .store(&self.info)?
+            // init:(Maybe (Either StateInit ^StateInit))
             .store_as::<_, &Option<EitherInlineOrRef>>(&self.init)?
+            // body:(Either X ^X)
             .store_as::<_, EitherInlineOrRef>(&self.body)?;
         Ok(())
     }
@@ -91,15 +93,14 @@ where
 {
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
+            // info:CommonMsgInfo
             info: parser.parse().context("info")?,
+            // init:(Maybe (Either StateInit ^StateInit))
             init: parser
-                .parse_as::<_, Option<Either<Same, Ref>>>()
-                .context("init")?
-                .map(Either::into_inner),
-            body: parser
-                .parse_as::<Either<T, T>, Either<Same, Ref>>()
-                .context("body")?
-                .into_inner(),
+                .parse_as::<_, Option<EitherInlineOrRef>>()
+                .context("init")?,
+            // body:(Either X ^X)
+            body: parser.parse_as::<_, EitherInlineOrRef>().context("body")?,
         })
     }
 }

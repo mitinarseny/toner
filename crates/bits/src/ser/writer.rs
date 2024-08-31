@@ -219,7 +219,8 @@ pub trait BitWriterExt: BitWriter {
 }
 impl<T> BitWriterExt for T where T: BitWriter {}
 
-struct NoopBitWriter;
+#[derive(Debug, Clone, Copy)]
+pub struct NoopBitWriter;
 
 impl BitWriter for NoopBitWriter {
     type Error = StringError;
