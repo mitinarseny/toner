@@ -10,6 +10,7 @@ use crate::{
     },
     Cell, Error,
 };
+use crate::cell_type::CellType;
 
 use super::{
     args::{r#as::CellDeserializeAsWithArgs, CellDeserializeWithArgs},
@@ -23,14 +24,15 @@ pub type CellParserError<'de> = <CellParser<'de> as BitReader>::Error;
 /// Cell parser created with [`Cell::parser()`].
 #[derive(Clone)]
 pub struct CellParser<'de> {
+    pub(super) r#type: CellType,
     pub(super) data: &'de BitSlice<u8, Msb0>,
     pub(super) references: &'de [Arc<Cell>],
 }
 
 impl<'de> CellParser<'de> {
     #[inline]
-    pub(crate) const fn new(data: &'de BitSlice<u8, Msb0>, references: &'de [Arc<Cell>]) -> Self {
-        Self { data, references }
+    pub(crate) const fn new(r#type: CellType, data: &'de BitSlice<u8, Msb0>, references: &'de [Arc<Cell>]) -> Self {
+        Self { r#type, data, references }
     }
 
     /// Parse the value using its [`CellDeserialize`] implementation
@@ -227,6 +229,7 @@ impl<'de> CellDeserialize<'de> for CellParser<'de> {
     #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
+            r#type: parser.r#type,
             data: mem::take(&mut parser.data),
             references: mem::take(&mut parser.references),
         })

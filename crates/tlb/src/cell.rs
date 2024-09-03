@@ -16,10 +16,12 @@ use crate::{
     },
     ser::CellBuilder,
 };
+use crate::cell_type::CellType;
 
 /// A [Cell](https://docs.ton.org/develop/data-formats/cell-boc#cell).  
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct Cell {
+    pub r#type: CellType,
     pub data: BitVec<u8, Msb0>,
     pub references: Vec<Arc<Self>>,
 }
@@ -35,8 +37,9 @@ impl Cell {
     /// Create empty cell
     #[inline]
     #[must_use]
-    pub const fn new() -> Self {
+    pub const fn new(r#type: CellType) -> Self {
         Self {
+            r#type,
             data: BitVec::EMPTY,
             references: Vec::new(),
         }
@@ -46,7 +49,7 @@ impl Cell {
     #[inline]
     #[must_use]
     pub fn parser(&self) -> CellParser<'_> {
-        CellParser::new(&self.data, &self.references)
+        CellParser::new(self.r#type, &self.data, &self.references)
     }
 
     /// Shortcut for [`.parser()`](Cell::parser)[`.parse()`](CellParser::parse)[`.ensure_empty()`](CellParser::ensure_empty).

@@ -142,6 +142,7 @@ impl<'de> CellDeserialize<'de> for Cell {
     #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
+            r#type: parser.r#type,
             data: mem::take(&mut parser.data).to_bitvec(),
             references: mem::take(&mut parser.references).to_vec(),
         })

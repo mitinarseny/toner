@@ -5,6 +5,7 @@ use std::{
     sync::Arc,
 };
 
+use crate::cell_type::RawCellType;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use crc::Crc;
 use tlb::{
@@ -202,6 +203,7 @@ impl BitPackWithArgs for BagOfCells {
             cells: ordered_cells
                 .into_iter()
                 .map(|cell| RawCell {
+                    r#type: cell.r#type.into(),
                     data: cell.data.clone(),
                     references: cell
                         .references
@@ -267,6 +269,7 @@ impl BitUnpack for BagOfCells {
         for (i, raw_cell) in raw.cells.into_iter().enumerate().rev() {
             cells.push(
                 Cell {
+                    r#type: raw_cell.r#type.into(),
                     data: raw_cell.data,
                     references: raw_cell
                         .references
@@ -478,6 +481,7 @@ impl BitUnpack for RawBagOfCells {
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub(crate) struct RawCell {
+    pub r#type: RawCellType,
     pub data: BitVec<u8, Msb0>,
     pub references: Vec<u32>,
     pub level: u8,
@@ -493,12 +497,21 @@ impl BitUnpackWithArgs for RawCell {
     {
         let refs_descriptor: u8 = reader.unpack()?;
         let level: u8 = refs_descriptor >> 5;
-        let _is_exotic: bool = refs_descriptor >> 3 & 0b1 == 1;
+        let is_exotic: bool = refs_descriptor >> 3 & 0b1 == 1;
         let ref_num: usize = refs_descriptor as usize & 0b111;
 
         let bits_descriptor: u8 = reader.unpack()?;
-        let num_bytes: usize = ((bits_descriptor >> 1) + (bits_descriptor & 1)) as usize;
+        let num_bytes = if is_exotic {
+            ((bits_descriptor >> 1) + (bits_descriptor & 1)) as usize - 1
+        } else {
+            ((bits_descriptor >> 1) + (bits_descriptor & 1)) as usize
+        };
         let full_bytes = (bits_descriptor & 1) == 0;
+        let r#type = if is_exotic {
+            reader.unpack::<RawCellType>()?
+        } else {
+            RawCellType::Ordinary
+        };
 
         let mut data: BitVec<u8, Msb0> = reader.unpack_with(num_bytes * 8)?;
         if !data.is_empty() && !full_bytes {
@@ -515,6 +528,7 @@ impl BitUnpackWithArgs for RawCell {
             .collect::<Result<_, _>>()?;
 
         Ok(RawCell {
+            r#type,
             data,
             references,
             level,

@@ -142,5 +142,6 @@ pub use self::cell::*;
 
 pub use tlbits::{self as bits, either, Error, ResultExt, StringError};
 
+pub mod cell_type;
 #[cfg(test)]
 mod tests;
