@@ -20,3 +20,9 @@ impl Default for CellType {
         Self::Ordinary
     }
 }
+
+impl CellType {
+    pub fn is_exotic(&self) -> bool {
+        !matches!(self, CellType::Ordinary)
+    }
+}

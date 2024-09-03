@@ -8,6 +8,8 @@ use std::sync::Arc;
 use bitvec::{order::Msb0, vec::BitVec};
 use sha2::{Digest, Sha256};
 
+use crate::cell_type::CellType;
+use crate::library_reference::LibraryReference;
 use crate::{
     de::{
         args::{r#as::CellDeserializeAsWithArgs, CellDeserializeWithArgs},
@@ -16,7 +18,6 @@ use crate::{
     },
     ser::CellBuilder,
 };
-use crate::cell_type::CellType;
 
 /// A [Cell](https://docs.ton.org/develop/data-formats/cell-boc#cell).  
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
@@ -117,37 +118,47 @@ impl Cell {
     /// See [Cell level](https://docs.ton.org/develop/data-formats/cell-boc#cell-level)
     #[inline]
     pub fn level(&self) -> u8 {
-        self.references
-            .iter()
-            .map(Deref::deref)
-            .map(Cell::level)
-            .max()
-            .unwrap_or(0)
+        match self.r#type {
+            CellType::LibraryReference => 0,
+            _ => self
+                .references
+                .iter()
+                .map(Deref::deref)
+                .map(Cell::level)
+                .max()
+                .unwrap_or(0),
+        }
     }
 
     /// See [Cell serialization](https://docs.ton.org/develop/data-formats/cell-boc#cell-serialization)
     #[inline]
     fn refs_descriptor(&self) -> u8 {
-        // TODO: exotic cells
-        self.references.len() as u8 | (self.level() << 5)
+        self.references.len() as u8
+            | (if self.r#type.is_exotic() { 1_u8 } else { 0_u8 } << 4)
+            | (self.level() << 5)
     }
 
     /// See [Cell serialization](https://docs.ton.org/develop/data-formats/cell-boc#cell-serialization)
     #[inline]
     fn bits_descriptor(&self) -> u8 {
-        let b = self.data.len();
+        let b = self.data.len() + if self.r#type.is_exotic() { 1 } else { 0 };
+
         (b / 8) as u8 + ((b + 7) / 8) as u8
     }
 
     #[inline]
     fn max_depth(&self) -> u16 {
-        self.references
-            .iter()
-            .map(Deref::deref)
-            .map(Cell::max_depth)
-            .max()
-            .map(|d| d + 1)
-            .unwrap_or(0)
+        match self.r#type {
+            CellType::LibraryReference => 0,
+            _ => self
+                .references
+                .iter()
+                .map(Deref::deref)
+                .map(Cell::max_depth)
+                .max()
+                .map(|d| d + 1)
+                .unwrap_or(0),
+        }
     }
 
     /// [Standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#standard-cell-representation-hash-calculation)
@@ -190,9 +201,15 @@ impl Cell {
     /// Calculates [standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#cell-hash)
     #[inline]
     pub fn hash(&self) -> [u8; 32] {
-        let mut hasher = Sha256::new();
-        hasher.update(self.repr());
-        hasher.finalize().into()
+        // TODO[akostylev0]: error handling
+        match self.r#type {
+            CellType::LibraryReference => self.parse_fully::<LibraryReference>().unwrap().hash,
+            _ => {
+                let mut hasher = Sha256::new();
+                hasher.update(self.repr());
+                hasher.finalize().into()
+            }
+        }
     }
 }
 
