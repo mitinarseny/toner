@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use tlbits::ResultExt;
 
+use crate::cell_type::CellType;
 use crate::{
     bits::{
         bitvec::{order::Msb0, slice::BitSlice},
@@ -10,7 +11,6 @@ use crate::{
     },
     Cell, Error,
 };
-use crate::cell_type::CellType;
 
 use super::{
     args::{r#as::CellDeserializeAsWithArgs, CellDeserializeWithArgs},
@@ -31,8 +31,16 @@ pub struct CellParser<'de> {
 
 impl<'de> CellParser<'de> {
     #[inline]
-    pub(crate) const fn new(r#type: CellType, data: &'de BitSlice<u8, Msb0>, references: &'de [Arc<Cell>]) -> Self {
-        Self { r#type, data, references }
+    pub(crate) const fn new(
+        r#type: CellType,
+        data: &'de BitSlice<u8, Msb0>,
+        references: &'de [Arc<Cell>],
+    ) -> Self {
+        Self {
+            r#type,
+            data,
+            references,
+        }
     }
 
     /// Parse the value using its [`CellDeserialize`] implementation
@@ -197,6 +205,18 @@ impl<'de> CellParser<'de> {
                 self.references.len(),
             )));
         }
+        Ok(())
+    }
+
+    #[inline]
+    pub fn ensure_type(&self, ty: CellType) -> Result<(), CellParserError<'de>> {
+        if self.r#type != ty {
+            return Err(Error::custom(format!(
+                "expected cell type {}, found {}",
+                self.r#type, ty
+            )));
+        }
+
         Ok(())
     }
 }
