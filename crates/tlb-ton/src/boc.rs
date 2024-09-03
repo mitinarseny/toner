@@ -268,23 +268,29 @@ impl BitUnpack for BagOfCells {
         let mut cells: Vec<Arc<Cell>> = Vec::new();
         for (i, raw_cell) in raw.cells.into_iter().enumerate().rev() {
             cells.push(
-                Cell {
-                    r#type: raw_cell.r#type.into(),
-                    data: raw_cell.data,
-                    references: raw_cell
-                        .references
-                        .into_iter()
-                        .map(|r| {
-                            if r <= i as u32 {
-                                return Err(Error::custom(format!(
-                                    "references to previous cells are not supported: [{i}] -> [{r}]"
-                                )));
-                            }
-                            Ok(cells[num_cells - 1 - r as usize].clone())
-                        })
-                        .collect::<Result<_, _>>()?,
+                match raw_cell.r#type {
+                    RawCellType::Ordinary => {
+                        Cell {
+                            r#type: raw_cell.r#type.into(),
+                            data: raw_cell.data,
+                            references: raw_cell
+                                .references
+                                .into_iter()
+                                .map(|r| {
+                                    if r <= i as u32 {
+                                        return Err(Error::custom(format!(
+                                            "references to previous cells are not supported: [{i}] -> [{r}]"
+                                        )));
+                                    }
+                                    Ok(cells[num_cells - 1 - r as usize].clone())
+                                })
+                                .collect::<Result<_, _>>()?,
+                        }
+                            .into()
+                    }
+                    RawCellType::LibraryReference => {},
+                    _ => unimplemented!()
                 }
-                .into(),
             );
         }
         Ok(BagOfCells {

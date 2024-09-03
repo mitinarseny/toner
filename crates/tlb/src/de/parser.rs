@@ -24,9 +24,9 @@ pub type CellParserError<'de> = <CellParser<'de> as BitReader>::Error;
 /// Cell parser created with [`Cell::parser()`].
 #[derive(Clone)]
 pub struct CellParser<'de> {
-    pub(super) r#type: CellType,
-    pub(super) data: &'de BitSlice<u8, Msb0>,
-    pub(super) references: &'de [Arc<Cell>],
+    pub(crate) r#type: CellType,
+    pub(crate) data: &'de BitSlice<u8, Msb0>,
+    pub(crate) references: &'de [Arc<Cell>],
 }
 
 impl<'de> CellParser<'de> {

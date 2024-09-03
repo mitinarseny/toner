@@ -14,6 +14,7 @@ use crate::{
     r#as::{FromInto, Same},
     Cell, ResultExt,
 };
+use crate::cell_type::CellType;
 
 /// A type that can be **de**serialized from [`CellParser`].
 pub trait CellDeserialize<'de>: Sized {
@@ -141,10 +142,14 @@ where
 impl<'de> CellDeserialize<'de> for Cell {
     #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        Ok(Self {
-            r#type: parser.r#type,
-            data: mem::take(&mut parser.data).to_bitvec(),
-            references: mem::take(&mut parser.references).to_vec(),
-        })
+        let cell = match parser.r#type {
+            CellType::LibraryReference => Cell::LibraryReference(parser.parse()?),
+            CellType::Ordinary => Cell::Ordinary(parser.parse()?),
+            _ => unimplemented!(),
+        };
+
+        parser.ensure_empty()?;
+
+        Ok(cell)
     }
 }

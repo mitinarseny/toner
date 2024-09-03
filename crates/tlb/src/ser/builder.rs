@@ -1,14 +1,10 @@
 use std::sync::Arc;
 
-use crate::{
-    bits::{
-        bitvec::{order::Msb0, slice::BitSlice, vec::BitVec},
-        ser::{BitWriter, LimitWriter},
-    },
-    r#as::Ref,
-    Cell, Error, ResultExt,
-};
 use crate::cell_type::CellType;
+use crate::{bits::{
+    bitvec::{order::Msb0, slice::BitSlice, vec::BitVec},
+    ser::{BitWriter, LimitWriter},
+}, r#as::Ref, Cell, Error, ResultExt, OrdinaryCell};
 
 use super::{
     args::{r#as::CellSerializeAsWithArgs, CellSerializeWithArgs},
@@ -213,10 +209,13 @@ impl CellBuilder {
     #[inline]
     #[must_use]
     pub fn into_cell(self) -> Cell {
-        Cell {
-            r#type: self.r#type,
-            data: self.data.into_inner(),
-            references: self.references,
+        match self.r#type {
+            CellType::Ordinary => Cell::Ordinary(OrdinaryCell { data: self.data.into_inner(), references: self.references }),
+            // {
+            //     data: self.data.into_inner(),
+            //     references: self.references,
+            // },
+            _ => unimplemented!(),
         }
     }
 }
