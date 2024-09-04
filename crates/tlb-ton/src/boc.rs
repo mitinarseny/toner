@@ -8,7 +8,6 @@ use std::{
 use crate::cell_type::RawCellType;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use crc::Crc;
-use tlb::bits::de::unpack_fully;
 use tlb::{
     bits::{
         bitvec::{order::Msb0, vec::BitVec, view::AsBits},
@@ -16,7 +15,7 @@ use tlb::{
         r#as::{NBits, VarNBytes},
         ser::{args::BitPackWithArgs, BitWriter, BitWriterExt},
     },
-    Cell, Error, LibraryReferenceCell, OrdinaryCell, ResultExt, StringError,
+    Cell, Error, LibraryReferenceCell, OrdinaryCell, PrunedBranchCell, ResultExt, StringError,
 };
 
 /// Alias to [`BagOfCells`]
@@ -205,7 +204,7 @@ impl BitPackWithArgs for BagOfCells {
                 .into_iter()
                 .map(|cell| RawCell {
                     r#type: cell.as_type().into(),
-                    data: cell.bits().into(),
+                    data: cell.as_bits().into(),
                     references: cell
                         .references()
                         .iter()
@@ -287,10 +286,11 @@ impl BitUnpack for BagOfCells {
                         Arc::new(Cell::Ordinary(OrdinaryCell { data: raw_cell.data, references }))
                     }
                     RawCellType::LibraryReference => {
-                        Arc::new(Cell::LibraryReference(LibraryReferenceCell {
-                            hash: unpack_fully(raw_cell.data).map_err(Error::custom)?
-                        }))
+                        Arc::new(Cell::LibraryReference(LibraryReferenceCell { data: raw_cell.data }))
                     },
+                    RawCellType::PrunedBranch => {
+                        Arc::new(Cell::PrunedBranch(PrunedBranchCell { level: raw_cell.level, data: raw_cell.data }))
+                    }
                     _ => unimplemented!()
                 }
             );

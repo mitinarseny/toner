@@ -6,14 +6,14 @@ mod parser;
 pub use self::parser::*;
 
 use core::mem::MaybeUninit;
-use std::{rc::Rc, sync::Arc};
+use std::{mem, rc::Rc, sync::Arc};
 
 use crate::cell_type::CellType;
 use crate::{
     bits::de::BitReaderExt,
     either::Either,
     r#as::{FromInto, Same},
-    Cell, ResultExt,
+    Cell, LibraryReferenceCell, OrdinaryCell, PrunedBranchCell, ResultExt,
 };
 
 /// A type that can be **de**serialized from [`CellParser`].
@@ -143,8 +143,17 @@ impl<'de> CellDeserialize<'de> for Cell {
     #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         let cell = match parser.r#type {
-            CellType::LibraryReference => Cell::LibraryReference(parser.parse()?),
-            CellType::Ordinary => Cell::Ordinary(parser.parse()?),
+            CellType::Ordinary => Cell::Ordinary(OrdinaryCell {
+                data: mem::take(&mut parser.data).to_bitvec(),
+                references: mem::take(&mut parser.references).to_vec(),
+            }),
+            CellType::LibraryReference => Cell::LibraryReference(LibraryReferenceCell {
+                data: mem::take(&mut parser.data).to_bitvec(),
+            }),
+            CellType::PrunedBranch => Cell::PrunedBranch(PrunedBranchCell {
+                level: parser.level,
+                data: mem::take(&mut parser.data).to_bitvec(),
+            }),
             _ => unimplemented!(),
         };
 

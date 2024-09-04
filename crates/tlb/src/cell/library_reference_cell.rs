@@ -1,29 +1,13 @@
-use crate::cell_type::CellType;
-use crate::de::{CellDeserialize, CellParser, CellParserError};
-use crate::ser::{CellBuilder, CellBuilderError, CellSerialize};
-use tlbits::de::BitReaderExt;
-use tlbits::ser::BitWriterExt;
+use bitvec::order::Msb0;
+use bitvec::vec::BitVec;
 
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct LibraryReferenceCell {
-    pub hash: [u8; 32],
+    pub data: BitVec<u8, Msb0>,
 }
 
-impl<'de> CellSerialize for LibraryReferenceCell {
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.set_type(CellType::LibraryReference);
-        builder.pack(self.hash)?;
-
-        Ok(())
-    }
-}
-
-impl<'de> CellDeserialize<'de> for LibraryReferenceCell {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        parser.ensure_type(CellType::LibraryReference)?;
-        let hash = parser.unpack()?;
-        parser.ensure_empty()?;
-
-        Ok(Self { hash })
+impl LibraryReferenceCell {
+    pub fn hash(&self) -> [u8; 32] {
+        self.data.as_raw_slice().try_into().expect("invalid hash length")
     }
 }

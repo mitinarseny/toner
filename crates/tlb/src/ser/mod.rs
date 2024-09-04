@@ -126,7 +126,7 @@ impl CellSerialize for Cell {
     #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         builder
-            .pack(self.bits())?
+            .pack(self.as_bits())?
             .store_many_as::<_, Ref>(self.references())?;
 
         Ok(())

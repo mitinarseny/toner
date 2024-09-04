@@ -1,5 +1,6 @@
 mod library_reference_cell;
 mod ordinary_cell;
+mod pruned_branch_cell;
 
 use core::{
     fmt::{self, Debug},
@@ -10,11 +11,10 @@ use std::sync::Arc;
 
 use bitvec::order::Msb0;
 use bitvec::slice::BitSlice;
-use bitvec::view::AsBits;
-use sha2::{Digest, Sha256};
 
 pub use crate::cell::library_reference_cell::LibraryReferenceCell;
 pub use crate::cell::ordinary_cell::OrdinaryCell;
+pub use crate::cell::pruned_branch_cell::*;
 use crate::cell_type::CellType;
 use crate::{
     de::{
@@ -30,6 +30,7 @@ use crate::{
 pub enum Cell {
     Ordinary(OrdinaryCell),
     LibraryReference(LibraryReferenceCell),
+    PrunedBranch(PrunedBranchCell),
 }
 
 impl Default for Cell {
@@ -43,6 +44,7 @@ impl Cell {
         match self {
             Cell::Ordinary(_) => CellType::Ordinary,
             Cell::LibraryReference(_) => CellType::LibraryReference,
+            Cell::PrunedBranch(_) => CellType::PrunedBranch,
         }
     }
 }
@@ -64,21 +66,24 @@ impl Cell {
     pub fn len(&self) -> usize {
         match self {
             Cell::Ordinary(OrdinaryCell { data, .. }) => data.len(),
-            Cell::LibraryReference(LibraryReferenceCell { hash }) => hash.len(),
+            Cell::LibraryReference(LibraryReferenceCell { data }) => data.len(),
+            Cell::PrunedBranch(PrunedBranchCell { data, .. }) => data.len(),
         }
     }
 
-    pub fn bytes(&self) -> &[u8] {
+    pub fn as_raw_slice(&self) -> &[u8] {
         match self {
             Cell::Ordinary(OrdinaryCell { data, .. }) => data.as_raw_slice(),
-            Cell::LibraryReference(LibraryReferenceCell { hash }) => hash,
+            Cell::LibraryReference(LibraryReferenceCell { data }) => data.as_raw_slice(),
+            Cell::PrunedBranch(PrunedBranchCell { data, .. }) => data.as_raw_slice(),
         }
     }
 
-    pub fn bits(&self) -> &BitSlice<u8, Msb0> {
+    pub fn as_bits(&self) -> &BitSlice<u8, Msb0> {
         match self {
             Cell::Ordinary(OrdinaryCell { data, .. }) => data.as_bitslice(),
-            Cell::LibraryReference(LibraryReferenceCell { hash }) => hash.as_bits(),
+            Cell::LibraryReference(LibraryReferenceCell { data }) => data.as_bitslice(),
+            Cell::PrunedBranch(PrunedBranchCell { data, .. }) => data.as_bitslice(),
         }
     }
 
@@ -86,6 +91,7 @@ impl Cell {
         match self {
             Cell::Ordinary(OrdinaryCell { references, .. }) => references.as_slice(),
             Cell::LibraryReference(_) => &[],
+            Cell::PrunedBranch(_) => &[],
         }
     }
 
@@ -93,14 +99,12 @@ impl Cell {
     #[inline]
     #[must_use]
     pub fn parser(&self) -> CellParser<'_> {
-        match self {
-            Cell::Ordinary(OrdinaryCell {
-                data, references, ..
-            }) => CellParser::new(CellType::Ordinary, data, references),
-            Cell::LibraryReference(LibraryReferenceCell { hash }) => {
-                CellParser::new(CellType::LibraryReference, hash.as_bits(), &[])
-            }
-        }
+        CellParser::new(
+            self.as_type(),
+            self.level(),
+            self.as_bits(),
+            self.references(),
+        )
     }
 
     /// Shortcut for [`.parser()`](Cell::parser)[`.parse()`](CellParser::parse)[`.ensure_empty()`](CellParser::ensure_empty).
@@ -157,12 +161,12 @@ impl Cell {
     /// Returns whether this cell has no data and zero references.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.bytes().is_empty() && self.references().is_empty()
+        self.as_raw_slice().is_empty() && self.references().is_empty()
     }
 
     #[inline]
     fn data_bytes(&self) -> (usize, &[u8]) {
-        (self.len(), self.bytes())
+        (self.len(), self.as_raw_slice())
     }
 
     /// See [Cell level](https://docs.ton.org/develop/data-formats/cell-boc#cell-level)
@@ -177,23 +181,8 @@ impl Cell {
                 .map(Cell::level)
                 .max()
                 .unwrap_or(0),
+            Cell::PrunedBranch(inner) => inner.level,
         }
-    }
-
-    /// See [Cell serialization](https://docs.ton.org/develop/data-formats/cell-boc#cell-serialization)
-    #[inline]
-    fn refs_descriptor(&self) -> u8 {
-        self.references().len() as u8
-            | (if self.is_exotic() { 1_u8 } else { 0_u8 } << 4)
-            | (self.level() << 5)
-    }
-
-    /// See [Cell serialization](https://docs.ton.org/develop/data-formats/cell-boc#cell-serialization)
-    #[inline]
-    fn bits_descriptor(&self) -> u8 {
-        let b = self.len() + if self.is_exotic() { 1 } else { 0 };
-
-        (b / 8) as u8 + ((b + 7) / 8) as u8
     }
 
     #[inline]
@@ -208,56 +197,19 @@ impl Cell {
                 .max()
                 .map(|d| d + 1)
                 .unwrap_or(0),
+            Cell::PrunedBranch(inner) => inner.max_depth(),
         }
-    }
-
-    /// [Standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#standard-cell-representation-hash-calculation)
-    fn repr(&self) -> Vec<u8> {
-        let mut buf = Vec::new();
-        buf.push(self.refs_descriptor());
-        buf.push(self.bits_descriptor());
-
-        let rest_bits = self.len() % 8;
-
-        if rest_bits == 0 {
-            buf.extend(self.bytes());
-        } else {
-            let (last, data) = self.bytes().split_last().unwrap();
-            buf.extend(data);
-            let mut last = last & (!0u8 << (8 - rest_bits)); // clear the rest
-                                                             // let mut last = last;
-            last |= 1 << (8 - rest_bits - 1); // put stop-bit
-            buf.push(last)
-        }
-
-        // refs depth
-        buf.extend(
-            self.references()
-                .iter()
-                .flat_map(|r| r.max_depth().to_be_bytes()),
-        );
-
-        // refs hashes
-        buf.extend(
-            self.references()
-                .iter()
-                .map(Deref::deref)
-                .flat_map(Cell::hash),
-        );
-
-        buf
     }
 
     /// Calculates [standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#cell-hash)
     #[inline]
     pub fn hash(&self) -> [u8; 32] {
         match self {
-            Self::Ordinary { .. } => {
-                let mut hasher = Sha256::new();
-                hasher.update(self.repr());
-                hasher.finalize().into()
-            }
-            Cell::LibraryReference(LibraryReferenceCell { hash }) => hash.clone(),
+            Self::Ordinary(inner) => inner.hash(),
+            Cell::LibraryReference(inner) => inner.hash(),
+            Cell::PrunedBranch(inner) => inner
+                .hash(0)
+                .expect("pruned branch should have at least one subtree"),
         }
     }
 }
@@ -266,7 +218,7 @@ impl Debug for Cell {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             write!(f, "{}[0b", self.len())?;
-            for bit in self.bits() {
+            for bit in self.as_bits() {
                 write!(f, "{}", if *bit { '1' } else { '0' })?;
             }
             write!(f, "]")?;

@@ -25,6 +25,7 @@ pub type CellParserError<'de> = <CellParser<'de> as BitReader>::Error;
 #[derive(Clone)]
 pub struct CellParser<'de> {
     pub(crate) r#type: CellType,
+    pub(crate) level: u8,
     pub(crate) data: &'de BitSlice<u8, Msb0>,
     pub(crate) references: &'de [Arc<Cell>],
 }
@@ -33,11 +34,13 @@ impl<'de> CellParser<'de> {
     #[inline]
     pub const fn new(
         r#type: CellType,
+        level: u8,
         data: &'de BitSlice<u8, Msb0>,
         references: &'de [Arc<Cell>],
     ) -> Self {
         Self {
             r#type,
+            level,
             data,
             references,
         }
@@ -250,6 +253,7 @@ impl<'de> CellDeserialize<'de> for CellParser<'de> {
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             r#type: parser.r#type,
+            level: parser.level,
             data: mem::take(&mut parser.data),
             references: mem::take(&mut parser.references),
         })
