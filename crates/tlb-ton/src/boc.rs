@@ -8,6 +8,7 @@ use std::{
 use crate::cell_type::RawCellType;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use crc::Crc;
+use tlb::bits::de::unpack_fully;
 use tlb::{
     bits::{
         bitvec::{order::Msb0, vec::BitVec, view::AsBits},
@@ -15,7 +16,7 @@ use tlb::{
         r#as::{NBits, VarNBytes},
         ser::{args::BitPackWithArgs, BitWriter, BitWriterExt},
     },
-    Cell, Error, ResultExt, StringError,
+    Cell, Error, LibraryReferenceCell, OrdinaryCell, ResultExt, StringError,
 };
 
 /// Alias to [`BagOfCells`]
@@ -89,7 +90,7 @@ impl BagOfCells {
         in_refs: &mut HashMap<Arc<Cell>, HashSet<Arc<Cell>>>,
     ) -> Result<(), StringError> {
         if all_cells.insert(cell.clone()) {
-            for r in &cell.references {
+            for r in cell.references() {
                 if r == cell {
                     return Err(Error::custom("cell must not reference itself"));
                 }
@@ -184,7 +185,7 @@ impl BitPackWithArgs for BagOfCells {
         while let Some(cell) = no_in_refs.iter().next().cloned() {
             ordered_cells.push(cell.clone());
             indices.insert(cell.clone(), indices.len() as u32);
-            for child in &cell.references {
+            for child in cell.references() {
                 if let Some(refs) = in_refs.get_mut(child) {
                     refs.remove(&cell);
                     if refs.is_empty() {
@@ -203,10 +204,10 @@ impl BitPackWithArgs for BagOfCells {
             cells: ordered_cells
                 .into_iter()
                 .map(|cell| RawCell {
-                    r#type: cell.r#type.into(),
-                    data: cell.data.clone(),
+                    r#type: cell.as_type().into(),
+                    data: cell.bits().into(),
                     references: cell
-                        .references
+                        .references()
                         .iter()
                         .map(|c| *indices.get(c).unwrap())
                         .collect(),
@@ -270,25 +271,26 @@ impl BitUnpack for BagOfCells {
             cells.push(
                 match raw_cell.r#type {
                     RawCellType::Ordinary => {
-                        Cell {
-                            r#type: raw_cell.r#type.into(),
-                            data: raw_cell.data,
-                            references: raw_cell
-                                .references
-                                .into_iter()
-                                .map(|r| {
-                                    if r <= i as u32 {
-                                        return Err(Error::custom(format!(
-                                            "references to previous cells are not supported: [{i}] -> [{r}]"
-                                        )));
-                                    }
-                                    Ok(cells[num_cells - 1 - r as usize].clone())
-                                })
-                                .collect::<Result<_, _>>()?,
-                        }
-                            .into()
+                        let references = raw_cell
+                            .references
+                            .into_iter()
+                            .map(|r| {
+                                if r <= i as u32 {
+                                    return Err(Error::custom(format!(
+                                        "references to previous cells are not supported: [{i}] -> [{r}]"
+                                    )));
+                                }
+                                Ok(cells[num_cells - 1 - r as usize].clone())
+                            })
+                            .collect::<Result<_, _>>()?;
+
+                        Arc::new(Cell::Ordinary(OrdinaryCell { data: raw_cell.data, references }))
                     }
-                    RawCellType::LibraryReference => {},
+                    RawCellType::LibraryReference => {
+                        Arc::new(Cell::LibraryReference(LibraryReferenceCell {
+                            hash: unpack_fully(raw_cell.data).map_err(Error::custom)?
+                        }))
+                    },
                     _ => unimplemented!()
                 }
             );

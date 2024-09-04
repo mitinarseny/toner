@@ -38,6 +38,15 @@ impl Default for Cell {
     }
 }
 
+impl Cell {
+    pub fn as_type(&self) -> CellType {
+        match self {
+            Cell::Ordinary(_) => CellType::Ordinary,
+            Cell::LibraryReference(_) => CellType::LibraryReference,
+        }
+    }
+}
+
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct OrdinaryCell {
     pub data: BitVec<u8, Msb0>,
@@ -69,7 +78,7 @@ impl<'de> CellDeserialize<'de> for OrdinaryCell {
 
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct LibraryReferenceCell {
-    hash: [u8; 32],
+    pub hash: [u8; 32],
 }
 
 impl<'de> CellSerialize for LibraryReferenceCell {

@@ -5,16 +5,16 @@ mod parser;
 
 pub use self::parser::*;
 
-use core::mem::{self, MaybeUninit};
+use core::mem::MaybeUninit;
 use std::{rc::Rc, sync::Arc};
 
+use crate::cell_type::CellType;
 use crate::{
     bits::de::BitReaderExt,
     either::Either,
     r#as::{FromInto, Same},
     Cell, ResultExt,
 };
-use crate::cell_type::CellType;
 
 /// A type that can be **de**serialized from [`CellParser`].
 pub trait CellDeserialize<'de>: Sized {

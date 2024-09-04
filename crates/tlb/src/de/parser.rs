@@ -31,7 +31,7 @@ pub struct CellParser<'de> {
 
 impl<'de> CellParser<'de> {
     #[inline]
-    pub(crate) const fn new(
+    pub const fn new(
         r#type: CellType,
         data: &'de BitSlice<u8, Msb0>,
         references: &'de [Arc<Cell>],
