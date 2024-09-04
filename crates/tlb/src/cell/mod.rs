@@ -1,18 +1,21 @@
+mod library_reference_cell;
+mod ordinary_cell;
+
 use core::{
     fmt::{self, Debug},
     hash::Hash,
     ops::Deref,
 };
-use std::mem;
 use std::sync::Arc;
 
+use bitvec::order::Msb0;
 use bitvec::slice::BitSlice;
 use bitvec::view::AsBits;
-use bitvec::{order::Msb0, vec::BitVec};
 use sha2::{Digest, Sha256};
-use tlbits::de::BitReaderExt;
-use tlbits::ser::BitWriterExt;
 
+pub use crate::cell::library_reference_cell::LibraryReferenceCell;
+pub use crate::cell::ordinary_cell::OrdinaryCell;
+use crate::cell_type::CellType;
 use crate::{
     de::{
         args::{r#as::CellDeserializeAsWithArgs, CellDeserializeWithArgs},
@@ -21,9 +24,6 @@ use crate::{
     },
     ser::CellBuilder,
 };
-use crate::cell_type::CellType;
-use crate::r#as::Ref;
-use crate::ser::{CellBuilderError, CellSerialize};
 
 /// A [Cell](https://docs.ton.org/develop/data-formats/cell-boc#cell).  
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -44,59 +44,6 @@ impl Cell {
             Cell::Ordinary(_) => CellType::Ordinary,
             Cell::LibraryReference(_) => CellType::LibraryReference,
         }
-    }
-}
-
-#[derive(Clone, Default, PartialEq, Eq, Hash)]
-pub struct OrdinaryCell {
-    pub data: BitVec<u8, Msb0>,
-    pub references: Vec<Arc<Cell>>,
-}
-
-impl CellSerialize for OrdinaryCell {
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.set_type(CellType::Ordinary);
-
-        builder
-            .pack(self.data.as_bitslice())?
-            .store_many_as::<_, Ref>(&self.references)?;
-
-        Ok(())
-    }
-}
-
-impl<'de> CellDeserialize<'de> for OrdinaryCell {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        parser.ensure_type(CellType::Ordinary)?;
-
-        Ok(Self {
-            data: mem::take(&mut parser.data).to_bitvec(),
-            references: mem::take(&mut parser.references).to_vec(),
-        })
-    }
-}
-
-#[derive(Clone, Default, PartialEq, Eq, Hash)]
-pub struct LibraryReferenceCell {
-    pub hash: [u8; 32],
-}
-
-impl<'de> CellSerialize for LibraryReferenceCell {
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.set_type(CellType::LibraryReference);
-        builder.pack(self.hash)?;
-
-        Ok(())
-    }
-}
-
-impl<'de> CellDeserialize<'de> for LibraryReferenceCell {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        parser.ensure_type(CellType::LibraryReference)?;
-        let hash = parser.unpack()?;
-        parser.ensure_empty()?;
-
-        Ok(Self { hash })
     }
 }
 
@@ -147,8 +94,12 @@ impl Cell {
     #[must_use]
     pub fn parser(&self) -> CellParser<'_> {
         match self {
-            Cell::Ordinary(OrdinaryCell { data, references, .. }) => CellParser::new(CellType::Ordinary, data, references),
-            Cell::LibraryReference(LibraryReferenceCell { hash }) => CellParser::new(CellType::LibraryReference, hash.as_bits(), &[]),
+            Cell::Ordinary(OrdinaryCell {
+                data, references, ..
+            }) => CellParser::new(CellType::Ordinary, data, references),
+            Cell::LibraryReference(LibraryReferenceCell { hash }) => {
+                CellParser::new(CellType::LibraryReference, hash.as_bits(), &[])
+            }
         }
     }
 
