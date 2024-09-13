@@ -2,6 +2,7 @@ mod library_reference_cell;
 mod merkle_proof_cell;
 mod ordinary_cell;
 mod pruned_branch_cell;
+mod higher_hash;
 
 use core::{
     fmt::{self, Debug},
@@ -27,8 +28,9 @@ use crate::{
     },
     ser::CellBuilder,
 };
+use crate::cell::higher_hash::HigherHash;
 
-/// A [Cell](https://docs.ton.org/develop/data-formats/cell-boc#cell).  
+/// A [Cell](https://docs.ton.org/develop/data-formats/cell-boc#cell).
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Cell {
     Ordinary(OrdinaryCell),
@@ -40,6 +42,17 @@ pub enum Cell {
 impl Default for Cell {
     fn default() -> Self {
         Cell::Ordinary(OrdinaryCell::default())
+    }
+}
+
+impl HigherHash for Cell {
+    fn higher_hash(&self, level: u8) -> Option<[u8; 32]> {
+        match self {
+            Cell::Ordinary(inner) => inner.higher_hash(level),
+            Cell::LibraryReference(inner) => inner.higher_hash(level),
+            Cell::PrunedBranch(inner) => inner.higher_hash(level),
+            Cell::MerkleProof(inner) => inner.higher_hash(level),
+        }
     }
 }
 
@@ -220,7 +233,7 @@ impl Cell {
             Cell::Ordinary(inner) => inner.hash(),
             Cell::LibraryReference(inner) => inner.hash(),
             Cell::PrunedBranch(inner) => inner
-                .hash(0)
+                .higher_hash(0)
                 .expect("pruned branch should have at least one subtree"),
             Cell::MerkleProof(inner) => inner.hash(),
         }
@@ -229,7 +242,7 @@ impl Cell {
 
 impl Debug for Cell {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}:L{}:R{}:", self.as_type(), self.level(), self.references().len())?;
+        write!(f, "{:?}:L{}:R{}:D{}:", self.as_type(), self.level(), self.references().len(), self.max_depth())?;
 
         if f.alternate() {
             write!(f, "{}[0b", self.len())?;

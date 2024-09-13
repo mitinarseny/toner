@@ -1,12 +1,41 @@
+use crate::cell::higher_hash::HigherHash;
+use crate::cell_type::CellType;
 use bitvec::order::Msb0;
 use bitvec::prelude::BitVec;
 use bytemuck::cast_slice;
+use sha2::{Digest, Sha256};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct PrunedBranchCell {
     // TODO[akostylev0] maybe level == level_mask
     pub level: u8,
     pub data: BitVec<u8, Msb0>,
+}
+
+impl HigherHash for PrunedBranchCell {
+    fn higher_hash(&self, level: u8) -> Option<[u8; 32]> {
+        if level == 0 {
+            // TODO[akostylev0]: rly?
+
+            let mut buf = Vec::new();
+            buf.push(self.refs_descriptor());
+            buf.push(self.bits_descriptor());
+
+            buf.push(CellType::PrunedBranch as u8);
+            buf.extend(self.data.as_raw_slice());
+
+            let mut hasher = Sha256::new();
+            hasher.update(buf);
+
+            return Some(hasher.finalize().into());
+        }
+
+        Some(
+            self.data.as_raw_slice()[1 + (32 * (level - 1)) as usize..1 + (32 * level) as usize]
+                .try_into()
+                .expect("invalid data length"),
+        )
+    }
 }
 
 impl PrunedBranchCell {
@@ -31,20 +60,34 @@ impl PrunedBranchCell {
 
     fn depths(&self) -> &[u16] {
         let depths = &self.data.as_raw_slice()
-            [(32 * self.level) as usize..(32 * self.level + 2 * self.level) as usize];
+            [(1 + 32 * self.level) as usize..(1 + 32 * self.level + 2 * self.level) as usize];
+
+        let mut v = Vec::new();
+
+        for i in 0 .. self.level {
+            let l = depths[i as usize];
+            let r = depths[(i + 1) as usize];
+            println!("{}", u16::from_be_bytes([l, r]));
+            v.push(u16::from_be_bytes([l, r]));
+        }
+
+        let d: &[u16] = cast_slice(depths);
+
+        println!("{:?}", d);
 
         cast_slice(depths)
     }
 
-    pub fn hash(&self, idx: u8) -> Option<[u8; 32]> {
-        if idx > self.level {
-            return None;
-        }
+    #[inline]
+    fn refs_descriptor(&self) -> u8 {
+        0 + 8 + 32 * self.level()
+    }
 
-        Some(
-            self.data.as_raw_slice()[(1 + 32 * idx) as usize..(1 + 32 * (idx + 1)) as usize]
-                .try_into()
-                .expect("invalid data length"),
-        )
+    /// See [Cell serialization](https://docs.ton.org/develop/data-formats/cell-boc#cell-serialization)
+    #[inline]
+    fn bits_descriptor(&self) -> u8 {
+        let b = self.data.len() + 8;
+
+        (b / 8) as u8 + ((b + 7) / 8) as u8
     }
 }

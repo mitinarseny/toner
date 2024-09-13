@@ -5,7 +5,6 @@ use std::{
     sync::Arc,
 };
 
-use crate::cell_type::RawCellType;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use crc::Crc;
 use tlb::{
@@ -18,6 +17,7 @@ use tlb::{
     Cell, Error, LibraryReferenceCell, MerkleProofCell, OrdinaryCell, PrunedBranchCell, ResultExt,
     StringError,
 };
+use tlb::cell_type::CellType;
 
 /// Alias to [`BagOfCells`]
 pub type BoC = BagOfCells;
@@ -283,11 +283,11 @@ impl BitUnpack for BagOfCells {
                     .collect::<Result<_, _>>()?;
 
                 Arc::new(match raw_cell.r#type {
-                    RawCellType::Ordinary => Cell::Ordinary(OrdinaryCell {
+                    CellType::Ordinary => Cell::Ordinary(OrdinaryCell {
                         data: raw_cell.data,
                         references,
                     }),
-                    RawCellType::LibraryReference => {
+                    CellType::LibraryReference => {
                         if !references.is_empty() {
                             return Err(Error::custom("library reference cannot have references"));
                         }
@@ -296,7 +296,7 @@ impl BitUnpack for BagOfCells {
                             data: raw_cell.data,
                         })
                     }
-                    RawCellType::PrunedBranch => {
+                    CellType::PrunedBranch => {
                         if !references.is_empty() {
                             return Err(Error::custom("pruned branch cannot have references"));
                         }
@@ -306,7 +306,7 @@ impl BitUnpack for BagOfCells {
                             data: raw_cell.data,
                         })
                     }
-                    RawCellType::MerkleProof => Cell::MerkleProof(MerkleProofCell {
+                    CellType::MerkleProof => Cell::MerkleProof(MerkleProofCell {
                         level: raw_cell.level,
                         data: raw_cell.data,
                         references,
@@ -509,7 +509,7 @@ impl BitUnpack for RawBagOfCells {
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub(crate) struct RawCell {
-    pub r#type: RawCellType,
+    pub r#type: CellType,
     pub data: BitVec<u8, Msb0>,
     pub references: Vec<u32>,
     pub level: u8,
@@ -536,9 +536,9 @@ impl BitUnpackWithArgs for RawCell {
         };
         let full_bytes = (bits_descriptor & 1) == 0;
         let r#type = if is_exotic {
-            reader.unpack::<RawCellType>()?
+            reader.unpack::<CellType>()?
         } else {
-            RawCellType::Ordinary
+            CellType::Ordinary
         };
 
         let mut data: BitVec<u8, Msb0> = reader.unpack_with(num_bytes * 8)?;
@@ -613,6 +613,7 @@ mod tests {
         let bytes = hex::decode("b5ee9c720102070100014700094603a7f81658c6047b243f495ae6ba8787517814431f2c1c7896fabe8361b9e16587001601241011ef55aaffffff110203040501a09bc7a9870000000004010267a7050000000100ffffffff000000000000000066e43ab200002cb04eecad8000002cb04eecad847897845d000940eb0267a6ff0267a3d4c40000000800000000000001ee0628480101b815af9b18dca15b27b79ff26f4adfc5613df7a17b27f96bc0593d12f2b9170e0003284801011b9a32271632c8170fbc0071e0f2800c58496f9959021e4ac344f93b69915e69001528480101a98f69c6479a583577cd185eaa589db44e6a49715918356393ae68638fe9c01c0007009800002cb04edd6b440267a7040cd9841277aacd63b5597bfa64fc63aac32be67009332d5ff80e8658acf9cd28dc9b686e30ddfbf904215e24bc991eebe45d5bfd4d26f31f2dee712e67926048").unwrap();
 
         let boc: BagOfCells = unpack_bytes(bytes).unwrap();
+        println!("{:?}", boc);
 
         let root = boc.single_root().unwrap();
         assert!(root.as_merkle_proof().expect("must be a merkle proof").verify()); 

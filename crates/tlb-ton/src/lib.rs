@@ -10,6 +10,5 @@ pub mod list;
 pub mod message;
 pub mod state_init;
 mod timestamp;
-pub mod cell_type;
 
 pub use self::{address::*, timestamp::*};
