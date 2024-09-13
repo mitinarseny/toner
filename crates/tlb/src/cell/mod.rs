@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use bitvec::order::Msb0;
 use bitvec::slice::BitSlice;
+use bitvec::vec::BitVec;
 
 pub use crate::cell::library_reference_cell::LibraryReferenceCell;
 pub use crate::cell::ordinary_cell::OrdinaryCell;
@@ -62,34 +63,30 @@ impl Cell {
         !matches!(self, Self::Ordinary { .. })
     }
 
+    pub fn as_data(&self) -> &BitVec<u8, Msb0> {
+        match self {
+            Cell::Ordinary(OrdinaryCell { data, .. }) => data,
+            Cell::LibraryReference(LibraryReferenceCell { data }) => data,
+            Cell::PrunedBranch(PrunedBranchCell { data, .. }) => data,
+        }
+    }
+
     #[inline]
     pub fn len(&self) -> usize {
-        match self {
-            Cell::Ordinary(OrdinaryCell { data, .. }) => data.len(),
-            Cell::LibraryReference(LibraryReferenceCell { data }) => data.len(),
-            Cell::PrunedBranch(PrunedBranchCell { data, .. }) => data.len(),
-        }
+        self.as_data().len()
     }
 
     pub fn as_raw_slice(&self) -> &[u8] {
-        match self {
-            Cell::Ordinary(OrdinaryCell { data, .. }) => data.as_raw_slice(),
-            Cell::LibraryReference(LibraryReferenceCell { data }) => data.as_raw_slice(),
-            Cell::PrunedBranch(PrunedBranchCell { data, .. }) => data.as_raw_slice(),
-        }
+        self.as_data().as_raw_slice()
     }
 
-    pub fn as_bits(&self) -> &BitSlice<u8, Msb0> {
-        match self {
-            Cell::Ordinary(OrdinaryCell { data, .. }) => data.as_bitslice(),
-            Cell::LibraryReference(LibraryReferenceCell { data }) => data.as_bitslice(),
-            Cell::PrunedBranch(PrunedBranchCell { data, .. }) => data.as_bitslice(),
-        }
+    pub fn as_bitslice(&self) -> &BitSlice<u8, Msb0> {
+        self.as_data().as_bitslice()
     }
 
     pub fn references(&self) -> &[Arc<Self>] {
         match self {
-            Cell::Ordinary(OrdinaryCell { references, .. }) => references.as_slice(),
+            Cell::Ordinary(OrdinaryCell { references, .. }) => references,
             Cell::LibraryReference(_) => &[],
             Cell::PrunedBranch(_) => &[],
         }
@@ -102,7 +99,7 @@ impl Cell {
         CellParser::new(
             self.as_type(),
             self.level(),
-            self.as_bits(),
+            self.as_bitslice(),
             self.references(),
         )
     }
@@ -218,7 +215,7 @@ impl Debug for Cell {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             write!(f, "{}[0b", self.len())?;
-            for bit in self.as_bits() {
+            for bit in self.as_bitslice() {
                 write!(f, "{}", if *bit { '1' } else { '0' })?;
             }
             write!(f, "]")?;

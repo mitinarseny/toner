@@ -33,3 +33,4 @@ serde_with = { version = "3.8", features = ["macros"] }
 sha2 = "0.10"
 strum = { version = "0.25", features = ["derive"] }
 thiserror = "1"
+bytemuck = "1"

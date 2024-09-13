@@ -14,7 +14,7 @@ impl PrunedBranchCell {
         self.depths().iter().max().cloned().unwrap_or(0)
     }
 
-    fn level_mask(&self) -> u8 {
+    pub fn level_mask(&self) -> u8 {
         self.data
             .as_raw_slice()
             .first()

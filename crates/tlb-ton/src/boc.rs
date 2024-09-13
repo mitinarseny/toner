@@ -204,7 +204,7 @@ impl BitPackWithArgs for BagOfCells {
                 .into_iter()
                 .map(|cell| RawCell {
                     r#type: cell.as_type().into(),
-                    data: cell.as_bits().into(),
+                    data: cell.as_bitslice().into(),
                     references: cell
                         .references()
                         .iter()
