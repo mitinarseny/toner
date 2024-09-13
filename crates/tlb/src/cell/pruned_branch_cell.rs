@@ -14,6 +14,13 @@ impl PrunedBranchCell {
         self.depths().iter().max().cloned().unwrap_or(0)
     }
 
+    pub fn level(&self) -> u8 {
+        // TODO[akostylev0]
+        debug_assert_eq!(self.level_mask(), self.level);
+
+        self.level
+    }
+
     pub fn level_mask(&self) -> u8 {
         self.data
             .as_raw_slice()
@@ -24,7 +31,7 @@ impl PrunedBranchCell {
 
     fn depths(&self) -> &[u16] {
         let depths = &self.data.as_raw_slice()
-            [(1 + 32 * self.level) as usize..(1 + 32 * self.level + 2 * self.level) as usize];
+            [(32 * self.level) as usize..(32 * self.level + 2 * self.level) as usize];
 
         cast_slice(depths)
     }

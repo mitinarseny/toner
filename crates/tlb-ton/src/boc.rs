@@ -15,7 +15,8 @@ use tlb::{
         r#as::{NBits, VarNBytes},
         ser::{args::BitPackWithArgs, BitWriter, BitWriterExt},
     },
-    Cell, Error, LibraryReferenceCell, OrdinaryCell, PrunedBranchCell, ResultExt, StringError,
+    Cell, Error, LibraryReferenceCell, MerkleProofCell, OrdinaryCell, PrunedBranchCell, ResultExt,
+    StringError,
 };
 
 /// Alias to [`BagOfCells`]
@@ -267,33 +268,52 @@ impl BitUnpack for BagOfCells {
         let num_cells = raw.cells.len();
         let mut cells: Vec<Arc<Cell>> = Vec::new();
         for (i, raw_cell) in raw.cells.into_iter().enumerate().rev() {
-            cells.push(
-                match raw_cell.r#type {
-                    RawCellType::Ordinary => {
-                        let references = raw_cell
-                            .references
-                            .into_iter()
-                            .map(|r| {
-                                if r <= i as u32 {
-                                    return Err(Error::custom(format!(
-                                        "references to previous cells are not supported: [{i}] -> [{r}]"
-                                    )));
-                                }
-                                Ok(cells[num_cells - 1 - r as usize].clone())
-                            })
-                            .collect::<Result<_, _>>()?;
+            cells.push({
+                let references = raw_cell
+                    .references
+                    .into_iter()
+                    .map(|r| {
+                        if r <= i as u32 {
+                            return Err(Error::custom(format!(
+                                "references to previous cells are not supported: [{i}] -> [{r}]"
+                            )));
+                        }
+                        Ok(cells[num_cells - 1 - r as usize].clone())
+                    })
+                    .collect::<Result<_, _>>()?;
 
-                        Arc::new(Cell::Ordinary(OrdinaryCell { data: raw_cell.data, references }))
-                    }
+                Arc::new(match raw_cell.r#type {
+                    RawCellType::Ordinary => Cell::Ordinary(OrdinaryCell {
+                        data: raw_cell.data,
+                        references,
+                    }),
                     RawCellType::LibraryReference => {
-                        Arc::new(Cell::LibraryReference(LibraryReferenceCell { data: raw_cell.data }))
-                    },
-                    RawCellType::PrunedBranch => {
-                        Arc::new(Cell::PrunedBranch(PrunedBranchCell { level: raw_cell.level, data: raw_cell.data }))
+                        if !references.is_empty() {
+                            return Err(Error::custom("library reference cannot have references"));
+                        }
+
+                        Cell::LibraryReference(LibraryReferenceCell {
+                            data: raw_cell.data,
+                        })
                     }
-                    _ => unimplemented!()
-                }
-            );
+                    RawCellType::PrunedBranch => {
+                        if !references.is_empty() {
+                            return Err(Error::custom("pruned branch cannot have references"));
+                        }
+
+                        Cell::PrunedBranch(PrunedBranchCell {
+                            level: raw_cell.level,
+                            data: raw_cell.data,
+                        })
+                    }
+                    RawCellType::MerkleProof => Cell::MerkleProof(MerkleProofCell {
+                        level: raw_cell.level,
+                        data: raw_cell.data,
+                        references,
+                    }),
+                    _ => unimplemented!(),
+                })
+            });
         }
         Ok(BagOfCells {
             roots: raw
@@ -579,5 +599,42 @@ impl RawCell {
     fn size(&self, ref_size_bytes: u32) -> u32 {
         let data_len: u32 = (self.data.len() as u32 + 7) / 8;
         2 + data_len + self.references.len() as u32 * ref_size_bytes
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::boc::BagOfCells;
+    use tlb::bits::de::unpack_bytes;
+    use tlb::cell_type::CellType;
+
+    #[test]
+    fn block_header_with_merkle_proof_and_pruned_branch() {
+        let bytes = hex::decode("b5ee9c720102070100014700094603a7f81658c6047b243f495ae6ba8787517814431f2c1c7896fabe8361b9e16587001601241011ef55aaffffff110203040501a09bc7a9870000000004010267a7050000000100ffffffff000000000000000066e43ab200002cb04eecad8000002cb04eecad847897845d000940eb0267a6ff0267a3d4c40000000800000000000001ee0628480101b815af9b18dca15b27b79ff26f4adfc5613df7a17b27f96bc0593d12f2b9170e0003284801011b9a32271632c8170fbc0071e0f2800c58496f9959021e4ac344f93b69915e69001528480101a98f69c6479a583577cd185eaa589db44e6a49715918356393ae68638fe9c01c0007009800002cb04edd6b440267a7040cd9841277aacd63b5597bfa64fc63aac32be67009332d5ff80e8658acf9cd28dc9b686e30ddfbf904215e24bc991eebe45d5bfd4d26f31f2dee712e67926048").unwrap();
+
+        let boc: BagOfCells = unpack_bytes(bytes).unwrap();
+
+        let root = boc.single_root().unwrap();
+        assert!(root.as_merkle_proof().expect("must be a merkle proof").verify()); 
+        assert!(matches!(root.as_type(), CellType::MerkleProof));
+        let child = root.references().first().unwrap();
+        assert!(matches!(child.as_type(), CellType::Ordinary));
+        let children = child.references();
+        assert!(matches!(
+            children.first().unwrap().as_type(),
+            CellType::Ordinary
+        ));
+        assert!(matches!(
+            children.get(1).unwrap().as_type(),
+            CellType::PrunedBranch
+        ));
+        assert!(matches!(
+            children.get(2).unwrap().as_type(),
+            CellType::PrunedBranch
+        ));
+        assert!(matches!(
+            children.get(3).unwrap().as_type(),
+            CellType::PrunedBranch
+        ));
     }
 }

@@ -1,4 +1,5 @@
 mod library_reference_cell;
+mod merkle_proof_cell;
 mod ordinary_cell;
 mod pruned_branch_cell;
 
@@ -14,6 +15,7 @@ use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
 
 pub use crate::cell::library_reference_cell::LibraryReferenceCell;
+pub use crate::cell::merkle_proof_cell::MerkleProofCell;
 pub use crate::cell::ordinary_cell::OrdinaryCell;
 pub use crate::cell::pruned_branch_cell::*;
 use crate::cell_type::CellType;
@@ -32,6 +34,7 @@ pub enum Cell {
     Ordinary(OrdinaryCell),
     LibraryReference(LibraryReferenceCell),
     PrunedBranch(PrunedBranchCell),
+    MerkleProof(MerkleProofCell),
 }
 
 impl Default for Cell {
@@ -46,6 +49,14 @@ impl Cell {
             Cell::Ordinary(_) => CellType::Ordinary,
             Cell::LibraryReference(_) => CellType::LibraryReference,
             Cell::PrunedBranch(_) => CellType::PrunedBranch,
+            Cell::MerkleProof(_) => CellType::MerkleProof,
+        }
+    }
+    
+    pub fn as_merkle_proof(&self) -> Option<&MerkleProofCell> {
+        match self {
+            Cell::MerkleProof(proof) => Some(proof),
+            _ => None,
         }
     }
 }
@@ -68,6 +79,7 @@ impl Cell {
             Cell::Ordinary(OrdinaryCell { data, .. }) => data,
             Cell::LibraryReference(LibraryReferenceCell { data }) => data,
             Cell::PrunedBranch(PrunedBranchCell { data, .. }) => data,
+            Cell::MerkleProof(MerkleProofCell { data, .. }) => data,
         }
     }
 
@@ -89,6 +101,7 @@ impl Cell {
             Cell::Ordinary(OrdinaryCell { references, .. }) => references,
             Cell::LibraryReference(_) => &[],
             Cell::PrunedBranch(_) => &[],
+            Cell::MerkleProof(MerkleProofCell { references, .. }) => references,
         }
     }
 
@@ -178,7 +191,8 @@ impl Cell {
                 .map(Cell::level)
                 .max()
                 .unwrap_or(0),
-            Cell::PrunedBranch(inner) => inner.level,
+            Cell::PrunedBranch(inner) => inner.level(),
+            Cell::MerkleProof(inner) => inner.level(),
         }
     }
 
@@ -195,6 +209,7 @@ impl Cell {
                 .map(|d| d + 1)
                 .unwrap_or(0),
             Cell::PrunedBranch(inner) => inner.max_depth(),
+            Cell::MerkleProof(inner) => inner.max_depth(),
         }
     }
 
@@ -202,17 +217,20 @@ impl Cell {
     #[inline]
     pub fn hash(&self) -> [u8; 32] {
         match self {
-            Self::Ordinary(inner) => inner.hash(),
+            Cell::Ordinary(inner) => inner.hash(),
             Cell::LibraryReference(inner) => inner.hash(),
             Cell::PrunedBranch(inner) => inner
                 .hash(0)
                 .expect("pruned branch should have at least one subtree"),
+            Cell::MerkleProof(inner) => inner.hash(),
         }
     }
 }
 
 impl Debug for Cell {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}:L{}:R{}:", self.as_type(), self.level(), self.references().len())?;
+
         if f.alternate() {
             write!(f, "{}[0b", self.len())?;
             for bit in self.as_bitslice() {
