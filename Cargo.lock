@@ -75,12 +75,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
-name = "bytemuck"
-version = "1.17.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "773d90827bc3feecfb67fab12e24de0749aad83c74b9504ecde46237b5cd24e2"
-
-[[package]]
 name = "cc"
 version = "1.0.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -701,12 +695,12 @@ name = "tlb"
 version = "0.3.2"
 dependencies = [
  "bitvec",
- "bytemuck",
  "hex",
  "hex-literal",
  "impl-tools",
  "num-bigint",
  "sha2",
+ "strum",
  "tlbits",
 ]
 

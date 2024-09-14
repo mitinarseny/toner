@@ -2,7 +2,6 @@ use crate::cell::higher_hash::HigherHash;
 use crate::cell_type::CellType;
 use bitvec::order::Msb0;
 use bitvec::prelude::BitVec;
-use bytemuck::cast_slice;
 use sha2::{Digest, Sha256};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -24,6 +23,9 @@ impl HigherHash for PrunedBranchCell {
             buf.push(CellType::PrunedBranch as u8);
             buf.extend(self.data.as_raw_slice());
 
+            // refs depth
+            buf.extend(self.max_depth().to_be_bytes());
+
             let mut hasher = Sha256::new();
             hasher.update(buf);
 
@@ -40,7 +42,7 @@ impl HigherHash for PrunedBranchCell {
 
 impl PrunedBranchCell {
     pub fn max_depth(&self) -> u16 {
-        self.depths().iter().max().cloned().unwrap_or(0)
+        self.depths().into_iter().max().unwrap_or(0)
     }
 
     pub fn level(&self) -> u8 {
@@ -58,24 +60,14 @@ impl PrunedBranchCell {
             .expect("invalid data length")
     }
 
-    fn depths(&self) -> &[u16] {
+    fn depths(&self) -> Vec<u16> {
         let depths = &self.data.as_raw_slice()
             [(1 + 32 * self.level) as usize..(1 + 32 * self.level + 2 * self.level) as usize];
 
-        let mut v = Vec::new();
-
-        for i in 0 .. self.level {
-            let l = depths[i as usize];
-            let r = depths[(i + 1) as usize];
-            println!("{}", u16::from_be_bytes([l, r]));
-            v.push(u16::from_be_bytes([l, r]));
-        }
-
-        let d: &[u16] = cast_slice(depths);
-
-        println!("{:?}", d);
-
-        cast_slice(depths)
+        depths
+            .chunks_exact(2)
+            .map(|c| u16::from_be_bytes(c.try_into().unwrap()))
+            .collect()
     }
 
     #[inline]
