@@ -2,7 +2,7 @@ mod library_reference_cell;
 mod merkle_proof_cell;
 mod ordinary_cell;
 mod pruned_branch_cell;
-mod higher_hash;
+pub mod higher_hash;
 
 use core::{
     fmt::{self, Debug},
@@ -69,6 +69,13 @@ impl Cell {
     pub fn as_merkle_proof(&self) -> Option<&MerkleProofCell> {
         match self {
             Cell::MerkleProof(proof) => Some(proof),
+            _ => None,
+        }
+    }
+
+    pub fn as_pruned_branch(&self) -> Option<&PrunedBranchCell> {
+        match self {
+            Cell::PrunedBranch(branch) => Some(branch),
             _ => None,
         }
     }

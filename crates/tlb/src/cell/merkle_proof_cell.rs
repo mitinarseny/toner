@@ -70,9 +70,9 @@ impl MerkleProofCell {
     }
 
     pub fn verify(&self) -> bool {
-        debug_assert_eq!(self.hash(), self.reference().higher_hash(1).expect("invalid reference"));
+        debug_assert_eq!(self.hash(), self.reference().higher_hash(0).expect("invalid reference"));
         
-        self.hash() == self.reference().higher_hash(1).expect("invalid reference")
+        self.hash() == self.reference().higher_hash(0).expect("invalid reference")
     }
 
     #[inline]

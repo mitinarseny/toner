@@ -13,30 +13,25 @@ pub struct PrunedBranchCell {
 
 impl HigherHash for PrunedBranchCell {
     fn higher_hash(&self, level: u8) -> Option<[u8; 32]> {
-        if level == 0 {
-            // TODO[akostylev0]: rly?
-
-            let mut buf = Vec::new();
-            buf.push(self.refs_descriptor());
-            buf.push(self.bits_descriptor());
-
-            buf.push(CellType::PrunedBranch as u8);
-            buf.extend(self.data.as_raw_slice());
-
-            // refs depth
-            buf.extend(self.max_depth().to_be_bytes());
-
+        if (1..=self.level).contains(&level) {
+            Some(
+                self.data.as_raw_slice()
+                    [1 + (32 * (level - 1)) as usize..1 + (32 * level) as usize]
+                    .try_into()
+                    .expect("invalid data length"),
+            )
+        } else {
+            /// TODO[akostylev0]: rly?
             let mut hasher = Sha256::new();
-            hasher.update(buf);
+            hasher.update([
+                self.refs_descriptor(),
+                self.bits_descriptor(),
+                CellType::PrunedBranch as u8,
+            ]);
+            hasher.update(self.data.as_raw_slice());
 
             return Some(hasher.finalize().into());
         }
-
-        Some(
-            self.data.as_raw_slice()[1 + (32 * (level - 1)) as usize..1 + (32 * level) as usize]
-                .try_into()
-                .expect("invalid data length"),
-        )
     }
 }
 

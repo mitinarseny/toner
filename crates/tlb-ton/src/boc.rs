@@ -7,6 +7,7 @@ use std::{
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use crc::Crc;
+use tlb::cell_type::CellType;
 use tlb::{
     bits::{
         bitvec::{order::Msb0, vec::BitVec, view::AsBits},
@@ -17,7 +18,6 @@ use tlb::{
     Cell, Error, LibraryReferenceCell, MerkleProofCell, OrdinaryCell, PrunedBranchCell, ResultExt,
     StringError,
 };
-use tlb::cell_type::CellType;
 
 /// Alias to [`BagOfCells`]
 pub type BoC = BagOfCells;
@@ -607,6 +607,7 @@ mod tests {
     use crate::boc::BagOfCells;
     use tlb::bits::de::unpack_bytes;
     use tlb::cell_type::CellType;
+    use tlb::higher_hash::HigherHash;
 
     #[test]
     fn block_header_with_merkle_proof_and_pruned_branch() {
@@ -616,7 +617,10 @@ mod tests {
         println!("{:?}", boc);
 
         let root = boc.single_root().unwrap();
-        assert!(root.as_merkle_proof().expect("must be a merkle proof").verify()); 
+        assert!(root
+            .as_merkle_proof()
+            .expect("must be a merkle proof")
+            .verify());
         assert!(matches!(root.as_type(), CellType::MerkleProof));
         let child = root.references().first().unwrap();
         assert!(matches!(child.as_type(), CellType::Ordinary));
@@ -637,5 +641,36 @@ mod tests {
             children.get(3).unwrap().as_type(),
             CellType::PrunedBranch
         ));
+    }
+
+    #[test]
+    fn boc_pruned_branch_hashes() {
+        let bytes = hex::decode("b5ee9c720102070100014700094603a7f81658c6047b243f495ae6ba8787517814431f2c1c7896fabe8361b9e16587001601241011ef55aaffffff110203040501a09bc7a9870000000004010267a7050000000100ffffffff000000000000000066e43ab200002cb04eecad8000002cb04eecad847897845d000940eb0267a6ff0267a3d4c40000000800000000000001ee0628480101b815af9b18dca15b27b79ff26f4adfc5613df7a17b27f96bc0593d12f2b9170e0003284801011b9a32271632c8170fbc0071e0f2800c58496f9959021e4ac344f93b69915e69001528480101a98f69c6479a583577cd185eaa589db44e6a49715918356393ae68638fe9c01c0007009800002cb04edd6b440267a7040cd9841277aacd63b5597bfa64fc63aac32be67009332d5ff80e8658acf9cd28dc9b686e30ddfbf904215e24bc991eebe45d5bfd4d26f31f2dee712e67926048").unwrap();
+
+        let boc: BagOfCells = unpack_bytes(bytes).unwrap();
+
+        let root = boc.single_root().unwrap();
+        let child = root.references().first().unwrap();
+        let pruned = child
+            .references()
+            .get(1)
+            .unwrap()
+            .as_pruned_branch()
+            .unwrap();
+        assert_eq!(
+            pruned.higher_hash(0).unwrap().to_vec(),
+            hex::decode("c7560a2d500548aa114f254dca6da29fc2cfd96d5988d19e8708af329b004490")
+                .unwrap()
+        );
+        assert_eq!(
+            pruned.higher_hash(1).unwrap().to_vec(),
+            hex::decode("b815af9b18dca15b27b79ff26f4adfc5613df7a17b27f96bc0593d12f2b9170e")
+                .unwrap()
+        );
+        assert_eq!(
+            pruned.higher_hash(2).unwrap().to_vec(),
+            hex::decode("c7560a2d500548aa114f254dca6da29fc2cfd96d5988d19e8708af329b004490")
+                .unwrap()
+        );
     }
 }
