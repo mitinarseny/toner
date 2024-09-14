@@ -13,6 +13,16 @@ pub struct PrunedBranchCell {
 }
 
 impl HigherHash for PrunedBranchCell {
+    fn level_mask(&self) -> LevelMask {
+        LevelMask::new(
+            self.data
+                .as_raw_slice()
+                .first()
+                .cloned()
+                .expect("invalid data length"),
+        )
+    }
+
     fn higher_hash(&self, level: u8) -> Option<[u8; 32]> {
         if self.level_mask().contains(level) {
             Some(
@@ -22,7 +32,6 @@ impl HigherHash for PrunedBranchCell {
                     .expect("invalid data length"),
             )
         } else {
-            /// TODO[akostylev0]: rly?
             let mut hasher = Sha256::new();
             hasher.update([
                 self.refs_descriptor(),
@@ -35,16 +44,6 @@ impl HigherHash for PrunedBranchCell {
         }
     }
 
-    fn level_mask(&self) -> LevelMask {
-        LevelMask::new(
-            self.data
-                .as_raw_slice()
-                .first()
-                .cloned()
-                .expect("invalid data length"),
-        )
-    }
-
     fn depth(&self, level: u8) -> u16 {
         if self.level_mask().contains(level) {
             let view = self.data.as_raw_slice();
@@ -52,7 +51,9 @@ impl HigherHash for PrunedBranchCell {
                 view[(1 + 32 * self.level_mask().as_level() + 2 * level) as usize],
                 view[(1 + 32 * self.level_mask().as_level() + 2 * level + 1) as usize],
             ])
-        } else { 0 }
+        } else {
+            0
+        }
     }
 }
 

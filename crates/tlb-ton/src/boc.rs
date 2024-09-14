@@ -694,10 +694,10 @@ mod tests {
             .unwrap()
             .as_ordinary()
             .unwrap();
-        // assert_eq!(cell.depth(0), 22);
-        // assert_eq!(cell.depth(1), 2);
-        // assert_eq!(cell.depth(2), 2);
-        // assert_eq!(cell.depth(3), 2);
+        assert_eq!(cell.depth(0), 22);
+        assert_eq!(cell.depth(1), 2);
+        assert_eq!(cell.depth(2), 2);
+        assert_eq!(cell.depth(3), 2);
         assert_eq!(
             hex::encode(cell.higher_hash(0).unwrap()),
             "a7f81658c6047b243f495ae6ba8787517814431f2c1c7896fabe8361b9e16587"

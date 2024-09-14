@@ -1,5 +1,4 @@
 use std::ops::{BitAnd, BitOr};
-use strum::Display;
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct LevelMask(u8);
@@ -27,6 +26,10 @@ impl LevelMask {
 
     pub fn contains(&self, level: u8) -> bool {
         level < self.as_level()
+    }
+
+    pub fn apply(&self, level: u8) -> LevelMask {
+        LevelMask(self.0 & ((1 << level) - 1))
     }
 }
 

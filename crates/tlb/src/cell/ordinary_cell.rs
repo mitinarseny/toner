@@ -14,9 +14,17 @@ pub struct OrdinaryCell {
 }
 
 impl HigherHash for OrdinaryCell {
+    fn level_mask(&self) -> LevelMask {
+        self.references
+            .iter()
+            .map(Deref::deref)
+            .map(Cell::level_mask)
+            .fold(LevelMask::default(), LevelMask::bitor)
+    }
+
     /// [Standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#standard-cell-representation-hash-calculation)
     fn higher_hash(&self, level: u8) -> Option<[u8; 32]> {
-        let level_mask = self.level_mask() & LevelMask::from_level(level);
+        let level_mask = self.level_mask().apply(level);
         let level = level_mask.as_level();
 
         let mut buf = Vec::new();
@@ -64,14 +72,6 @@ impl HigherHash for OrdinaryCell {
         hasher.update(buf);
 
         Some(hasher.finalize().into())
-    }
-
-    fn level_mask(&self) -> LevelMask {
-        self.references
-            .iter()
-            .map(Deref::deref)
-            .map(Cell::level_mask)
-            .fold(LevelMask::default(), LevelMask::bitor)
     }
 
     fn depth(&self, level: u8) -> u16 {
