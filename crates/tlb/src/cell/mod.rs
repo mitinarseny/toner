@@ -29,6 +29,7 @@ use crate::{
     ser::CellBuilder,
 };
 use crate::cell::higher_hash::HigherHash;
+use crate::level_mask::LevelMask;
 
 /// A [Cell](https://docs.ton.org/develop/data-formats/cell-boc#cell).
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -46,12 +47,29 @@ impl Default for Cell {
 }
 
 impl HigherHash for Cell {
+    fn level_mask(&self) -> LevelMask {
+        match self {
+            Cell::Ordinary(inner) => inner.level_mask(),
+            Cell::LibraryReference(inner) => inner.level_mask(),
+            Cell::PrunedBranch(inner) => inner.level_mask(),
+            Cell::MerkleProof(inner) => inner.level_mask(),
+        }
+    }
     fn higher_hash(&self, level: u8) -> Option<[u8; 32]> {
         match self {
             Cell::Ordinary(inner) => inner.higher_hash(level),
             Cell::LibraryReference(inner) => inner.higher_hash(level),
             Cell::PrunedBranch(inner) => inner.higher_hash(level),
             Cell::MerkleProof(inner) => inner.higher_hash(level),
+        }
+    }
+
+    fn depth(&self, level: u8) -> u16 {
+        match self {
+            Cell::Ordinary(inner) => inner.depth(level),
+            Cell::LibraryReference(inner) => inner.depth(level),
+            Cell::PrunedBranch(inner) => inner.depth(level),
+            Cell::MerkleProof(inner) => inner.depth(level),
         }
     }
 }
@@ -76,6 +94,13 @@ impl Cell {
     pub fn as_pruned_branch(&self) -> Option<&PrunedBranchCell> {
         match self {
             Cell::PrunedBranch(branch) => Some(branch),
+            _ => None,
+        }
+    }
+
+    pub fn as_ordinary(&self) -> Option<&OrdinaryCell> {
+        match self {
+            Cell::Ordinary(cell) => Some(cell),
             _ => None,
         }
     }

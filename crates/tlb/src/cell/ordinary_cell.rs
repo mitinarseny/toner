@@ -1,9 +1,10 @@
 use crate::cell::higher_hash::HigherHash;
+use crate::level_mask::LevelMask;
 use crate::Cell;
 use bitvec::order::Msb0;
 use bitvec::prelude::BitVec;
 use sha2::{Digest, Sha256};
-use std::ops::Deref;
+use std::ops::{BitOr, Deref};
 use std::sync::Arc;
 
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
@@ -15,33 +16,36 @@ pub struct OrdinaryCell {
 impl HigherHash for OrdinaryCell {
     /// [Standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#standard-cell-representation-hash-calculation)
     fn higher_hash(&self, level: u8) -> Option<[u8; 32]> {
-        debug_assert!(level <= 3);
-        if level > 3 {
-            return None;
-        }
+        let level_mask = self.level_mask() & LevelMask::from_level(level);
+        let level = level_mask.as_level();
 
         let mut buf = Vec::new();
-        buf.push(self.refs_descriptor());
+        buf.push(self.refs_descriptor(level_mask));
         buf.push(self.bits_descriptor());
 
-        let rest_bits = self.data.len() % 8;
-
-        if rest_bits == 0 {
-            buf.extend(self.data.as_raw_slice());
+        println!("level = {}, level_mask = {:?}", level, self.level_mask());
+        if level > 0 {
+            buf.extend(self.higher_hash(level - 1)?);
         } else {
-            let (last, data) = self.data.as_raw_slice().split_last().unwrap();
-            buf.extend(data);
-            let mut last = last & (!0u8 << (8 - rest_bits)); // clear the rest
-                                                             // let mut last = last;
-            last |= 1 << (8 - rest_bits - 1); // put stop-bit
-            buf.push(last)
+            let rest_bits = self.data.len() % 8;
+
+            if rest_bits == 0 {
+                buf.extend(self.data.as_raw_slice());
+            } else {
+                let (last, data) = self.data.as_raw_slice().split_last().unwrap();
+                buf.extend(data);
+                let mut last = last & (!0u8 << (8 - rest_bits)); // clear the rest
+                // let mut last = last;
+                last |= 1 << (8 - rest_bits - 1); // put stop-bit
+                buf.push(last)
+            }
         }
 
         // refs depth
         buf.extend(
             self.references
                 .iter()
-                .flat_map(|r| r.max_depth().to_be_bytes()),
+                .flat_map(|r| r.depth(level).to_be_bytes()),
         );
 
         // refs hashes
@@ -54,10 +58,30 @@ impl HigherHash for OrdinaryCell {
                 .flatten(),
         );
 
+        println!("cell_data = {}", hex::encode(&buf));
+
         let mut hasher = Sha256::new();
         hasher.update(buf);
 
         Some(hasher.finalize().into())
+    }
+
+    fn level_mask(&self) -> LevelMask {
+        self.references
+            .iter()
+            .map(Deref::deref)
+            .map(Cell::level_mask)
+            .fold(LevelMask::default(), LevelMask::bitor)
+    }
+
+    fn depth(&self, level: u8) -> u16 {
+        self.references
+            .iter()
+            .map(Deref::deref)
+            .map(|c| c.depth(level))
+            .max()
+            .map(|v| v + 1)
+            .unwrap_or(0)
     }
 }
 
@@ -78,8 +102,8 @@ impl OrdinaryCell {
     }
 
     #[inline]
-    fn refs_descriptor(&self) -> u8 {
-        self.references.len() as u8 | (self.level() << 5)
+    fn refs_descriptor(&self, level_mask: LevelMask) -> u8 {
+        self.references.len() as u8 | (level_mask.as_u8() << 5)
     }
 
     /// See [Cell serialization](https://docs.ton.org/develop/data-formats/cell-boc#cell-serialization)
@@ -90,7 +114,6 @@ impl OrdinaryCell {
         (b / 8) as u8 + ((b + 7) / 8) as u8
     }
 }
-
 
 #[cfg(test)]
 mod tests {

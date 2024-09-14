@@ -1,6 +1,7 @@
 use bitvec::order::Msb0;
 use bitvec::vec::BitVec;
 use crate::cell::higher_hash::HigherHash;
+use crate::level_mask::LevelMask;
 
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct LibraryReferenceCell {
@@ -14,11 +15,19 @@ impl LibraryReferenceCell {
 }
 
 impl HigherHash for LibraryReferenceCell {
+    fn level_mask(&self) -> LevelMask {
+        LevelMask::default()
+    }
+
     fn higher_hash(&self, level: u8) -> Option<[u8; 32]> {
         if level == 0 {
             Some(self.hash())
         } else {
             None
         }
+    }
+
+    fn depth(&self, _: u8) -> u16 {
+        0
     }
 }

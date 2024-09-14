@@ -609,6 +609,7 @@ mod tests {
     use tlb::cell_type::CellType;
     use tlb::higher_hash::HigherHash;
 
+    // TODO[akostylev0]: move to tlb cell crate
     #[test]
     fn block_header_with_merkle_proof_and_pruned_branch() {
         let bytes = hex::decode("b5ee9c720102070100014700094603a7f81658c6047b243f495ae6ba8787517814431f2c1c7896fabe8361b9e16587001601241011ef55aaffffff110203040501a09bc7a9870000000004010267a7050000000100ffffffff000000000000000066e43ab200002cb04eecad8000002cb04eecad847897845d000940eb0267a6ff0267a3d4c40000000800000000000001ee0628480101b815af9b18dca15b27b79ff26f4adfc5613df7a17b27f96bc0593d12f2b9170e0003284801011b9a32271632c8170fbc0071e0f2800c58496f9959021e4ac344f93b69915e69001528480101a98f69c6479a583577cd185eaa589db44e6a49715918356393ae68638fe9c01c0007009800002cb04edd6b440267a7040cd9841277aacd63b5597bfa64fc63aac32be67009332d5ff80e8658acf9cd28dc9b686e30ddfbf904215e24bc991eebe45d5bfd4d26f31f2dee712e67926048").unwrap();
@@ -657,20 +658,85 @@ mod tests {
             .unwrap()
             .as_pruned_branch()
             .unwrap();
+        assert_eq!(pruned.depth(0), 3);
+        assert_eq!(pruned.depth(1), 0);
+        assert_eq!(pruned.depth(2), 0);
+        assert_eq!(pruned.depth(3), 0);
         assert_eq!(
-            pruned.higher_hash(0).unwrap().to_vec(),
-            hex::decode("c7560a2d500548aa114f254dca6da29fc2cfd96d5988d19e8708af329b004490")
-                .unwrap()
+            hex::encode(pruned.higher_hash(0).unwrap()),
+            "b815af9b18dca15b27b79ff26f4adfc5613df7a17b27f96bc0593d12f2b9170e"
         );
         assert_eq!(
-            pruned.higher_hash(1).unwrap().to_vec(),
-            hex::decode("b815af9b18dca15b27b79ff26f4adfc5613df7a17b27f96bc0593d12f2b9170e")
-                .unwrap()
+            hex::encode(pruned.higher_hash(1).unwrap()),
+            "c7560a2d500548aa114f254dca6da29fc2cfd96d5988d19e8708af329b004490"
         );
         assert_eq!(
-            pruned.higher_hash(2).unwrap().to_vec(),
-            hex::decode("c7560a2d500548aa114f254dca6da29fc2cfd96d5988d19e8708af329b004490")
-                .unwrap()
+            hex::encode(pruned.higher_hash(2).unwrap()),
+            "c7560a2d500548aa114f254dca6da29fc2cfd96d5988d19e8708af329b004490"
+        );
+        assert_eq!(
+            hex::encode(pruned.higher_hash(3).unwrap()),
+            "c7560a2d500548aa114f254dca6da29fc2cfd96d5988d19e8708af329b004490"
+        );
+    }
+
+    #[test]
+    fn boc_cell_with_pruned_branch_hashes() {
+        let bytes = hex::decode("b5ee9c720102070100014700094603a7f81658c6047b243f495ae6ba8787517814431f2c1c7896fabe8361b9e16587001601241011ef55aaffffff110203040501a09bc7a9870000000004010267a7050000000100ffffffff000000000000000066e43ab200002cb04eecad8000002cb04eecad847897845d000940eb0267a6ff0267a3d4c40000000800000000000001ee0628480101b815af9b18dca15b27b79ff26f4adfc5613df7a17b27f96bc0593d12f2b9170e0003284801011b9a32271632c8170fbc0071e0f2800c58496f9959021e4ac344f93b69915e69001528480101a98f69c6479a583577cd185eaa589db44e6a49715918356393ae68638fe9c01c0007009800002cb04edd6b440267a7040cd9841277aacd63b5597bfa64fc63aac32be67009332d5ff80e8658acf9cd28dc9b686e30ddfbf904215e24bc991eebe45d5bfd4d26f31f2dee712e67926048").unwrap();
+
+        let boc: BagOfCells = unpack_bytes(bytes).unwrap();
+
+        let cell = boc
+            .single_root()
+            .unwrap()
+            .references()
+            .first()
+            .unwrap()
+            .as_ordinary()
+            .unwrap();
+        // assert_eq!(cell.depth(0), 22);
+        // assert_eq!(cell.depth(1), 2);
+        // assert_eq!(cell.depth(2), 2);
+        // assert_eq!(cell.depth(3), 2);
+        assert_eq!(
+            hex::encode(cell.higher_hash(0).unwrap()),
+            "a7f81658c6047b243f495ae6ba8787517814431f2c1c7896fabe8361b9e16587"
+        );
+        assert_eq!(
+            hex::encode(cell.higher_hash(1).unwrap()),
+            "c4153123dd6a06e70d9223348fab38868bd9ef6d1ca0235f68a4bc2b66486541"
+        );
+        assert_eq!(
+            hex::encode(cell.higher_hash(2).unwrap()),
+            "c4153123dd6a06e70d9223348fab38868bd9ef6d1ca0235f68a4bc2b66486541"
+        );
+    }
+
+    #[test]
+    fn boc_ordinary_cell_hash1() {
+        let bytes = hex::decode("b5ee9c720102070100014700094603a7f81658c6047b243f495ae6ba8787517814431f2c1c7896fabe8361b9e16587001601241011ef55aaffffff110203040501a09bc7a9870000000004010267a7050000000100ffffffff000000000000000066e43ab200002cb04eecad8000002cb04eecad847897845d000940eb0267a6ff0267a3d4c40000000800000000000001ee0628480101b815af9b18dca15b27b79ff26f4adfc5613df7a17b27f96bc0593d12f2b9170e0003284801011b9a32271632c8170fbc0071e0f2800c58496f9959021e4ac344f93b69915e69001528480101a98f69c6479a583577cd185eaa589db44e6a49715918356393ae68638fe9c01c0007009800002cb04edd6b440267a7040cd9841277aacd63b5597bfa64fc63aac32be67009332d5ff80e8658acf9cd28dc9b686e30ddfbf904215e24bc991eebe45d5bfd4d26f31f2dee712e67926048").unwrap();
+
+        let boc: BagOfCells = unpack_bytes(bytes).unwrap();
+
+        let cell = boc
+            .single_root()
+            .unwrap()
+            .references()
+            .first()
+            .unwrap()
+            .references()
+            .first()
+            .unwrap()
+            .as_ordinary()
+            .unwrap();
+        assert_eq!(cell.depth(1), 1);
+        assert_eq!(
+            hex::encode(cell.higher_hash(0).unwrap()),
+            "c1f3aa31fbd3fd5c5d3fe8865472244172c3919212611118c014574ff8d51feb"
+        );
+        assert_eq!(
+            hex::encode(cell.higher_hash(1).unwrap()),
+            "c1f3aa31fbd3fd5c5d3fe8865472244172c3919212611118c014574ff8d51feb"
         );
     }
 }

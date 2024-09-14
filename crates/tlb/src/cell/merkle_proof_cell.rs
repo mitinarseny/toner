@@ -6,6 +6,7 @@ use std::cmp::max;
 use std::sync::Arc;
 use sha2::{Digest, Sha256};
 use crate::cell_type::CellType;
+use crate::level_mask::LevelMask;
 
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct MerkleProofCell {
@@ -39,6 +40,14 @@ impl HigherHash for MerkleProofCell {
         // hasher.update(buf);
         //
         // Some(hasher.finalize().into())
+    }
+
+    fn level_mask(&self) -> LevelMask {
+        self.reference().level_mask().shift(1)
+    }
+
+    fn depth(&self, level: u8) -> u16 {
+        todo!()
     }
 }
 

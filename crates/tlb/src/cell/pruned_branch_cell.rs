@@ -1,5 +1,6 @@
 use crate::cell::higher_hash::HigherHash;
 use crate::cell_type::CellType;
+use crate::level_mask::LevelMask;
 use bitvec::order::Msb0;
 use bitvec::prelude::BitVec;
 use sha2::{Digest, Sha256};
@@ -13,10 +14,10 @@ pub struct PrunedBranchCell {
 
 impl HigherHash for PrunedBranchCell {
     fn higher_hash(&self, level: u8) -> Option<[u8; 32]> {
-        if (1..=self.level).contains(&level) {
+        if self.level_mask().contains(level) {
             Some(
                 self.data.as_raw_slice()
-                    [1 + (32 * (level - 1)) as usize..1 + (32 * level) as usize]
+                    [1 + (32 * level) as usize..1 + (32 * (level + 1)) as usize]
                     .try_into()
                     .expect("invalid data length"),
             )
@@ -33,6 +34,26 @@ impl HigherHash for PrunedBranchCell {
             return Some(hasher.finalize().into());
         }
     }
+
+    fn level_mask(&self) -> LevelMask {
+        LevelMask::new(
+            self.data
+                .as_raw_slice()
+                .first()
+                .cloned()
+                .expect("invalid data length"),
+        )
+    }
+
+    fn depth(&self, level: u8) -> u16 {
+        if self.level_mask().contains(level) {
+            let view = self.data.as_raw_slice();
+            u16::from_be_bytes([
+                view[(1 + 32 * self.level_mask().as_level() + 2 * level) as usize],
+                view[(1 + 32 * self.level_mask().as_level() + 2 * level + 1) as usize],
+            ])
+        } else { 0 }
+    }
 }
 
 impl PrunedBranchCell {
@@ -42,17 +63,9 @@ impl PrunedBranchCell {
 
     pub fn level(&self) -> u8 {
         // TODO[akostylev0]
-        debug_assert_eq!(self.level_mask(), self.level);
+        debug_assert_eq!(self.level_mask().as_u8(), self.level);
 
         self.level
-    }
-
-    pub fn level_mask(&self) -> u8 {
-        self.data
-            .as_raw_slice()
-            .first()
-            .cloned()
-            .expect("invalid data length")
     }
 
     fn depths(&self) -> Vec<u16> {
