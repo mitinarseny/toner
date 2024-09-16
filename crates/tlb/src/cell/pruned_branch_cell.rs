@@ -78,7 +78,7 @@ impl PrunedBranchCell {
 
     #[inline]
     fn refs_descriptor(&self) -> u8 {
-        0 + 8 + 32 * self.level()
+        8 + 32 * self.level()
     }
 
     /// See [Cell serialization](https://docs.ton.org/develop/data-formats/cell-boc#cell-serialization)

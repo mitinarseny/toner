@@ -62,8 +62,7 @@ impl HigherHash for OrdinaryCell {
             hasher.update(
                 self.references
                     .iter()
-                    .map(|cell| cell.higher_hash(level))
-                    .flatten()
+                    .flat_map(|cell| cell.higher_hash(level))
                     .collect::<Vec<_>>(),
             );
 
