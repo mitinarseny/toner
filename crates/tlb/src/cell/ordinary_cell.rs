@@ -24,54 +24,53 @@ impl HigherHash for OrdinaryCell {
 
     /// [Standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#standard-cell-representation-hash-calculation)
     fn higher_hash(&self, level: u8) -> Option<[u8; 32]> {
-        let level_mask = self.level_mask().apply(level);
-        let level = level_mask.as_level();
+        let level_mask = self.level_mask();
+        let max_level = level_mask.apply(level).as_level();
 
-        let mut buf = Vec::new();
-        buf.push(self.refs_descriptor(level_mask));
-        buf.push(self.bits_descriptor());
+        (0..=max_level).fold(None, |acc, current_level| {
+            let level_mask = level_mask.apply(current_level);
+            let level = level_mask.as_level();
 
-        println!("level = {}, level_mask = {:?}", level, self.level_mask());
-        if level > 0 {
-            buf.extend(self.higher_hash(level - 1)?);
-        } else {
-            let rest_bits = self.data.len() % 8;
-
-            if rest_bits == 0 {
-                buf.extend(self.data.as_raw_slice());
+            let mut hasher = Sha256::new();
+            hasher.update([self.refs_descriptor(level_mask), self.bits_descriptor()]);
+            if let Some(prev) = acc {
+                hasher.update(prev);
             } else {
-                let (last, data) = self.data.as_raw_slice().split_last().unwrap();
-                buf.extend(data);
-                let mut last = last & (!0u8 << (8 - rest_bits)); // clear the rest
-                // let mut last = last;
-                last |= 1 << (8 - rest_bits - 1); // put stop-bit
-                buf.push(last)
+                let rest_bits = self.data.len() % 8;
+
+                if rest_bits == 0 {
+                    hasher.update(self.data.as_raw_slice());
+                } else {
+                    let (last, data) = self.data.as_raw_slice().split_last().unwrap();
+                    hasher.update(data);
+                    let mut last = last & (!0u8 << (8 - rest_bits)); // clear the rest
+                                                                     // let mut last = last;
+                    last |= 1 << (8 - rest_bits - 1); // put stop-bit
+                    hasher.update([last])
+                }
             }
-        }
 
-        // refs depth
-        buf.extend(
-            self.references
-                .iter()
-                .flat_map(|r| r.depth(level).to_be_bytes()),
-        );
+            // refs depth
+            hasher.update(
+                self.references
+                    .iter()
+                    .flat_map(|r| r.depth(level).to_be_bytes())
+                    .collect::<Vec<_>>(),
+            );
 
-        // refs hashes
-        buf.extend(
-            self.references
-                .iter()
-                .map(|cell| cell.higher_hash(level))
-                .collect::<Option<Vec<[u8; 32]>>>()?
-                .iter()
-                .flatten(),
-        );
+            // refs hashes
+            hasher.update(
+                self.references
+                    .iter()
+                    .map(|cell| cell.higher_hash(level))
+                    .collect::<Option<Vec<[u8; 32]>>>()?
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<_>>(),
+            );
 
-        println!("cell_data = {}", hex::encode(&buf));
-
-        let mut hasher = Sha256::new();
-        hasher.update(buf);
-
-        Some(hasher.finalize().into())
+            Some(hasher.finalize().into())
+        })
     }
 
     fn depth(&self, level: u8) -> u16 {
