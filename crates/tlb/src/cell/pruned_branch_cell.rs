@@ -23,14 +23,11 @@ impl HigherHash for PrunedBranchCell {
         )
     }
 
-    fn higher_hash(&self, level: u8) -> Option<[u8; 32]> {
+    fn higher_hash(&self, level: u8) -> [u8; 32] {
         if self.level_mask().contains(level) {
-            Some(
-                self.data.as_raw_slice()
-                    [1 + (32 * level) as usize..1 + (32 * (level + 1)) as usize]
-                    .try_into()
-                    .expect("invalid data length"),
-            )
+            self.data.as_raw_slice()[1 + (32 * level) as usize..1 + (32 * (level + 1)) as usize]
+                .try_into()
+                .expect("invalid data length")
         } else {
             let mut hasher = Sha256::new();
             hasher.update([
@@ -40,7 +37,7 @@ impl HigherHash for PrunedBranchCell {
             ]);
             hasher.update(self.data.as_raw_slice());
 
-            return Some(hasher.finalize().into());
+            hasher.finalize().into()
         }
     }
 

@@ -16,7 +16,7 @@ pub struct MerkleProofCell {
 }
 
 impl HigherHash for MerkleProofCell {
-    fn higher_hash(&self, level: u8) -> Option<[u8; 32]> {
+    fn higher_hash(&self, level: u8) -> [u8; 32] {
         todo!()
         // debug_assert!(level <= 3);
         // if level > 3 || level > self.level() {
@@ -79,9 +79,9 @@ impl MerkleProofCell {
     }
 
     pub fn verify(&self) -> bool {
-        debug_assert_eq!(self.hash(), self.reference().higher_hash(0).expect("invalid reference"));
+        debug_assert_eq!(self.hash(), self.reference().higher_hash(0));
         
-        self.hash() == self.reference().higher_hash(0).expect("invalid reference")
+        self.hash() == self.reference().higher_hash(0)
     }
 
     #[inline]

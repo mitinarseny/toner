@@ -23,7 +23,7 @@ impl HigherHash for OrdinaryCell {
     }
 
     /// [Standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#standard-cell-representation-hash-calculation)
-    fn higher_hash(&self, level: u8) -> Option<[u8; 32]> {
+    fn higher_hash(&self, level: u8) -> [u8; 32] {
         let level_mask = self.level_mask();
         let max_level = level_mask.apply(level).as_level();
 
@@ -63,14 +63,12 @@ impl HigherHash for OrdinaryCell {
                 self.references
                     .iter()
                     .map(|cell| cell.higher_hash(level))
-                    .collect::<Option<Vec<[u8; 32]>>>()?
-                    .into_iter()
                     .flatten()
                     .collect::<Vec<_>>(),
             );
 
             Some(hasher.finalize().into())
-        })
+        }).expect("level 0 is always present")
     }
 
     fn depth(&self, level: u8) -> u16 {
@@ -87,7 +85,7 @@ impl HigherHash for OrdinaryCell {
 impl OrdinaryCell {
     #[inline]
     pub fn hash(&self) -> [u8; 32] {
-        self.higher_hash(0).expect("level 0 is always present")
+        self.higher_hash(0)
     }
 
     #[inline]

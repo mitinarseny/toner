@@ -19,12 +19,8 @@ impl HigherHash for LibraryReferenceCell {
         LevelMask::default()
     }
 
-    fn higher_hash(&self, level: u8) -> Option<[u8; 32]> {
-        if level == 0 {
-            Some(self.hash())
-        } else {
-            None
-        }
+    fn higher_hash(&self, _: u8) -> [u8; 32] {
+        self.hash()
     }
 
     fn depth(&self, _: u8) -> u16 {

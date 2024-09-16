@@ -663,19 +663,19 @@ mod tests {
         assert_eq!(pruned.depth(2), 0);
         assert_eq!(pruned.depth(3), 0);
         assert_eq!(
-            hex::encode(pruned.higher_hash(0).unwrap()),
+            hex::encode(pruned.higher_hash(0)),
             "b815af9b18dca15b27b79ff26f4adfc5613df7a17b27f96bc0593d12f2b9170e"
         );
         assert_eq!(
-            hex::encode(pruned.higher_hash(1).unwrap()),
+            hex::encode(pruned.higher_hash(1)),
             "c7560a2d500548aa114f254dca6da29fc2cfd96d5988d19e8708af329b004490"
         );
         assert_eq!(
-            hex::encode(pruned.higher_hash(2).unwrap()),
+            hex::encode(pruned.higher_hash(2)),
             "c7560a2d500548aa114f254dca6da29fc2cfd96d5988d19e8708af329b004490"
         );
         assert_eq!(
-            hex::encode(pruned.higher_hash(3).unwrap()),
+            hex::encode(pruned.higher_hash(3)),
             "c7560a2d500548aa114f254dca6da29fc2cfd96d5988d19e8708af329b004490"
         );
     }
@@ -699,15 +699,15 @@ mod tests {
         assert_eq!(cell.depth(2), 2);
         assert_eq!(cell.depth(3), 2);
         assert_eq!(
-            hex::encode(cell.higher_hash(0).unwrap()),
+            hex::encode(cell.higher_hash(0)),
             "a7f81658c6047b243f495ae6ba8787517814431f2c1c7896fabe8361b9e16587"
         );
         assert_eq!(
-            hex::encode(cell.higher_hash(1).unwrap()),
+            hex::encode(cell.higher_hash(1)),
             "c4153123dd6a06e70d9223348fab38868bd9ef6d1ca0235f68a4bc2b66486541"
         );
         assert_eq!(
-            hex::encode(cell.higher_hash(2).unwrap()),
+            hex::encode(cell.higher_hash(2)),
             "c4153123dd6a06e70d9223348fab38868bd9ef6d1ca0235f68a4bc2b66486541"
         );
     }
@@ -731,11 +731,11 @@ mod tests {
             .unwrap();
         assert_eq!(cell.depth(1), 1);
         assert_eq!(
-            hex::encode(cell.higher_hash(0).unwrap()),
+            hex::encode(cell.higher_hash(0)),
             "c1f3aa31fbd3fd5c5d3fe8865472244172c3919212611118c014574ff8d51feb"
         );
         assert_eq!(
-            hex::encode(cell.higher_hash(1).unwrap()),
+            hex::encode(cell.higher_hash(1)),
             "c1f3aa31fbd3fd5c5d3fe8865472244172c3919212611118c014574ff8d51feb"
         );
     }

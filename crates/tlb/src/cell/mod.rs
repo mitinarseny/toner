@@ -1,8 +1,8 @@
+pub mod higher_hash;
 mod library_reference_cell;
 mod merkle_proof_cell;
 mod ordinary_cell;
 mod pruned_branch_cell;
-pub mod higher_hash;
 
 use core::{
     fmt::{self, Debug},
@@ -15,11 +15,13 @@ use bitvec::order::Msb0;
 use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
 
+use crate::cell::higher_hash::HigherHash;
 pub use crate::cell::library_reference_cell::LibraryReferenceCell;
 pub use crate::cell::merkle_proof_cell::MerkleProofCell;
 pub use crate::cell::ordinary_cell::OrdinaryCell;
 pub use crate::cell::pruned_branch_cell::*;
 use crate::cell_type::CellType;
+use crate::level_mask::LevelMask;
 use crate::{
     de::{
         args::{r#as::CellDeserializeAsWithArgs, CellDeserializeWithArgs},
@@ -28,8 +30,6 @@ use crate::{
     },
     ser::CellBuilder,
 };
-use crate::cell::higher_hash::HigherHash;
-use crate::level_mask::LevelMask;
 
 /// A [Cell](https://docs.ton.org/develop/data-formats/cell-boc#cell).
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -55,7 +55,7 @@ impl HigherHash for Cell {
             Cell::MerkleProof(inner) => inner.level_mask(),
         }
     }
-    fn higher_hash(&self, level: u8) -> Option<[u8; 32]> {
+    fn higher_hash(&self, level: u8) -> [u8; 32] {
         match self {
             Cell::Ordinary(inner) => inner.higher_hash(level),
             Cell::LibraryReference(inner) => inner.higher_hash(level),
@@ -83,7 +83,7 @@ impl Cell {
             Cell::MerkleProof(_) => CellType::MerkleProof,
         }
     }
-    
+
     pub fn as_merkle_proof(&self) -> Option<&MerkleProofCell> {
         match self {
             Cell::MerkleProof(proof) => Some(proof),
@@ -264,9 +264,7 @@ impl Cell {
         match self {
             Cell::Ordinary(inner) => inner.hash(),
             Cell::LibraryReference(inner) => inner.hash(),
-            Cell::PrunedBranch(inner) => inner
-                .higher_hash(0)
-                .expect("pruned branch should have at least one subtree"),
+            Cell::PrunedBranch(inner) => inner.higher_hash(0),
             Cell::MerkleProof(inner) => inner.hash(),
         }
     }
@@ -274,7 +272,14 @@ impl Cell {
 
 impl Debug for Cell {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}:L{}:R{}:D{}:", self.as_type(), self.level(), self.references().len(), self.max_depth())?;
+        write!(
+            f,
+            "{:?}:L{}:R{}:D{}:",
+            self.as_type(),
+            self.level(),
+            self.references().len(),
+            self.max_depth()
+        )?;
 
         if f.alternate() {
             write!(f, "{}[0b", self.len())?;
