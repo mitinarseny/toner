@@ -114,12 +114,7 @@ impl Cell {
         CellBuilder::new()
     }
 
-    #[inline]
-    pub fn is_exotic(&self) -> bool {
-        !matches!(self, Self::Ordinary { .. })
-    }
-
-    pub fn as_data(&self) -> &BitVec<u8, Msb0> {
+    pub fn data(&self) -> &BitVec<u8, Msb0> {
         match self {
             Cell::Ordinary(OrdinaryCell { data, .. }) => data,
             Cell::LibraryReference(LibraryReferenceCell { data }) => data,
@@ -130,15 +125,15 @@ impl Cell {
 
     #[inline]
     pub fn len(&self) -> usize {
-        self.as_data().len()
+        self.data().len()
     }
 
     pub fn as_raw_slice(&self) -> &[u8] {
-        self.as_data().as_raw_slice()
+        self.data().as_raw_slice()
     }
 
     pub fn as_bitslice(&self) -> &BitSlice<u8, Msb0> {
-        self.as_data().as_bitslice()
+        self.data().as_bitslice()
     }
 
     pub fn references(&self) -> &[Arc<Self>] {
@@ -216,7 +211,7 @@ impl Cell {
     /// Returns whether this cell has no data and zero references.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.as_raw_slice().is_empty() && self.references().is_empty()
+        self.data().is_empty() && self.references().is_empty()
     }
 
     #[inline]

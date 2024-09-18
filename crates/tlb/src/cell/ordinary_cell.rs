@@ -43,28 +43,23 @@ impl HigherHash for OrdinaryCell {
                 } else {
                     let (last, data) = self.data.as_raw_slice().split_last().unwrap();
                     hasher.update(data);
-                    let mut last = last & (!0u8 << (8 - rest_bits)); // clear the rest
-                                                                     // let mut last = last;
+                    let mut last = last & (0xFF << (8 - rest_bits)); // clear the rest
                     last |= 1 << (8 - rest_bits - 1); // put stop-bit
                     hasher.update([last])
                 }
             }
 
             // refs depth
-            hasher.update(
-                self.references
-                    .iter()
-                    .flat_map(|r| r.depth(level).to_be_bytes())
-                    .collect::<Vec<_>>(),
-            );
+            self.references
+                .iter()
+                .map(|r| r.depth(level).to_be_bytes())
+                .for_each(|bytes| hasher.update(bytes));
 
             // refs hashes
-            hasher.update(
-                self.references
-                    .iter()
-                    .flat_map(|cell| cell.higher_hash(level))
-                    .collect::<Vec<_>>(),
-            );
+            self.references
+                .iter()
+                .map(|cell| cell.higher_hash(level))
+                .for_each(|bytes| hasher.update(bytes));
 
             Some(hasher.finalize().into())
         }).expect("level 0 is always present")
