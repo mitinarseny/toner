@@ -15,6 +15,10 @@ pub struct MerkleProofCell {
 }
 
 impl HigherHash for MerkleProofCell {
+    fn level_mask(&self) -> LevelMask {
+        self.reference().level_mask().shift(1)
+    }
+
     fn higher_hash(&self, level: u8) -> [u8; 32] {
         let level_mask = self.level_mask();
         let max_level = level_mask.apply(level).as_level();
@@ -48,16 +52,24 @@ impl HigherHash for MerkleProofCell {
         }).expect("level 0 is always present")
     }
 
-    fn level_mask(&self) -> LevelMask {
-        self.reference().level_mask().shift(1)
-    }
-
     fn depth(&self, level: u8) -> u16 {
         self.reference().depth(level + 1) + 1
     }
 }
 
 impl MerkleProofCell {
+    pub fn level(&self) -> u8 {
+        max(self.reference().level() - 1, 0)
+    }
+
+    pub fn max_depth(&self) -> u16 {
+        self.reference().max_depth() + 1
+    }
+
+    pub fn verify(&self) -> bool {
+        self.hash() == self.reference().higher_hash(0)
+    }
+
     fn hash(&self) -> [u8; 32] {
         self.data.as_raw_slice()[0..32]
             .try_into()
@@ -69,20 +81,6 @@ impl MerkleProofCell {
             .first()
             .cloned()
             .expect("must have exactly one reference")
-    }
-
-    pub fn level(&self) -> u8 {
-        max(self.reference().level() - 1, 0)
-    }
-
-    pub fn max_depth(&self) -> u16 {
-        self.reference().max_depth() + 1
-    }
-
-    pub fn verify(&self) -> bool {
-        debug_assert_eq!(self.hash(), self.reference().higher_hash(0));
-        
-        self.hash() == self.reference().higher_hash(0)
     }
 
     #[inline]
