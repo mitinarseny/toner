@@ -51,13 +51,13 @@ impl HigherHash for MerkleProofCell {
 }
 
 impl MerkleProofCell {
-    pub fn hash(&self) -> [u8; 32] {
+    fn hash(&self) -> [u8; 32] {
         self.data.as_raw_slice()[0..32]
             .try_into()
             .expect("invalid data length")
     }
 
-    pub fn reference(&self) -> Arc<Cell> {
+    fn reference(&self) -> Arc<Cell> {
         self.references
             .first()
             .cloned()

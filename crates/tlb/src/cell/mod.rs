@@ -261,12 +261,7 @@ impl Cell {
     /// Calculates [standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#cell-hash)
     #[inline]
     pub fn hash(&self) -> [u8; 32] {
-        match self {
-            Cell::Ordinary(inner) => inner.hash(),
-            Cell::LibraryReference(inner) => inner.hash(),
-            Cell::PrunedBranch(inner) => inner.higher_hash(0),
-            Cell::MerkleProof(inner) => inner.hash(),
-        }
+        self.higher_hash(0)
     }
 }
 
