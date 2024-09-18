@@ -745,12 +745,45 @@ mod tests {
         let boc: BagOfCells = unpack_bytes(bytes).unwrap();
 
         let cell = boc.single_root().unwrap();
-        
+
         assert_eq!(cell.depth(0), 3);
         assert_eq!(cell.depth(1), 3);
         assert_eq!(cell.depth(2), 3);
         assert_eq!(cell.depth(3), 3);
         assert_eq!(cell.depth(4), 3);
         assert_eq!(cell.depth(5), 3);
+    }
+
+    #[test]
+    fn boc_merkle_proof_hash() {
+        let bytes = hex::decode("b5ee9c720102070100014700094603a7f81658c6047b243f495ae6ba8787517814431f2c1c7896fabe8361b9e16587001601241011ef55aaffffff110203040501a09bc7a9870000000004010267a7050000000100ffffffff000000000000000066e43ab200002cb04eecad8000002cb04eecad847897845d000940eb0267a6ff0267a3d4c40000000800000000000001ee0628480101b815af9b18dca15b27b79ff26f4adfc5613df7a17b27f96bc0593d12f2b9170e0003284801011b9a32271632c8170fbc0071e0f2800c58496f9959021e4ac344f93b69915e69001528480101a98f69c6479a583577cd185eaa589db44e6a49715918356393ae68638fe9c01c0007009800002cb04edd6b440267a7040cd9841277aacd63b5597bfa64fc63aac32be67009332d5ff80e8658acf9cd28dc9b686e30ddfbf904215e24bc991eebe45d5bfd4d26f31f2dee712e67926048").unwrap();
+
+        let boc: BagOfCells = unpack_bytes(bytes).unwrap();
+
+        let cell = boc.single_root().unwrap();
+        assert_eq!(
+            hex::encode(cell.higher_hash(0)),
+            "6cf623638282e21f4954a30fe0039cd936f24b22604bbb7c5ea6d51250cc385c"
+        );
+        assert_eq!(
+            hex::encode(cell.higher_hash(1)),
+            "6cf623638282e21f4954a30fe0039cd936f24b22604bbb7c5ea6d51250cc385c"
+        );
+        assert_eq!(
+            hex::encode(cell.higher_hash(2)),
+            "6cf623638282e21f4954a30fe0039cd936f24b22604bbb7c5ea6d51250cc385c"
+        );
+        assert_eq!(
+            hex::encode(cell.higher_hash(3)),
+            "6cf623638282e21f4954a30fe0039cd936f24b22604bbb7c5ea6d51250cc385c"
+        );
+        assert_eq!(
+            hex::encode(cell.higher_hash(4)),
+            "6cf623638282e21f4954a30fe0039cd936f24b22604bbb7c5ea6d51250cc385c"
+        );
+        assert_eq!(
+            hex::encode(cell.higher_hash(5)),
+            "6cf623638282e21f4954a30fe0039cd936f24b22604bbb7c5ea6d51250cc385c"
+        );
     }
 }

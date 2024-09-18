@@ -16,29 +16,36 @@ pub struct MerkleProofCell {
 
 impl HigherHash for MerkleProofCell {
     fn higher_hash(&self, level: u8) -> [u8; 32] {
-        todo!()
-        // debug_assert!(level <= 3);
-        // if level > 3 || level > self.level() {
-        //     return None;
-        // }
-        //
-        // let mut buf = Vec::new();
-        // buf.push(self.refs_descriptor());
-        // buf.push(self.bits_descriptor());
-        //
-        // buf.push(CellType::MerkleProof as u8);
-        // buf.extend(self.data.as_raw_slice());
-        //
-        // // ref depth
-        // buf.extend(self.reference().max_depth().to_be_bytes());
-        //
-        // // ref hashes
-        // buf.extend(self.reference().higher_hash(level + 1)?);
-        //
-        // let mut hasher = Sha256::new();
-        // hasher.update(buf);
-        //
-        // Some(hasher.finalize().into())
+        let level_mask = self.level_mask();
+        let max_level = level_mask.apply(level).as_level();
+
+        (0..=max_level).fold(None, |acc, current_level| {
+            let level_mask = level_mask.apply(current_level);
+            let level = level_mask.as_level();
+
+            let mut hasher = Sha256::new();
+            hasher.update([self.refs_descriptor(), self.bits_descriptor()]);
+            if let Some(prev) = acc {
+                hasher.update(prev);
+            } else {
+                hasher.update([CellType::MerkleProof as u8]);
+                let rest_bits = self.data.len() % 8;
+                if rest_bits == 0 {
+                    hasher.update(self.data.as_raw_slice());
+                } else {
+                    let (last, data) = self.data.as_raw_slice().split_last().unwrap();
+                    hasher.update(data);
+                    let mut last = last & (0xFF << (8 - rest_bits)); // clear the rest
+                    last |= 1 << (8 - rest_bits - 1); // put stop-bit
+                    hasher.update([last])
+                }
+            }
+
+            hasher.update(self.reference().depth(level + 1).to_be_bytes());
+            hasher.update(self.reference().higher_hash(level + 1));
+
+            Some(hasher.finalize().into())
+        }).expect("level 0 is always present")
     }
 
     fn level_mask(&self) -> LevelMask {

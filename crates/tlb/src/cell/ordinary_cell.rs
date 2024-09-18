@@ -37,7 +37,6 @@ impl HigherHash for OrdinaryCell {
                 hasher.update(prev);
             } else {
                 let rest_bits = self.data.len() % 8;
-
                 if rest_bits == 0 {
                     hasher.update(self.data.as_raw_slice());
                 } else {
