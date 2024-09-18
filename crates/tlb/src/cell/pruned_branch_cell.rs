@@ -7,8 +7,6 @@ use sha2::{Digest, Sha256};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct PrunedBranchCell {
-    // TODO[akostylev0] maybe level == level_mask
-    pub level: u8,
     pub data: BitVec<u8, Msb0>,
 }
 
@@ -60,15 +58,13 @@ impl PrunedBranchCell {
     }
 
     pub fn level(&self) -> u8 {
-        // TODO[akostylev0]
-        debug_assert_eq!(self.level_mask().as_u8(), self.level);
-
-        self.level
+        self.data.as_raw_slice().first().cloned().unwrap()
     }
 
     fn depths(&self) -> Vec<u16> {
+        let level = self.level();
         let depths = &self.data.as_raw_slice()
-            [(1 + 32 * self.level) as usize..(1 + 32 * self.level + 2 * self.level) as usize];
+            [(1 + 32 * level) as usize..(1 + 32 * level + 2 * level) as usize];
 
         depths
             .chunks_exact(2)

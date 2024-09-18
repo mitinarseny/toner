@@ -302,12 +302,10 @@ impl BitUnpack for BagOfCells {
                         }
 
                         Cell::PrunedBranch(PrunedBranchCell {
-                            level: raw_cell.level,
                             data: raw_cell.data,
                         })
                     }
                     CellType::MerkleProof => Cell::MerkleProof(MerkleProofCell {
-                        level: raw_cell.level,
                         data: raw_cell.data,
                         references,
                     }),

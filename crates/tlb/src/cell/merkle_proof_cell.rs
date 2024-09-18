@@ -10,7 +10,6 @@ use crate::level_mask::LevelMask;
 
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct MerkleProofCell {
-    pub level: u8,
     pub data: BitVec<u8, Msb0>,
     pub references: Vec<Arc<Cell>>,
 }
@@ -66,12 +65,7 @@ impl MerkleProofCell {
     }
 
     pub fn level(&self) -> u8 {
-        let level = max(self.reference().level() - 1, 0);
-
-        // TODO[akostylev0]
-        debug_assert_eq!(self.level, level);
-
-        level
+        max(self.reference().level() - 1, 0)
     }
 
     pub fn max_depth(&self) -> u16 {

@@ -4,7 +4,7 @@ use crate::cell_type::CellType;
 use crate::{bits::{
     bitvec::{order::Msb0, slice::BitSlice, vec::BitVec},
     ser::{BitWriter, LimitWriter},
-}, r#as::Ref, Cell, Error, ResultExt, OrdinaryCell};
+}, r#as::Ref, Cell, Error, ResultExt, OrdinaryCell, PrunedBranchCell, LibraryReferenceCell, MerkleProofCell};
 
 use super::{
     args::{r#as::CellSerializeAsWithArgs, CellSerializeWithArgs},
@@ -211,11 +211,10 @@ impl CellBuilder {
     pub fn into_cell(self) -> Cell {
         match self.r#type {
             CellType::Ordinary => Cell::Ordinary(OrdinaryCell { data: self.data.into_inner(), references: self.references }),
-            // {
-            //     data: self.data.into_inner(),
-            //     references: self.references,
-            // },
-            _ => unimplemented!(),
+            CellType::PrunedBranch => Cell::PrunedBranch(PrunedBranchCell { data: self.data.into_inner() }),
+            CellType::LibraryReference => Cell::LibraryReference(LibraryReferenceCell { data: self.data.into_inner() }),
+            CellType::MerkleProof => Cell::MerkleProof(MerkleProofCell { data: self.data.into_inner(), references: self.references }),
+            CellType::MerkleUpdate => todo!()
         }
     }
 }

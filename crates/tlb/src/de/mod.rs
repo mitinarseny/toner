@@ -151,7 +151,6 @@ impl<'de> CellDeserialize<'de> for Cell {
                 data: mem::take(&mut parser.data).to_bitvec(),
             }),
             CellType::PrunedBranch => Cell::PrunedBranch(PrunedBranchCell {
-                level: parser.level,
                 data: mem::take(&mut parser.data).to_bitvec(),
             }),
             _ => unimplemented!(),
