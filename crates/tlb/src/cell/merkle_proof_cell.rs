@@ -46,7 +46,7 @@ impl HigherHash for MerkleProofCell {
     }
 
     fn depth(&self, level: u8) -> u16 {
-        todo!()
+        self.reference().depth(level + 1) + 1
     }
 }
 
