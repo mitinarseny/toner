@@ -8,7 +8,6 @@ mod pruned_branch_cell;
 use core::{
     fmt::{self, Debug},
     hash::Hash,
-    ops::Deref,
 };
 use std::sync::Arc;
 
@@ -75,7 +74,7 @@ impl HigherHash for Cell {
             Cell::LibraryReference(inner) => inner.depth(level),
             Cell::PrunedBranch(inner) => inner.depth(level),
             Cell::MerkleProof(inner) => inner.depth(level),
-            Cell::MerkleUpdate(inner) => inner.depth(level)
+            Cell::MerkleUpdate(inner) => inner.depth(level),
         }
     }
 }
@@ -246,14 +245,8 @@ impl Cell {
     #[inline]
     pub fn level(&self) -> u8 {
         match self {
-            Cell::LibraryReference { .. } => 0,
-            Cell::Ordinary { .. } => self
-                .references()
-                .iter()
-                .map(Deref::deref)
-                .map(Cell::level)
-                .max()
-                .unwrap_or(0),
+            Cell::LibraryReference(inner) => inner.level(),
+            Cell::Ordinary(inner) => inner.level(),
             Cell::PrunedBranch(inner) => inner.level(),
             Cell::MerkleProof(inner) => inner.level(),
             Cell::MerkleUpdate(inner) => inner.level(),
@@ -263,15 +256,8 @@ impl Cell {
     #[inline]
     fn max_depth(&self) -> u16 {
         match self {
-            Cell::LibraryReference { .. } => 0,
-            Cell::Ordinary { .. } => self
-                .references()
-                .iter()
-                .map(Deref::deref)
-                .map(Cell::max_depth)
-                .max()
-                .map(|d| d + 1)
-                .unwrap_or(0),
+            Cell::LibraryReference(inner) => inner.max_depth(),
+            Cell::Ordinary(inner) => inner.max_depth(),
             Cell::PrunedBranch(inner) => inner.max_depth(),
             Cell::MerkleProof(inner) => inner.max_depth(),
             Cell::MerkleUpdate(inner) => inner.max_depth(),
