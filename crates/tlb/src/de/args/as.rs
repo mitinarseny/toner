@@ -8,7 +8,7 @@ use crate::{
 };
 
 use super::{
-    super::{CellParser, CellParserError},
+    super::{OrdinaryCellParser, OrdinaryCellParserError},
     CellDeserializeWithArgs,
 };
 
@@ -22,9 +22,9 @@ pub trait CellDeserializeAsWithArgs<'de, T> {
 
     /// Parse value with args using an adapter
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<T, CellParserError<'de>>;
+    ) -> Result<T, OrdinaryCellParserError<'de>>;
 }
 
 /// Owned version of [`CellDeserializeAsWithArgs`]
@@ -43,9 +43,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<[T; N], CellParserError<'de>> {
+    ) -> Result<[T; N], OrdinaryCellParserError<'de>> {
         let mut arr: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
         for a in &mut arr {
             a.write(parser.parse_as_with::<T, As>(args.clone())?);
@@ -63,9 +63,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         (len, args): Self::Args,
-    ) -> Result<Vec<T>, CellParserError<'de>> {
+    ) -> Result<Vec<T>, OrdinaryCellParserError<'de>> {
         parser.parse_iter_as_with::<_, As>(args).take(len).collect()
     }
 }
@@ -80,7 +80,7 @@ macro_rules! impl_cell_deserialize_as_with_args_for_tuple {
             type Args = ($($a::Args,)+);
 
             #[inline]
-            fn parse_as_with(parser: &mut CellParser<'de>, args: Self::Args) -> Result<($($t,)+), CellParserError<'de>>
+            fn parse_as_with(parser: &mut OrdinaryCellParser<'de>, args: Self::Args) -> Result<($($t,)+), OrdinaryCellParserError<'de>>
             {
                 Ok(($(
                     $a::parse_as_with(parser, args.$n)
@@ -109,9 +109,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<Box<T>, CellParserError<'de>> {
+    ) -> Result<Box<T>, OrdinaryCellParserError<'de>> {
         AsWrap::<T, As>::parse_with(parser, args)
             .map(AsWrap::into_inner)
             .map(Into::into)
@@ -126,9 +126,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<Rc<T>, CellParserError<'de>> {
+    ) -> Result<Rc<T>, OrdinaryCellParserError<'de>> {
         AsWrap::<T, As>::parse_with(parser, args)
             .map(AsWrap::into_inner)
             .map(Into::into)
@@ -143,9 +143,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<Arc<T>, CellParserError<'de>> {
+    ) -> Result<Arc<T>, OrdinaryCellParserError<'de>> {
         AsWrap::<T, As>::parse_with(parser, args)
             .map(AsWrap::into_inner)
             .map(Into::into)
@@ -167,9 +167,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<Either<Left, Right>, CellParserError<'de>> {
+    ) -> Result<Either<Left, Right>, OrdinaryCellParserError<'de>> {
         Ok(
             Either::<AsWrap<Left, AsLeft>, AsWrap<Right, AsRight>>::parse_with(parser, args)?
                 .map_either(AsWrap::into_inner, AsWrap::into_inner),
@@ -185,9 +185,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<Option<T>, CellParserError<'de>> {
+    ) -> Result<Option<T>, OrdinaryCellParserError<'de>> {
         Ok(parser
             .parse_as_with::<Either<(), T>, Either<NoArgs<_>, As>>(args)?
             .right())
@@ -207,9 +207,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<Option<T>, CellParserError<'de>> {
+    ) -> Result<Option<T>, OrdinaryCellParserError<'de>> {
         Ok(Option::<AsWrap<T, As>>::parse_with(parser, args)?.map(AsWrap::into_inner))
     }
 }

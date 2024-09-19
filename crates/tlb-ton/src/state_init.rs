@@ -6,7 +6,7 @@ use tlb::{
         r#as::NBits,
         ser::{BitPack, BitWriter, BitWriterExt},
     },
-    de::{CellDeserialize, CellParser, CellParserError},
+    de::{CellDeserialize, OrdinaryCellParser, OrdinaryCellParserError},
     r#as::{NoArgs, ParseFully, Ref},
     ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
     Cell,
@@ -83,7 +83,7 @@ where
     D: CellDeserialize<'de>,
 {
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         Ok(Self {
             // split_depth:(Maybe (## 5))
             split_depth: parser.unpack_as::<_, Option<NBits<5>>>()?,
@@ -153,7 +153,7 @@ impl CellSerialize for SimpleLib {
 
 impl<'de> CellDeserialize<'de> for SimpleLib {
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         Ok(SimpleLib {
             public: parser.unpack()?,
             root: parser.parse_as::<_, Ref>()?,

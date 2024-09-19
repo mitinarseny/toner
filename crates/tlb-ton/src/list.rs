@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 
 use tlb::{
-    de::{r#as::CellDeserializeAs, CellParser, CellParserError},
+    de::{r#as::CellDeserializeAs, OrdinaryCellParser, OrdinaryCellParserError},
     r#as::{Ref, Same},
     ser::{r#as::CellSerializeAs, CellBuilder, CellBuilderError},
     Cell, ResultExt,
@@ -34,9 +34,9 @@ where
     As: CellDeserializeAs<'de, T>,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<Vec<T>, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<Vec<T>, OrdinaryCellParserError<'de>> {
         let mut v = Vec::new();
-        let mut p: CellParser<'de> = parser.parse()?;
+        let mut p: OrdinaryCellParser<'de> = parser.parse()?;
         while !p.no_references_left() {
             v.push(
                 p.parse_as::<_, As>()

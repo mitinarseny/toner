@@ -7,7 +7,7 @@ use tlb::{
         r#as::NBits,
         ser::{BitPack, BitWriter, BitWriterExt},
     },
-    de::{CellDeserialize, CellParser, CellParserError},
+    de::{CellDeserialize, OrdinaryCellParser, OrdinaryCellParserError},
     r#as::{DefaultOnNone, EitherInlineOrRef},
     ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
     Cell, ResultExt,
@@ -91,7 +91,7 @@ where
     IC: CellDeserialize<'de>,
     ID: CellDeserialize<'de>,
 {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         Ok(Self {
             // info:CommonMsgInfo
             info: parser.parse().context("info")?,
@@ -154,7 +154,7 @@ impl CellSerialize for CommonMsgInfo {
 
 impl<'de> CellDeserialize<'de> for CommonMsgInfo {
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         match parser.unpack()? {
             // int_msg_info$0
             false => Ok(Self::Internal(parser.parse().context("int_msg_info")?)),
@@ -243,7 +243,7 @@ impl CellSerialize for InternalMsgInfo {
 }
 
 impl<'de> CellDeserialize<'de> for InternalMsgInfo {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         Ok(Self {
             ihr_disabled: parser.unpack()?,
             bounce: parser.unpack()?,

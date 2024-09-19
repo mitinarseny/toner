@@ -4,7 +4,7 @@ use tlbits::{either::Either, r#as::args::NoArgs, ser::BitWriter};
 
 use crate::{
     de::{
-        args::r#as::CellDeserializeAsWithArgs, r#as::CellDeserializeAs, CellParser, CellParserError,
+        args::r#as::CellDeserializeAsWithArgs, r#as::CellDeserializeAs, OrdinaryCellParser, OrdinaryCellParserError,
     },
     ser::{
         args::r#as::CellSerializeAsWithArgs, r#as::CellSerializeAs, CellBuilder, CellBuilderError,
@@ -51,7 +51,7 @@ where
     As: CellDeserializeAs<'de, T> + ?Sized,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<T, OrdinaryCellParserError<'de>> {
         parser.parse_reference_as::<T, As>().context("^")
     }
 }
@@ -64,9 +64,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<T, CellParserError<'de>> {
+    ) -> Result<T, OrdinaryCellParserError<'de>> {
         parser.parse_reference_as_with::<T, As>(args).context("^")
     }
 }
@@ -117,7 +117,7 @@ where
     As: CellDeserializeAs<'de, T>,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<T, OrdinaryCellParserError<'de>> {
         EitherInlineOrRef::<NoArgs<(), As>>::parse_as_with(parser, ())
     }
 }
@@ -130,9 +130,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<T, CellParserError<'de>> {
+    ) -> Result<T, OrdinaryCellParserError<'de>> {
         Either::<As, Ref<As>>::parse_as_with(parser, args).map(Either::into_inner)
     }
 }

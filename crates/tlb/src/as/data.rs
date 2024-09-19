@@ -5,7 +5,7 @@ use tlbits::{de::args::r#as::BitUnpackAsWithArgs, ser::args::r#as::BitPackAsWith
 use crate::{
     bits::{de::r#as::BitUnpackAs, ser::r#as::BitPackAs},
     de::{
-        args::r#as::CellDeserializeAsWithArgs, r#as::CellDeserializeAs, CellParser, CellParserError,
+        args::r#as::CellDeserializeAsWithArgs, r#as::CellDeserializeAs, OrdinaryCellParser, OrdinaryCellParserError,
     },
     ser::{
         args::r#as::CellSerializeAsWithArgs, r#as::CellSerializeAs, CellBuilder, CellBuilderError,
@@ -99,7 +99,7 @@ where
     As: BitUnpackAs<T> + ?Sized,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<T, OrdinaryCellParserError<'de>> {
         As::unpack_as(parser)
     }
 }
@@ -112,9 +112,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<T, CellParserError<'de>> {
+    ) -> Result<T, OrdinaryCellParserError<'de>> {
         As::unpack_as_with(parser, args)
     }
 }

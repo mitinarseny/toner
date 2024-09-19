@@ -1,5 +1,5 @@
 use tlb::{
-    de::{CellDeserialize, CellParser, CellParserError},
+    de::{CellDeserialize, OrdinaryCellParser, OrdinaryCellParserError},
     either::Either,
     r#as::{Data, Ref},
     ser::{CellBuilder, CellBuilderError, CellSerialize},
@@ -35,7 +35,7 @@ where
     R: CellDeserialize<'de>,
 {
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         Ok(match parser.parse_as::<_, Either<Data, Ref>>()? {
             Either::Left(hash) => Self::Hash(hash),
             Either::Right(library) => Self::Ref(library),

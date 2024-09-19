@@ -9,7 +9,7 @@ use tlb::{
     },
     de::{
         args::{r#as::CellDeserializeAsWithArgs, CellDeserializeWithArgs},
-        CellParser, CellParserError,
+        OrdinaryCellParser, OrdinaryCellParserError,
     },
     r#as::{ParseFully, Ref, Same},
     ser::{
@@ -75,9 +75,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         (n, node_args, extra_args): Self::Args,
-    ) -> Result<HashmapAugE<T, E>, CellParserError<'de>> {
+    ) -> Result<HashmapAugE<T, E>, OrdinaryCellParserError<'de>> {
         Ok(HashmapAugE {
             m: parser.parse_as_with::<_, HashmapE<AsT, AsE>>((n, node_args, extra_args.clone()))?,
             // extra:Y
@@ -221,9 +221,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         (n, node_args, extra_args): Self::Args,
-    ) -> Result<HashmapE<T, E>, CellParserError<'de>> {
+    ) -> Result<HashmapE<T, E>, OrdinaryCellParserError<'de>> {
         Ok(match parser.unpack()? {
             // hme_empty$0
             false => HashmapE::Empty,
@@ -246,9 +246,9 @@ where
 
     #[inline]
     fn parse_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<Self, CellParserError<'de>> {
+    ) -> Result<Self, OrdinaryCellParserError<'de>> {
         parser.parse_as_with::<_, Same>(args)
     }
 }
@@ -264,9 +264,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         (n, node_args): Self::Args,
-    ) -> Result<C, CellParserError<'de>> {
+    ) -> Result<C, OrdinaryCellParserError<'de>> {
         Ok(match parser.unpack()? {
             // hme_empty$0
             false => C::default(),
@@ -375,9 +375,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         (n, node_args, extra_args): Self::Args,
-    ) -> Result<Hashmap<T, E>, CellParserError<'de>> {
+    ) -> Result<Hashmap<T, E>, OrdinaryCellParserError<'de>> {
         // label:(HmLabel ~l n)
         let prefix: BitVec<u8, Msb0> = parser.unpack_as_with::<_, HmLabel>(n).context("label")?;
         // {n = (~m) + l}
@@ -404,21 +404,21 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         (n, args): Self::Args,
-    ) -> Result<C, CellParserError<'de>> {
+    ) -> Result<C, OrdinaryCellParserError<'de>> {
         let mut output = C::default();
-        let mut stack: Vec<(u32, Key, CellParser<'de>)> = Vec::new();
+        let mut stack: Vec<(u32, Key, OrdinaryCellParser<'de>)> = Vec::new();
 
         #[inline]
         fn parse<'de, T, As, C>(
-            parser: &mut CellParser<'de>,
-            stack: &mut Vec<(u32, Key, CellParser<'de>)>,
+            parser: &mut OrdinaryCellParser<'de>,
+            stack: &mut Vec<(u32, Key, OrdinaryCellParser<'de>)>,
             output: &mut C,
             n: u32,
             mut prefix: Key,
             args: As::Args,
-        ) -> Result<(), CellParserError<'de>>
+        ) -> Result<(), OrdinaryCellParserError<'de>>
         where
             C: Extend<(Key, T)>,
             As: CellDeserializeAsWithArgs<'de, T>,
@@ -599,9 +599,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         (n, node_args, extra_args): Self::Args,
-    ) -> Result<HashmapNode<T, E>, CellParserError<'de>> {
+    ) -> Result<HashmapNode<T, E>, OrdinaryCellParserError<'de>> {
         if n == 0 {
             // hmn_leaf#_ {X:Type} value:X = HashmapNode 0 X;
             return parser
@@ -678,9 +678,9 @@ where
     type Args = (u32, AsT::Args, AsE::Args);
 
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         (n, node_args, extra_args): Self::Args,
-    ) -> Result<HashmapAugNode<T, E>, CellParserError<'de>> {
+    ) -> Result<HashmapAugNode<T, E>, OrdinaryCellParserError<'de>> {
         Ok(HashmapAugNode {
             // extra:Y
             extra: parser.parse_as_with::<_, AsE>(extra_args.clone())?,

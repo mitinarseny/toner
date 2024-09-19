@@ -4,7 +4,7 @@ use num_bigint::BigUint;
 use num_traits::One;
 use tlb::{
     bits::{de::BitReaderExt, r#as::VarInt, ser::BitWriterExt},
-    de::{CellDeserialize, CellParser, CellParserError},
+    de::{CellDeserialize, OrdinaryCellParser, OrdinaryCellParserError},
     r#as::{Data, NoArgs},
     ser::{CellBuilder, CellBuilderError, CellSerialize},
 };
@@ -52,7 +52,7 @@ impl CellSerialize for CurrencyCollection {
 
 impl<'de> CellDeserialize<'de> for CurrencyCollection {
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         Ok(Self {
             grams: parser.unpack_as::<_, Grams>()?,
             other: parser.parse()?,
@@ -79,7 +79,7 @@ impl CellSerialize for ExtraCurrencyCollection {
 
 impl<'de> CellDeserialize<'de> for ExtraCurrencyCollection {
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         Ok(Self(
             parser.parse_as_with::<_, HashmapE<NoArgs<_, Data<VarInt<32>>>, NoArgs<_>>>((
                 32,

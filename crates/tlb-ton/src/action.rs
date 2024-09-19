@@ -1,6 +1,6 @@
 use tlb::{
     bits::{de::BitReaderExt, r#as::NBits, ser::BitWriterExt},
-    de::{CellDeserialize, CellParser, CellParserError},
+    de::{CellDeserialize, OrdinaryCellParser, OrdinaryCellParserError},
     r#as::Ref,
     ser::{CellBuilder, CellBuilderError, CellSerialize},
     Cell, Error, ResultExt,
@@ -59,7 +59,7 @@ impl CellSerialize for OutAction {
 
 impl<'de> CellDeserialize<'de> for OutAction {
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         Ok(match parser.unpack()? {
             Self::SEND_MSG_PREFIX => Self::SendMsg(parser.parse().context("action_send_msg")?),
             Self::SET_CODE_PREFIX => {
@@ -106,7 +106,7 @@ where
     ID: CellDeserialize<'de>,
 {
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         Ok(Self {
             mode: parser.unpack()?,
             message: parser.parse_as::<_, Ref>()?,
@@ -133,7 +133,7 @@ impl CellSerialize for ReserveCurrencyAction {
 
 impl<'de> CellDeserialize<'de> for ReserveCurrencyAction {
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         Ok(Self {
             mode: parser.unpack()?,
             currency: parser.parse()?,
@@ -168,7 +168,7 @@ where
     R: CellDeserialize<'de>,
 {
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         Ok(Self {
             mode: parser.unpack_as::<_, NBits<7>>()?,
             libref: parser.parse()?,

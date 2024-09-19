@@ -1,6 +1,6 @@
 use crate::{
     de::{
-        args::r#as::CellDeserializeAsWithArgs, r#as::CellDeserializeAs, CellParser, CellParserError,
+        args::r#as::CellDeserializeAsWithArgs, r#as::CellDeserializeAs, OrdinaryCellParser, OrdinaryCellParserError,
     },
     ser::{
         args::r#as::CellSerializeAsWithArgs, r#as::CellSerializeAs, CellBuilder, CellBuilderError,
@@ -33,9 +33,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         _args: Self::Args,
-    ) -> Result<T, CellParserError<'de>> {
+    ) -> Result<T, OrdinaryCellParserError<'de>> {
         As::parse_as(parser)
     }
 }
@@ -57,7 +57,7 @@ where
     As::Args: Default,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<T, OrdinaryCellParserError<'de>> {
         As::parse_as_with(parser, <As::Args>::default())
     }
 }

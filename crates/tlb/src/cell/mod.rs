@@ -27,7 +27,7 @@ use crate::{
     de::{
         args::{r#as::CellDeserializeAsWithArgs, CellDeserializeWithArgs},
         r#as::CellDeserializeAs,
-        CellDeserialize, CellParser, CellParserError,
+        CellDeserialize, OrdinaryCellParser, OrdinaryCellParserError,
     },
     ser::CellBuilder,
 };
@@ -211,21 +211,20 @@ impl Cell {
         self.higher_hash(0)
     }
 
-    /// Return [`CellParser`] for this cell
+    /// Return [`OrdinaryCellParser`] for this cell
     #[inline]
     #[must_use]
-    pub fn parser(&self) -> CellParser<'_> {
-        CellParser::new(
-            self.as_type(),
+    pub fn parser(&self) -> OrdinaryCellParser<'_> {
+        OrdinaryCellParser::new(
             self.level(),
             self.as_bitslice(),
             self.references(),
         )
     }
 
-    /// Shortcut for [`.parser()`](Cell::parser)[`.parse()`](CellParser::parse)[`.ensure_empty()`](CellParser::ensure_empty).
+    /// Shortcut for [`.parser()`](Cell::parser)[`.parse()`](OrdinaryCellParser::parse)[`.ensure_empty()`](OrdinaryCellParser::ensure_empty).
     #[inline]
-    pub fn parse_fully<'de, T>(&'de self) -> Result<T, CellParserError<'de>>
+    pub fn parse_fully<'de, T>(&'de self) -> Result<T, OrdinaryCellParserError<'de>>
     where
         T: CellDeserialize<'de>,
     {
@@ -235,9 +234,9 @@ impl Cell {
         Ok(v)
     }
 
-    /// Shortcut for [`.parser()`](Cell::parser)[`.parse_with()`](CellParser::parse_with)[`.ensure_empty()`](CellParser::ensure_empty).
+    /// Shortcut for [`.parser()`](Cell::parser)[`.parse_with()`](OrdinaryCellParser::parse_with)[`.ensure_empty()`](OrdinaryCellParser::ensure_empty).
     #[inline]
-    pub fn parse_fully_with<'de, T>(&'de self, args: T::Args) -> Result<T, CellParserError<'de>>
+    pub fn parse_fully_with<'de, T>(&'de self, args: T::Args) -> Result<T, OrdinaryCellParserError<'de>>
     where
         T: CellDeserializeWithArgs<'de>,
     {
@@ -247,9 +246,9 @@ impl Cell {
         Ok(v)
     }
 
-    /// Shortcut for [`.parser()`](Cell::parser)[`.parse_as()`](CellParser::parse_as)[`.ensure_empty()`](CellParser::ensure_empty).
+    /// Shortcut for [`.parser()`](Cell::parser)[`.parse_as()`](OrdinaryCellParser::parse_as)[`.ensure_empty()`](OrdinaryCellParser::ensure_empty).
     #[inline]
-    pub fn parse_fully_as<'de, T, As>(&'de self) -> Result<T, CellParserError<'de>>
+    pub fn parse_fully_as<'de, T, As>(&'de self) -> Result<T, OrdinaryCellParserError<'de>>
     where
         As: CellDeserializeAs<'de, T> + ?Sized,
     {
@@ -259,12 +258,12 @@ impl Cell {
         Ok(v)
     }
 
-    /// Shortcut for [`.parser()`](Cell::parser)[`.parse_as_with()`](CellParser::parse_as_with)[`.ensure_empty()`](CellParser::ensure_empty).
+    /// Shortcut for [`.parser()`](Cell::parser)[`.parse_as_with()`](OrdinaryCellParser::parse_as_with)[`.ensure_empty()`](OrdinaryCellParser::ensure_empty).
     #[inline]
     pub fn parse_fully_as_with<'de, T, As>(
         &'de self,
         args: As::Args,
-    ) -> Result<T, CellParserError<'de>>
+    ) -> Result<T, OrdinaryCellParserError<'de>>
     where
         As: CellDeserializeAsWithArgs<'de, T> + ?Sized,
     {

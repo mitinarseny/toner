@@ -4,7 +4,7 @@ use crate::{
     de::{
         args::{r#as::CellDeserializeAsWithArgs, CellDeserializeWithArgs},
         r#as::CellDeserializeAs,
-        CellDeserialize, CellParser, CellParserError,
+        CellDeserialize, OrdinaryCellParser, OrdinaryCellParserError,
     },
     ser::{
         args::{r#as::CellSerializeAsWithArgs, CellSerializeWithArgs},
@@ -49,7 +49,7 @@ where
     As: Into<T> + CellDeserialize<'de>,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<T, OrdinaryCellParserError<'de>> {
         As::parse(parser).map(Into::into)
     }
 }
@@ -62,9 +62,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<T, CellParserError<'de>> {
+    ) -> Result<T, OrdinaryCellParserError<'de>> {
         As::parse_with(parser, args).map(Into::into)
     }
 }
@@ -102,7 +102,7 @@ where
     As: Into<T> + CellDeserialize<'de>,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<T, OrdinaryCellParserError<'de>> {
         As::parse(parser).map(Into::into)
     }
 }
@@ -115,9 +115,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<T, CellParserError<'de>> {
+    ) -> Result<T, OrdinaryCellParserError<'de>> {
         As::parse_with(parser, args).map(Into::into)
     }
 }
@@ -166,7 +166,7 @@ where
     <As as TryInto<T>>::Error: Display,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<T, OrdinaryCellParserError<'de>> {
         As::parse(parser)?.try_into().map_err(Error::custom)
     }
 }
@@ -180,9 +180,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<T, CellParserError<'de>> {
+    ) -> Result<T, OrdinaryCellParserError<'de>> {
         As::parse_with(parser, args)?
             .try_into()
             .map_err(Error::custom)
@@ -229,7 +229,7 @@ where
     <As as TryInto<T>>::Error: Display,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<T, OrdinaryCellParserError<'de>> {
         As::parse(parser)?.try_into().map_err(Error::custom)
     }
 }
@@ -243,9 +243,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<T, CellParserError<'de>> {
+    ) -> Result<T, OrdinaryCellParserError<'de>> {
         As::parse_with(parser, args)?
             .try_into()
             .map_err(Error::custom)

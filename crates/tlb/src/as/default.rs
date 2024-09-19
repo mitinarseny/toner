@@ -1,5 +1,5 @@
 use crate::{
-    de::{r#as::CellDeserializeAs, CellParser, CellParserError},
+    de::{r#as::CellDeserializeAs, OrdinaryCellParser, OrdinaryCellParserError},
     ser::{r#as::CellSerializeAs, CellBuilder, CellBuilderError},
 };
 
@@ -25,7 +25,7 @@ where
     As: CellDeserializeAs<'de, T>,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<T, OrdinaryCellParserError<'de>> {
         parser
             .parse_as::<_, Option<As>>()
             .map(Option::unwrap_or_default)

@@ -6,7 +6,7 @@ use tlb::{
         de::BitReaderExt,
         ser::BitWriterExt,
     },
-    de::{args::r#as::CellDeserializeAsWithArgs, CellParser, CellParserError},
+    de::{args::r#as::CellDeserializeAsWithArgs, OrdinaryCellParser, OrdinaryCellParserError},
     r#as::{ParseFully, Ref, Same},
     ser::{args::r#as::CellSerializeAsWithArgs, CellBuilder, CellBuilderError},
     Error, ResultExt,
@@ -59,9 +59,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut tlb::de::CellParser<'de>,
+        parser: &mut tlb::de::OrdinaryCellParser<'de>,
         (n, args): Self::Args,
-    ) -> Result<HashmapE<T>, tlb::de::CellParserError<'de>> {
+    ) -> Result<HashmapE<T>, tlb::de::OrdinaryCellParserError<'de>> {
         Ok(match parser.unpack()? {
             // hme_empty$0
             false => HashmapE::Empty,
@@ -122,9 +122,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         (n, args): Self::Args,
-    ) -> Result<Hashmap<T>, CellParserError<'de>> {
+    ) -> Result<Hashmap<T>, OrdinaryCellParserError<'de>> {
         // label:(HmLabel ~l n)
         let prefix: BitVec<u8, Msb0> = parser.unpack_as_with::<_, HmLabel>(n).context("label")?;
         // {n = (~m) + l}
@@ -194,9 +194,9 @@ where
     type Args = (u32, As::Args);
 
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         (n, args): Self::Args,
-    ) -> Result<HashmapNode<T>, CellParserError<'de>> {
+    ) -> Result<HashmapNode<T>, OrdinaryCellParserError<'de>> {
         match parser.unpack()? {
             // phmn_leaf$0
             false => {

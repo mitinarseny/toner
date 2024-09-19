@@ -1,6 +1,6 @@
 use tlb::{
     bits::{de::BitReaderExt, ser::BitWriterExt},
-    de::{args::r#as::CellDeserializeAsWithArgs, CellParser, CellParserError},
+    de::{args::r#as::CellDeserializeAsWithArgs, OrdinaryCellParser, OrdinaryCellParserError},
     r#as::{ParseFully, Ref},
     ser::{args::r#as::CellSerializeAsWithArgs, CellBuilder, CellBuilderError},
 };
@@ -49,9 +49,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         (args, extra_args): Self::Args,
-    ) -> Result<BinTreeAug<T, E>, CellParserError<'de>> {
+    ) -> Result<BinTreeAug<T, E>, OrdinaryCellParserError<'de>> {
         Ok(BinTreeAug {
             extra: parser.parse_as_with::<_, AsE>(extra_args.clone())?,
             node: parser
@@ -113,9 +113,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         (args, extra_args): Self::Args,
-    ) -> Result<BinTreeNode<T, E>, CellParserError<'de>> {
+    ) -> Result<BinTreeNode<T, E>, OrdinaryCellParserError<'de>> {
         Ok(match parser.unpack()? {
             false => BinTreeNode::Leaf(parser.parse_as_with::<_, AsT>(args)?),
             true => BinTreeNode::Fork(

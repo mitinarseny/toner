@@ -7,7 +7,7 @@ use tlb::{
         r#as::{Remainder, VarInt},
         ser::{BitPack, BitWriter, BitWriterExt},
     },
-    de::{CellDeserialize, CellParser, CellParserError},
+    de::{CellDeserialize, OrdinaryCellParser, OrdinaryCellParserError},
     either::Either,
     r#as::{EitherInlineOrRef, ParseFully, Ref, Same},
     ser::{CellBuilder, CellBuilderError, CellSerialize},
@@ -67,7 +67,7 @@ where
     P: CellDeserialize<'de>,
     F: CellDeserialize<'de>,
 {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         // transfer#0f8a7ea5
         parser.unpack::<ConstU32<JETTON_TRANSFER_TAG>>()?;
         Ok(Self {
@@ -118,7 +118,7 @@ impl<'de, F> CellDeserialize<'de> for ForwardPayload<F>
 where
     F: CellDeserialize<'de>,
 {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         if parser.bits_left() >= bits_of::<u32>()
             // clone, so we don't advance original parser
             && parser.clone().unpack::<u32>()? == Self::COMMENT_PREFIX
@@ -207,7 +207,7 @@ impl<'de, P> CellDeserialize<'de> for JettonTransferNotification<P>
 where
     P: CellDeserialize<'de>,
 {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         parser.unpack::<ConstU32<JETTON_TRANSFER_NOTIFICATION_TAG>>()?;
         Ok(Self {
             query_id: parser.unpack()?,
@@ -253,7 +253,7 @@ impl<'de, P> CellDeserialize<'de> for JettonBurn<P>
 where
     P: CellDeserialize<'de>,
 {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         parser.unpack::<ConstU32<JETTON_BURN_TAG>>()?;
         Ok(Self {
             query_id: parser.unpack()?,

@@ -3,7 +3,7 @@ use std::{rc::Rc, sync::Arc};
 
 use crate::{either::Either, r#as::AsWrap, ResultExt};
 
-use super::{CellDeserialize, CellParser, CellParserError};
+use super::{CellDeserialize, OrdinaryCellParser, OrdinaryCellParserError};
 
 /// Adapter to **de**serialize `T`.  
 /// See [`as`](crate::as) module-level documentation for more.
@@ -11,7 +11,7 @@ use super::{CellDeserialize, CellParser, CellParserError};
 /// For dynamic arguments, see
 /// [`CellDeserializeAsWithArgs`](super::args::as::CellDeserializeAsWithArgs).
 pub trait CellDeserializeAs<'de, T> {
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>>;
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<T, OrdinaryCellParserError<'de>>;
 }
 
 /// Owned version of [`CellDeserializeAs`]
@@ -23,7 +23,7 @@ where
     As: CellDeserializeAs<'de, T>,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<[T; N], CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<[T; N], OrdinaryCellParserError<'de>> {
         let mut arr: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
         for a in &mut arr {
             a.write(parser.parse_as::<T, As>()?);
@@ -40,7 +40,7 @@ macro_rules! impl_cell_deserialize_as_for_tuple {
         )+
         {
             #[inline]
-            fn parse_as(parser: &mut CellParser<'de>) -> Result<($($t,)+), CellParserError<'de>> {
+            fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<($($t,)+), OrdinaryCellParserError<'de>> {
                 Ok(($(
                     AsWrap::<$t, $a>::parse(parser)
                         .context(concat!(".", stringify!($n)))?
@@ -66,7 +66,7 @@ where
     As: CellDeserializeAs<'de, T> + ?Sized,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<Box<T>, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<Box<T>, OrdinaryCellParserError<'de>> {
         AsWrap::<T, As>::parse(parser)
             .map(AsWrap::into_inner)
             .map(Box::new)
@@ -78,7 +78,7 @@ where
     As: CellDeserializeAs<'de, T> + ?Sized,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<Rc<T>, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<Rc<T>, OrdinaryCellParserError<'de>> {
         AsWrap::<T, As>::parse(parser)
             .map(AsWrap::into_inner)
             .map(Rc::new)
@@ -90,7 +90,7 @@ where
     As: CellDeserializeAs<'de, T> + ?Sized,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<Arc<T>, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<Arc<T>, OrdinaryCellParserError<'de>> {
         AsWrap::<T, As>::parse(parser)
             .map(AsWrap::into_inner)
             .map(Arc::new)
@@ -109,7 +109,7 @@ where
     AsRight: CellDeserializeAs<'de, Right>,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<Either<Left, Right>, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<Either<Left, Right>, OrdinaryCellParserError<'de>> {
         Ok(
             Either::<AsWrap<Left, AsLeft>, AsWrap<Right, AsRight>>::parse(parser)?
                 .map_either(AsWrap::into_inner, AsWrap::into_inner),
@@ -122,7 +122,7 @@ where
     As: CellDeserializeAs<'de, T>,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<Option<T>, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<Option<T>, OrdinaryCellParserError<'de>> {
         Ok(Either::<(), AsWrap<T, As>>::parse(parser)?
             .map_right(AsWrap::into_inner)
             .right())
@@ -139,7 +139,7 @@ where
     As: CellDeserializeAs<'de, T>,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<Option<T>, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<Option<T>, OrdinaryCellParserError<'de>> {
         Ok(Option::<AsWrap<T, As>>::parse(parser)?.map(AsWrap::into_inner))
     }
 }

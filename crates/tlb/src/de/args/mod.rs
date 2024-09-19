@@ -9,7 +9,7 @@ use crate::{
     ResultExt,
 };
 
-use super::{CellParser, CellParserError};
+use super::{OrdinaryCellParser, OrdinaryCellParserError};
 
 /// A type that can be **de**serialized.  
 /// In contrast with [`CellDeserialize`](super::CellDeserialize) it allows to
@@ -20,9 +20,9 @@ pub trait CellDeserializeWithArgs<'de>: Sized {
 
     /// Parses the value with args
     fn parse_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<Self, CellParserError<'de>>;
+    ) -> Result<Self, OrdinaryCellParserError<'de>>;
 }
 
 /// Owned version of [`CellDeserializeWithArgs`]
@@ -37,9 +37,9 @@ where
     type Args = T::Args;
 
     fn parse_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<Self, CellParserError<'de>> {
+    ) -> Result<Self, OrdinaryCellParserError<'de>> {
         let mut arr: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
         for (i, a) in arr.iter_mut().enumerate() {
             a.write(T::parse_with(parser, args.clone()).with_context(|| format!("[{i}]"))?);
@@ -58,7 +58,7 @@ macro_rules! impl_cell_deserialize_with_args_for_tuple {
             type Args = ($($t::Args,)+);
 
             #[inline]
-            fn parse_with(parser: &mut CellParser<'de>, args: Self::Args) -> Result<Self, CellParserError<'de>>
+            fn parse_with(parser: &mut OrdinaryCellParser<'de>, args: Self::Args) -> Result<Self, OrdinaryCellParserError<'de>>
             {
                 Ok(($(
                     $t::parse_with(parser, args.$n).context(concat!(".", stringify!($n)))?,
@@ -87,9 +87,9 @@ where
 
     #[inline]
     fn parse_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         (len, args): Self::Args,
-    ) -> Result<Self, CellParserError<'de>> {
+    ) -> Result<Self, OrdinaryCellParserError<'de>> {
         parser.parse_iter_with(args).take(len).collect()
     }
 }
@@ -102,9 +102,9 @@ where
 
     #[inline]
     fn parse_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<Self, CellParserError<'de>> {
+    ) -> Result<Self, OrdinaryCellParserError<'de>> {
         parser.parse_as_with::<_, FromInto<T>>(args)
     }
 }
@@ -117,9 +117,9 @@ where
 
     #[inline]
     fn parse_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<Self, CellParserError<'de>> {
+    ) -> Result<Self, OrdinaryCellParserError<'de>> {
         parser.parse_as_with::<_, FromInto<T>>(args)
     }
 }
@@ -132,9 +132,9 @@ where
 
     #[inline]
     fn parse_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<Self, CellParserError<'de>> {
+    ) -> Result<Self, OrdinaryCellParserError<'de>> {
         parser.parse_as_with::<_, FromInto<T>>(args)
     }
 }
@@ -153,9 +153,9 @@ where
 
     #[inline]
     fn parse_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<Self, CellParserError<'de>> {
+    ) -> Result<Self, OrdinaryCellParserError<'de>> {
         match parser.unpack().context("tag")? {
             false => parser.parse_with(args).map(Either::Left).context("left"),
             true => parser.parse_with(args).map(Either::Right).context("right"),
@@ -176,9 +176,9 @@ where
 
     #[inline]
     fn parse_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<Self, CellParserError<'de>> {
+    ) -> Result<Self, OrdinaryCellParserError<'de>> {
         parser.parse_as_with::<_, Either<(), Same>>(args)
     }
 }

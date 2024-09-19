@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 
 use crate::de::{
-    args::r#as::CellDeserializeAsWithArgs, r#as::CellDeserializeAs, CellParser, CellParserError,
+    args::r#as::CellDeserializeAsWithArgs, r#as::CellDeserializeAs, OrdinaryCellParser, OrdinaryCellParserError,
 };
 
 use super::Same;
@@ -15,7 +15,7 @@ where
     As: CellDeserializeAs<'de, T> + ?Sized,
 {
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
+    fn parse_as(parser: &mut OrdinaryCellParser<'de>) -> Result<T, OrdinaryCellParserError<'de>> {
         let v = parser.parse_as::<_, As>()?;
         parser.ensure_empty()?;
         Ok(v)
@@ -30,9 +30,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<T, CellParserError<'de>> {
+    ) -> Result<T, OrdinaryCellParserError<'de>> {
         let v = parser.parse_as_with::<_, As>(args)?;
         parser.ensure_empty()?;
         Ok(v)

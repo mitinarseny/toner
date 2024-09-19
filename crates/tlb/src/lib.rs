@@ -77,7 +77,7 @@
 //! #   r#as::{Ref, ParseFully},
 //! #   bits::{r#as::{NBits, VarInt}, de::BitReaderExt, ser::BitWriterExt},
 //! #   Cell,
-//! #   de::{CellDeserialize, CellParser, CellParserError},
+//! #   de::{CellDeserialize, OrdinaryCellParser, OrdinaryCellParserError},
 //! #   Error,
 //! #   ser::{CellSerialize, CellBuilder, CellBuilderError, CellSerializeExt},
 //! #   StringError,
@@ -103,7 +103,7 @@
 //! #     }
 //! # }
 //! impl<'de> CellDeserialize<'de> for Hello {
-//!     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+//!     fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
 //!         // tag$10
 //!         let tag: u8 = parser.unpack_as::<_, NBits<2>>()?;
 //!         if tag != 0b10 {

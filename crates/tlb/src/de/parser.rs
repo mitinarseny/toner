@@ -1,16 +1,13 @@
 use core::{iter, mem};
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 use tlbits::ResultExt;
 
-use crate::cell_type::CellType;
-use crate::{
-    bits::{
-        bitvec::{order::Msb0, slice::BitSlice},
-        de::BitReader,
-    },
-    Cell, Error,
-};
+use crate::{bits::{
+    bitvec::{order::Msb0, slice::BitSlice},
+    de::BitReader,
+}, Cell, Error, OrdinaryCell};
 
 use super::{
     args::{r#as::CellDeserializeAsWithArgs, CellDeserializeWithArgs},
@@ -18,28 +15,30 @@ use super::{
     CellDeserialize,
 };
 
-/// [`Error`] for [`CellParser`]
-pub type CellParserError<'de> = <CellParser<'de> as BitReader>::Error;
+/// [`Error`] for [`OrdinaryCellParser`]
+pub type OrdinaryCellParserError<'de> = <CellParser<'de, OrdinaryCell> as BitReader>::Error;
+pub type CellParserError<'de, C> = <CellParser<'de, C> as BitReader>::Error;
 
 /// Cell parser created with [`Cell::parser()`].
 #[derive(Clone)]
-pub struct CellParser<'de> {
-    pub(crate) r#type: CellType,
+pub struct CellParser<'de, T> {
+    _type: PhantomData<T>,
     pub(crate) level: u8,
     pub(crate) data: &'de BitSlice<u8, Msb0>,
     pub(crate) references: &'de [Arc<Cell>],
 }
 
-impl<'de> CellParser<'de> {
+pub type OrdinaryCellParser<'de> = CellParser<'de, OrdinaryCell>;
+
+impl<'de> OrdinaryCellParser<'de> {
     #[inline]
     pub const fn new(
-        r#type: CellType,
         level: u8,
         data: &'de BitSlice<u8, Msb0>,
         references: &'de [Arc<Cell>],
     ) -> Self {
         Self {
-            r#type,
+            _type: PhantomData,
             level,
             data,
             references,
@@ -48,7 +47,7 @@ impl<'de> CellParser<'de> {
 
     /// Parse the value using its [`CellDeserialize`] implementation
     #[inline]
-    pub fn parse<T>(&mut self) -> Result<T, CellParserError<'de>>
+    pub fn parse<T>(&mut self) -> Result<T, OrdinaryCellParserError<'de>>
     where
         T: CellDeserialize<'de>,
     {
@@ -58,7 +57,7 @@ impl<'de> CellParser<'de> {
     /// Return iterator that parses values using [`CellDeserialize`]
     /// implementation.
     #[inline]
-    pub fn parse_iter<T>(&mut self) -> impl Iterator<Item = Result<T, CellParserError<'de>>> + '_
+    pub fn parse_iter<T>(&mut self) -> impl Iterator<Item = Result<T, OrdinaryCellParserError<'de>>> + '_
     where
         T: CellDeserialize<'de>,
     {
@@ -70,7 +69,7 @@ impl<'de> CellParser<'de> {
     /// Parse the value with args using its [`CellDeserializeWithArgs`]
     /// implementation.
     #[inline]
-    pub fn parse_with<T>(&mut self, args: T::Args) -> Result<T, CellParserError<'de>>
+    pub fn parse_with<T>(&mut self, args: T::Args) -> Result<T, OrdinaryCellParserError<'de>>
     where
         T: CellDeserializeWithArgs<'de>,
     {
@@ -83,7 +82,7 @@ impl<'de> CellParser<'de> {
     pub fn parse_iter_with<'a: 'de, T>(
         &mut self,
         args: T::Args,
-    ) -> impl Iterator<Item = Result<T, CellParserError<'de>>> + '_
+    ) -> impl Iterator<Item = Result<T, OrdinaryCellParserError<'de>>> + '_
     where
         T: CellDeserializeWithArgs<'de>,
         T::Args: Clone + 'a,
@@ -96,7 +95,7 @@ impl<'de> CellParser<'de> {
     /// Parse the value using an adapter.  
     /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
-    pub fn parse_as<T, As>(&mut self) -> Result<T, CellParserError<'de>>
+    pub fn parse_as<T, As>(&mut self) -> Result<T, OrdinaryCellParserError<'de>>
     where
         As: CellDeserializeAs<'de, T> + ?Sized,
     {
@@ -108,7 +107,7 @@ impl<'de> CellParser<'de> {
     #[inline]
     pub fn parse_iter_as<T, As>(
         &mut self,
-    ) -> impl Iterator<Item = Result<T, CellParserError<'de>>> + '_
+    ) -> impl Iterator<Item = Result<T, OrdinaryCellParserError<'de>>> + '_
     where
         As: CellDeserializeAs<'de, T> + ?Sized,
     {
@@ -120,7 +119,7 @@ impl<'de> CellParser<'de> {
     /// Parse value with args using an adapter.  
     /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
-    pub fn parse_as_with<T, As>(&mut self, args: As::Args) -> Result<T, CellParserError<'de>>
+    pub fn parse_as_with<T, As>(&mut self, args: As::Args) -> Result<T, OrdinaryCellParserError<'de>>
     where
         As: CellDeserializeAsWithArgs<'de, T> + ?Sized,
     {
@@ -133,7 +132,7 @@ impl<'de> CellParser<'de> {
     pub fn parse_iter_as_with<'a: 'de, T, As>(
         &mut self,
         args: As::Args,
-    ) -> impl Iterator<Item = Result<T, CellParserError<'de>>> + '_
+    ) -> impl Iterator<Item = Result<T, OrdinaryCellParserError<'de>>> + '_
     where
         As: CellDeserializeAsWithArgs<'de, T> + ?Sized,
         As::Args: Clone + 'a,
@@ -144,7 +143,7 @@ impl<'de> CellParser<'de> {
     }
 
     #[inline]
-    fn pop_reference(&mut self) -> Result<&'de Arc<Cell>, CellParserError<'de>> {
+    fn pop_reference(&mut self) -> Result<&'de Arc<Cell>, OrdinaryCellParserError<'de>> {
         let (first, rest) = self
             .references
             .split_first()
@@ -154,7 +153,7 @@ impl<'de> CellParser<'de> {
     }
 
     #[inline]
-    pub(crate) fn parse_reference_as<T, As>(&mut self) -> Result<T, CellParserError<'de>>
+    pub(crate) fn parse_reference_as<T, As>(&mut self) -> Result<T, OrdinaryCellParserError<'de>>
     where
         As: CellDeserializeAs<'de, T> + ?Sized,
     {
@@ -165,7 +164,7 @@ impl<'de> CellParser<'de> {
     pub(crate) fn parse_reference_as_with<T, As>(
         &mut self,
         args: As::Args,
-    ) -> Result<T, CellParserError<'de>>
+    ) -> Result<T, OrdinaryCellParserError<'de>>
     where
         As: CellDeserializeAsWithArgs<'de, T> + ?Sized,
     {
@@ -200,7 +199,7 @@ impl<'de> CellParser<'de> {
 
     /// Returns an error if this parser has more data or references.
     #[inline]
-    pub fn ensure_empty(&self) -> Result<(), CellParserError<'de>> {
+    pub fn ensure_empty(&self) -> Result<(), OrdinaryCellParserError<'de>> {
         if !self.is_empty() {
             return Err(Error::custom(format!(
                 "more data left: {} bits, {} references",
@@ -210,21 +209,9 @@ impl<'de> CellParser<'de> {
         }
         Ok(())
     }
-
-    #[inline]
-    pub fn ensure_type(&self, ty: CellType) -> Result<(), CellParserError<'de>> {
-        if self.r#type != ty {
-            return Err(Error::custom(format!(
-                "expected cell type {}, found {}",
-                self.r#type, ty
-            )));
-        }
-
-        Ok(())
-    }
 }
 
-impl<'de> BitReader for CellParser<'de> {
+impl<'de, C> BitReader for CellParser<'de, C> {
     type Error = <&'de BitSlice<u8, Msb0> as BitReader>::Error;
 
     #[inline]
@@ -248,11 +235,11 @@ impl<'de> BitReader for CellParser<'de> {
     }
 }
 
-impl<'de> CellDeserialize<'de> for CellParser<'de> {
+impl<'de> CellDeserialize<'de> for OrdinaryCellParser<'de> {
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut OrdinaryCellParser<'de>) -> Result<Self, OrdinaryCellParserError<'de>> {
         Ok(Self {
-            r#type: parser.r#type,
+            _type: parser._type,
             level: parser.level,
             data: mem::take(&mut parser.data),
             references: mem::take(&mut parser.references),

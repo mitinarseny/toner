@@ -5,7 +5,7 @@ use std::ops::Deref;
 
 use tlb::bits::de::BitReaderExt;
 use tlb::de::args::r#as::CellDeserializeAsWithArgs;
-use tlb::de::{CellParser, CellParserError};
+use tlb::de::{OrdinaryCellParser, OrdinaryCellParserError};
 use tlb::r#as::Ref;
 
 /// [`BinTree X`](https://docs.ton.org/develop/data-formats/tl-b-types#bintree)
@@ -62,9 +62,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<BinTree<T>, CellParserError<'de>> {
+    ) -> Result<BinTree<T>, OrdinaryCellParserError<'de>> {
         Ok(match parser.unpack()? {
             // bt_leaf$0
             false => BinTree::Leaf(parser.parse_as_with::<T, As>(args)?),
@@ -83,19 +83,19 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut CellParser<'de>,
+        parser: &mut OrdinaryCellParser<'de>,
         args: Self::Args,
-    ) -> Result<Vec<T>, CellParserError<'de>> {
+    ) -> Result<Vec<T>, OrdinaryCellParserError<'de>> {
         let mut output = Vec::new();
-        let mut stack: Vec<CellParser<'de>> = Vec::new();
+        let mut stack: Vec<OrdinaryCellParser<'de>> = Vec::new();
 
         #[inline]
         fn parse<'de, T, As>(
-            parser: &mut CellParser<'de>,
-            stack: &mut Vec<CellParser<'de>>,
+            parser: &mut OrdinaryCellParser<'de>,
+            stack: &mut Vec<OrdinaryCellParser<'de>>,
             output: &mut Vec<T>,
             args: As::Args,
-        ) -> Result<(), CellParserError<'de>>
+        ) -> Result<(), OrdinaryCellParserError<'de>>
         where
             As: CellDeserializeAsWithArgs<'de, T>,
         {
