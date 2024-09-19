@@ -1,6 +1,7 @@
 pub mod higher_hash;
 mod library_reference_cell;
 mod merkle_proof_cell;
+mod merkle_update_cell;
 mod ordinary_cell;
 mod pruned_branch_cell;
 
@@ -18,6 +19,7 @@ use bitvec::vec::BitVec;
 use crate::cell::higher_hash::HigherHash;
 pub use crate::cell::library_reference_cell::LibraryReferenceCell;
 pub use crate::cell::merkle_proof_cell::MerkleProofCell;
+pub use crate::cell::merkle_update_cell::MerkleUpdateCell;
 pub use crate::cell::ordinary_cell::OrdinaryCell;
 pub use crate::cell::pruned_branch_cell::*;
 use crate::cell_type::CellType;
@@ -38,6 +40,7 @@ pub enum Cell {
     LibraryReference(LibraryReferenceCell),
     PrunedBranch(PrunedBranchCell),
     MerkleProof(MerkleProofCell),
+    MerkleUpdate(MerkleUpdateCell),
 }
 
 impl Default for Cell {
@@ -53,6 +56,7 @@ impl HigherHash for Cell {
             Cell::LibraryReference(inner) => inner.level_mask(),
             Cell::PrunedBranch(inner) => inner.level_mask(),
             Cell::MerkleProof(inner) => inner.level_mask(),
+            Cell::MerkleUpdate(inner) => inner.level_mask(),
         }
     }
     fn higher_hash(&self, level: u8) -> [u8; 32] {
@@ -61,6 +65,7 @@ impl HigherHash for Cell {
             Cell::LibraryReference(inner) => inner.higher_hash(level),
             Cell::PrunedBranch(inner) => inner.higher_hash(level),
             Cell::MerkleProof(inner) => inner.higher_hash(level),
+            Cell::MerkleUpdate(inner) => inner.higher_hash(level),
         }
     }
 
@@ -70,6 +75,7 @@ impl HigherHash for Cell {
             Cell::LibraryReference(inner) => inner.depth(level),
             Cell::PrunedBranch(inner) => inner.depth(level),
             Cell::MerkleProof(inner) => inner.depth(level),
+            Cell::MerkleUpdate(inner) => inner.depth(level)
         }
     }
 }
@@ -81,12 +87,27 @@ impl Cell {
             Cell::LibraryReference(_) => CellType::LibraryReference,
             Cell::PrunedBranch(_) => CellType::PrunedBranch,
             Cell::MerkleProof(_) => CellType::MerkleProof,
+            Cell::MerkleUpdate(_) => CellType::MerkleUpdate,
+        }
+    }
+
+    pub fn as_library_reference(&self) -> Option<&LibraryReferenceCell> {
+        match self {
+            Cell::LibraryReference(reference) => Some(reference),
+            _ => None,
         }
     }
 
     pub fn as_merkle_proof(&self) -> Option<&MerkleProofCell> {
         match self {
             Cell::MerkleProof(proof) => Some(proof),
+            _ => None,
+        }
+    }
+
+    pub fn as_merkle_update(&self) -> Option<&MerkleUpdateCell> {
+        match self {
+            Cell::MerkleUpdate(update) => Some(update),
             _ => None,
         }
     }
@@ -120,6 +141,7 @@ impl Cell {
             Cell::LibraryReference(LibraryReferenceCell { data }) => data,
             Cell::PrunedBranch(PrunedBranchCell { data, .. }) => data,
             Cell::MerkleProof(MerkleProofCell { data, .. }) => data,
+            Cell::MerkleUpdate(MerkleUpdateCell { data, .. }) => data,
         }
     }
 
@@ -142,6 +164,7 @@ impl Cell {
             Cell::LibraryReference(_) => &[],
             Cell::PrunedBranch(_) => &[],
             Cell::MerkleProof(MerkleProofCell { references, .. }) => references,
+            Cell::MerkleUpdate(MerkleUpdateCell { references, .. }) => references,
         }
     }
 
@@ -233,6 +256,7 @@ impl Cell {
                 .unwrap_or(0),
             Cell::PrunedBranch(inner) => inner.level(),
             Cell::MerkleProof(inner) => inner.level(),
+            Cell::MerkleUpdate(inner) => inner.level(),
         }
     }
 
@@ -250,6 +274,7 @@ impl Cell {
                 .unwrap_or(0),
             Cell::PrunedBranch(inner) => inner.max_depth(),
             Cell::MerkleProof(inner) => inner.max_depth(),
+            Cell::MerkleUpdate(inner) => inner.max_depth(),
         }
     }
 
