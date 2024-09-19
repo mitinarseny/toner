@@ -9,12 +9,7 @@ use core::mem::MaybeUninit;
 use std::{mem, rc::Rc, sync::Arc};
 
 use crate::cell_type::CellType;
-use crate::{
-    bits::de::BitReaderExt,
-    either::Either,
-    r#as::{FromInto, Same},
-    Cell, LibraryReferenceCell, OrdinaryCell, PrunedBranchCell, ResultExt,
-};
+use crate::{bits::de::BitReaderExt, either::Either, r#as::{FromInto, Same}, Cell, LibraryReferenceCell, MerkleProofCell, MerkleUpdateCell, OrdinaryCell, PrunedBranchCell, ResultExt};
 
 /// A type that can be **de**serialized from [`CellParser`].
 pub trait CellDeserialize<'de>: Sized {
@@ -153,7 +148,14 @@ impl<'de> CellDeserialize<'de> for Cell {
             CellType::PrunedBranch => Cell::PrunedBranch(PrunedBranchCell {
                 data: mem::take(&mut parser.data).to_bitvec(),
             }),
-            _ => unimplemented!(),
+            CellType::MerkleProof => Cell::MerkleProof(MerkleProofCell {
+                data: mem::take(&mut parser.data).to_bitvec(),
+                references: mem::take(&mut parser.references).to_vec(),
+            }),
+            CellType::MerkleUpdate => Cell::MerkleUpdate(MerkleUpdateCell {
+                data: mem::take(&mut parser.data).to_bitvec(),
+                references: mem::take(&mut parser.references).to_vec(),
+            })
         };
 
         parser.ensure_empty()?;
