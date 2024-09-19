@@ -134,6 +134,7 @@ impl Cell {
         CellBuilder::new()
     }
 
+    #[inline]
     pub fn data(&self) -> &BitVec<u8, Msb0> {
         match self {
             Cell::Ordinary(OrdinaryCell { data, .. }) => data,
@@ -149,14 +150,17 @@ impl Cell {
         self.data().len()
     }
 
+    #[inline]
     pub fn as_raw_slice(&self) -> &[u8] {
         self.data().as_raw_slice()
     }
 
+    #[inline]
     pub fn as_bitslice(&self) -> &BitSlice<u8, Msb0> {
         self.data().as_bitslice()
     }
 
+    #[inline]
     pub fn references(&self) -> &[Arc<Self>] {
         match self {
             Cell::Ordinary(OrdinaryCell { references, .. }) => references,
@@ -165,6 +169,46 @@ impl Cell {
             Cell::MerkleProof(MerkleProofCell { references, .. }) => references,
             Cell::MerkleUpdate(MerkleUpdateCell { references, .. }) => references,
         }
+    }
+
+    /// Returns whether this cell has no data and zero references.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.data().is_empty() && self.references().is_empty()
+    }
+
+    #[inline]
+    fn data_bytes(&self) -> (usize, &[u8]) {
+        (self.len(), self.as_raw_slice())
+    }
+
+    /// See [Cell level](https://docs.ton.org/develop/data-formats/cell-boc#cell-level)
+    #[inline]
+    pub fn level(&self) -> u8 {
+        match self {
+            Cell::LibraryReference(inner) => inner.level(),
+            Cell::Ordinary(inner) => inner.level(),
+            Cell::PrunedBranch(inner) => inner.level(),
+            Cell::MerkleProof(inner) => inner.level(),
+            Cell::MerkleUpdate(inner) => inner.level(),
+        }
+    }
+
+    #[inline]
+    fn max_depth(&self) -> u16 {
+        match self {
+            Cell::LibraryReference(inner) => inner.max_depth(),
+            Cell::Ordinary(inner) => inner.max_depth(),
+            Cell::PrunedBranch(inner) => inner.max_depth(),
+            Cell::MerkleProof(inner) => inner.max_depth(),
+            Cell::MerkleUpdate(inner) => inner.max_depth(),
+        }
+    }
+
+    /// Calculates [standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#cell-hash)
+    #[inline]
+    pub fn hash(&self) -> [u8; 32] {
+        self.higher_hash(0)
     }
 
     /// Return [`CellParser`] for this cell
@@ -228,46 +272,6 @@ impl Cell {
         let v = parser.parse_as_with::<T, As>(args)?;
         parser.ensure_empty()?;
         Ok(v)
-    }
-
-    /// Returns whether this cell has no data and zero references.
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.data().is_empty() && self.references().is_empty()
-    }
-
-    #[inline]
-    fn data_bytes(&self) -> (usize, &[u8]) {
-        (self.len(), self.as_raw_slice())
-    }
-
-    /// See [Cell level](https://docs.ton.org/develop/data-formats/cell-boc#cell-level)
-    #[inline]
-    pub fn level(&self) -> u8 {
-        match self {
-            Cell::LibraryReference(inner) => inner.level(),
-            Cell::Ordinary(inner) => inner.level(),
-            Cell::PrunedBranch(inner) => inner.level(),
-            Cell::MerkleProof(inner) => inner.level(),
-            Cell::MerkleUpdate(inner) => inner.level(),
-        }
-    }
-
-    #[inline]
-    fn max_depth(&self) -> u16 {
-        match self {
-            Cell::LibraryReference(inner) => inner.max_depth(),
-            Cell::Ordinary(inner) => inner.max_depth(),
-            Cell::PrunedBranch(inner) => inner.max_depth(),
-            Cell::MerkleProof(inner) => inner.max_depth(),
-            Cell::MerkleUpdate(inner) => inner.max_depth(),
-        }
-    }
-
-    /// Calculates [standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#cell-hash)
-    #[inline]
-    pub fn hash(&self) -> [u8; 32] {
-        self.higher_hash(0)
     }
 }
 

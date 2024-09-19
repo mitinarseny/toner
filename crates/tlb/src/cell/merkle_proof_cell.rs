@@ -67,13 +67,7 @@ impl MerkleProofCell {
     }
 
     pub fn verify(&self) -> bool {
-        self.hash() == self.reference().higher_hash(0)
-    }
-
-    fn hash(&self) -> [u8; 32] {
-        self.data.as_raw_slice()[0..32]
-            .try_into()
-            .expect("invalid data length")
+        self.data.as_raw_slice()[0..32] == self.reference().higher_hash(0)
     }
 
     fn reference(&self) -> Arc<Cell> {
