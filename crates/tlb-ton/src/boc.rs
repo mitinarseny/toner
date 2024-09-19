@@ -15,8 +15,8 @@ use tlb::{
         r#as::{NBits, VarNBytes},
         ser::{args::BitPackWithArgs, BitWriter, BitWriterExt},
     },
-    Cell, Error, LibraryReferenceCell, MerkleProofCell, OrdinaryCell, PrunedBranchCell, ResultExt,
-    StringError,
+    Cell, Error, LibraryReferenceCell, MerkleProofCell, MerkleUpdateCell, OrdinaryCell,
+    PrunedBranchCell, ResultExt, StringError,
 };
 
 /// Alias to [`BagOfCells`]
@@ -305,11 +305,24 @@ impl BitUnpack for BagOfCells {
                             data: raw_cell.data,
                         })
                     }
-                    CellType::MerkleProof => Cell::MerkleProof(MerkleProofCell {
-                        data: raw_cell.data,
-                        references,
-                    }),
-                    _ => unimplemented!(),
+                    CellType::MerkleProof => {
+                        if references.len() != 1 {
+                            return Err(Error::custom("merkle proof has exactly one reference"));
+                        }
+                        Cell::MerkleProof(MerkleProofCell {
+                            data: raw_cell.data,
+                            references,
+                        })
+                    }
+                    CellType::MerkleUpdate => {
+                        if references.len() != 2 {
+                            return Err(Error::custom("merkle update has exactly two references"));
+                        }
+                        Cell::MerkleUpdate(MerkleUpdateCell {
+                            data: raw_cell.data,
+                            references,
+                        })
+                    }
                 })
             });
         }
