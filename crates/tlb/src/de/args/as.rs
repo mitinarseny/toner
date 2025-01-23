@@ -54,10 +54,10 @@ where
     }
 }
 
-impl<'de, 'a: 'de, T, As> CellDeserializeAsWithArgs<'de, Vec<T>> for Vec<As>
+impl<'de, T, As> CellDeserializeAsWithArgs<'de, Vec<T>> for Vec<As>
 where
     As: CellDeserializeAsWithArgs<'de, T>,
-    As::Args: Clone + 'a,
+    As::Args: Clone + 'de,
 {
     type Args = (usize, As::Args);
 

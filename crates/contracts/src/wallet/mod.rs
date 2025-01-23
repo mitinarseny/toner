@@ -23,8 +23,6 @@ use tlb_ton::{
     MsgAddress,
 };
 
-pub const DEFAULT_WALLET_ID: u32 = 0x29a9a317;
-
 /// Generic wallet for signing messages
 ///
 /// ```rust
@@ -83,7 +81,7 @@ where
     /// Shortcut for [`Wallet::derive()`] with default workchain and wallet id
     #[inline]
     pub fn derive_default(keypair: KeyPair) -> Result<Self, CellBuilderError> {
-        Self::derive(0, keypair, DEFAULT_WALLET_ID)
+        Self::derive(0, keypair, V::DEFAULT_WALLET_ID)
     }
 
     /// Address of the wallet

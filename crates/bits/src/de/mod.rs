@@ -57,7 +57,6 @@ where
 }
 
 /// **De**serialize the value from bytes slice and ensure that no more data left.
-
 #[inline]
 pub fn unpack_bytes_fully<T>(bytes: impl AsRef<[u8]>) -> Result<T, StringError>
 where
