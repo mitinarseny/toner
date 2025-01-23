@@ -12,6 +12,8 @@ pub trait WalletVersion {
     type SignBody: CellSerialize;
     type ExternalMsgBody: CellSerialize;
 
+    const DEFAULT_WALLET_ID: u32;
+
     /// Code of the wallet for use with [`StateInit`]
     fn code() -> Arc<Cell>;
 

@@ -38,6 +38,8 @@ impl WalletVersion for V5R1 {
     type SignBody = WalletV5RSignBody;
     type ExternalMsgBody = WalletV5R1MsgBody;
 
+    const DEFAULT_WALLET_ID: u32 = 0x7FFFFF11;
+
     #[inline]
     fn code() -> Arc<Cell> {
         WALLET_V5R1_CODE_CELL.clone()

@@ -14,7 +14,7 @@ license-file = "LICENSE.txt"
 tlb = { path = "./crates/tlb", version = "0.3.2" }
 tlbits = { path = "./crates/bits", version = "0.3.2" }
 tlb-ton = { path = "./crates/tlb-ton", version = "0.3.2" }
-ton-contracts = { path = "./crates/contracts", version = "0.3.2" }
+ton-contracts = { path = "./crates/contracts", version = "0.3.3" }
 toner = { path = "./crates/toner", version = "0.3.2" }
 
 anyhow = "1"

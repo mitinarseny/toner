@@ -37,6 +37,8 @@ impl WalletVersion for V4R2 {
     type SignBody = WalletV4R2SignBody;
     type ExternalMsgBody = WalletV4R2ExternalBody;
 
+    const DEFAULT_WALLET_ID: u32 = 0x29a9a317;
+
     fn code() -> Arc<Cell> {
         WALLET_V4R2_CODE_CELL.clone()
     }
