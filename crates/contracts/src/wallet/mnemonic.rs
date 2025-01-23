@@ -34,7 +34,7 @@ pub struct Mnemonic([&'static str; 24]);
 impl Mnemonic {
     const PBKDF_ITERATIONS: u32 = 100000;
 
-    /// Generate [`Keypair`] with optional password
+    /// Generate [`KeyPair`] with optional password
     pub fn generate_keypair(&self, password: impl Into<Option<String>>) -> anyhow::Result<KeyPair> {
         let entropy = self.entropy(password)?;
         let seed = Self::pbkdf2_sha512(

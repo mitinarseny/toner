@@ -6,7 +6,7 @@ use tlb_ton::{action::SendMsgAction, state_init::StateInit};
 
 use super::PUBLIC_KEY_LENGTH;
 
-/// Version of [`Wallet`]
+/// Version of [`Wallet`](super::Wallet)
 pub trait WalletVersion {
     type Data: CellSerialize;
     type SignBody: CellSerialize;
@@ -29,7 +29,7 @@ pub trait WalletVersion {
         msgs: impl IntoIterator<Item = SendMsgAction>,
     ) -> Self::SignBody;
 
-    /// Wraps signed body into external [`Message::body`]
+    /// Wraps signed body into external [`ExternalMsgBody`](WalletVersion::ExternalMsgBody)
     fn wrap_signed_external(body: Self::SignBody, signature: [u8; 64]) -> Self::ExternalMsgBody;
 
     #[inline]

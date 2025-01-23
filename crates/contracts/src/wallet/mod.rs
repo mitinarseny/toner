@@ -117,8 +117,8 @@ where
         self.keypair.sign(msg)
     }
 
-    /// Shortcut to [create](Wallet::create_external_body),
-    /// [sign](Wallet::sign_body) and [wrap](Wallet::wrap_signed) external
+    /// Shortcut to [create](Wallet::create_sign_body),
+    /// [sign](Wallet::sign_body) and [wrap](Wallet::wrap_external_msg) external
     /// message ready for sending to TON blockchain.
     ///
     /// ```rust
