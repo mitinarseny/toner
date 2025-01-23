@@ -29,7 +29,7 @@ use crate::{
 
 pub use tlbits::r#as::AsWrap;
 
-impl<'a, T, As> CellSerialize for AsWrap<&'a T, As>
+impl<T, As> CellSerialize for AsWrap<&T, As>
 where
     T: ?Sized,
     As: ?Sized,
@@ -41,7 +41,7 @@ where
     }
 }
 
-impl<'a, T, As> CellSerializeWithArgs for AsWrap<&'a T, As>
+impl<T, As> CellSerializeWithArgs for AsWrap<&T, As>
 where
     T: ?Sized,
     As: CellSerializeAsWithArgs<T> + ?Sized,

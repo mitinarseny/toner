@@ -315,7 +315,7 @@ impl<T, E> Hashmap<T, E> {
     pub fn contains_key(&self, key: impl AsRef<BitSlice<u8, Msb0>>) -> bool {
         key.as_ref()
             .strip_prefix(&self.prefix)
-            .map_or(false, |key| self.node.contains_key(key))
+            .is_some_and(|key| self.node.contains_key(key))
     }
 
     #[inline]

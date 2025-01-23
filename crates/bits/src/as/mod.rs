@@ -63,7 +63,7 @@ where
     }
 }
 
-impl<'a, T, As> BitPack for AsWrap<&'a T, As>
+impl<T, As> BitPack for AsWrap<&T, As>
 where
     T: ?Sized,
     As: BitPackAs<T> + ?Sized,
@@ -77,7 +77,7 @@ where
     }
 }
 
-impl<'a, T, As> BitPackWithArgs for AsWrap<&'a T, As>
+impl<T, As> BitPackWithArgs for AsWrap<&T, As>
 where
     T: ?Sized,
     As: BitPackAsWithArgs<T> + ?Sized,

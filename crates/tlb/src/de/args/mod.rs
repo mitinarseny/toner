@@ -78,10 +78,10 @@ impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:
 impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
 impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
 
-impl<'de, 'a: 'de, T> CellDeserializeWithArgs<'de> for Vec<T>
+impl<'de, T> CellDeserializeWithArgs<'de> for Vec<T>
 where
     T: CellDeserializeWithArgs<'de>,
-    T::Args: Clone + 'a,
+    T::Args: Clone + 'de,
 {
     type Args = (usize, T::Args);
 

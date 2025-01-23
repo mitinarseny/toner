@@ -134,8 +134,8 @@ pub struct BagOfCellsArgs {
 ///   tot_cells_size:(##(off_bytes * 8))
 ///   index:(cells * ##(off_bytes * 8))
 ///   cell_data:(tot_cells_size * [ uint8 ])
-///   = BagOfCells;///
-
+///   = BagOfCells;
+///
 /// serialized_boc_idx_crc32c#acc3a728 size:(## 8) { size <= 4 }
 ///   off_bytes:(## 8) { off_bytes <= 8 }
 ///   cells:(##(size * 8))
@@ -144,8 +144,8 @@ pub struct BagOfCellsArgs {
 ///   tot_cells_size:(##(off_bytes * 8))
 ///   index:(cells * ##(off_bytes * 8))
 ///   cell_data:(tot_cells_size * [ uint8 ])
-///   crc32c:uint32 = BagOfCells;///
-
+///   crc32c:uint32 = BagOfCells;
+///
 /// serialized_boc#b5ee9c72 has_idx:(## 1) has_crc32c:(## 1)
 ///   has_cache_bits:(## 1) flags:(## 2) { flags = 0 }
 ///   size:(## 3) { size <= 4 }
@@ -230,8 +230,8 @@ impl BitPackWithArgs for BagOfCells {
 ///   tot_cells_size:(##(off_bytes * 8))
 ///   index:(cells * ##(off_bytes * 8))
 ///   cell_data:(tot_cells_size * [ uint8 ])
-///   = BagOfCells;///
-
+///   = BagOfCells;
+///
 /// serialized_boc_idx_crc32c#acc3a728 size:(## 8) { size <= 4 }
 ///   off_bytes:(## 8) { off_bytes <= 8 }
 ///   cells:(##(size * 8))
@@ -240,8 +240,8 @@ impl BitPackWithArgs for BagOfCells {
 ///   tot_cells_size:(##(off_bytes * 8))
 ///   index:(cells * ##(off_bytes * 8))
 ///   cell_data:(tot_cells_size * [ uint8 ])
-///   crc32c:uint32 = BagOfCells;///
-
+///   crc32c:uint32 = BagOfCells;
+///
 /// serialized_boc#b5ee9c72 has_idx:(## 1) has_crc32c:(## 1)
 ///   has_cache_bits:(## 1) flags:(## 2) { flags = 0 }
 ///   size:(## 3) { size <= 4 }
