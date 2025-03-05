@@ -325,7 +325,7 @@ impl BitReader for &BitSlice<u8, Msb0> {
     fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<usize, Self::Error> {
         let n = dst.len().min(self.bits_left());
         let (v, rest) = self.split_at(n);
-        dst.copy_from_bitslice(v);
+        dst[..n].copy_from_bitslice(v);
         *self = rest;
         Ok(n)
     }
