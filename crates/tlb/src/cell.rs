@@ -10,9 +10,9 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     de::{
-        args::{r#as::CellDeserializeAsWithArgs, CellDeserializeWithArgs},
-        r#as::CellDeserializeAs,
         CellDeserialize, CellParser, CellParserError,
+        args::{CellDeserializeWithArgs, r#as::CellDeserializeAsWithArgs},
+        r#as::CellDeserializeAs,
     },
     ser::CellBuilder,
 };
@@ -133,7 +133,7 @@ impl Cell {
     #[inline]
     fn bits_descriptor(&self) -> u8 {
         let b = self.data.len();
-        (b / 8) as u8 + ((b + 7) / 8) as u8
+        (b / 8) as u8 + b.div_ceil(8) as u8
     }
 
     #[inline]
@@ -161,7 +161,7 @@ impl Cell {
             let (last, data) = self.data.as_raw_slice().split_last().unwrap();
             buf.extend(data);
             let mut last = last & (!0u8 << (8 - rest_bits)); // clear the rest
-                                                             // let mut last = last;
+            // let mut last = last;
             last |= 1 << (8 - rest_bits - 1); // put stop-bit
             buf.push(last)
         }
@@ -218,9 +218,9 @@ mod tests {
     use hex_literal::hex;
 
     use crate::{
-        bits::{r#as::NBits, ser::BitWriterExt},
         r#as::{Data, Ref},
-        ser::{r#as::CellSerializeWrapAsExt, CellSerializeExt},
+        bits::{r#as::NBits, ser::BitWriterExt},
+        ser::{CellSerializeExt, r#as::CellSerializeWrapAsExt},
         tests::assert_store_parse_as_eq,
     };
 

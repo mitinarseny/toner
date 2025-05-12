@@ -5,16 +5,16 @@ use std::{
     sync::Arc,
 };
 
-use base64::{engine::general_purpose::STANDARD, Engine};
+use base64::{Engine, engine::general_purpose::STANDARD};
 use crc::Crc;
 use tlb::{
-    bits::{
-        bitvec::{order::Msb0, vec::BitVec, view::AsBits},
-        de::{args::BitUnpackWithArgs, BitReader, BitReaderExt, BitUnpack},
-        r#as::{NBits, VarNBytes},
-        ser::{args::BitPackWithArgs, BitWriter, BitWriterExt},
-    },
     Cell, Error, ResultExt, StringError,
+    bits::{
+        r#as::{NBits, VarNBytes},
+        bitvec::{order::Msb0, vec::BitVec, view::AsBits},
+        de::{BitReader, BitReaderExt, BitUnpack, args::BitUnpackWithArgs},
+        ser::{BitWriter, BitWriterExt, args::BitPackWithArgs},
+    },
 };
 
 /// Alias to [`BagOfCells`]
@@ -330,7 +330,7 @@ impl BitPackWithArgs for RawBagOfCells {
             return Err(Error::custom("only single root cell supported"));
         }
         let size_bits: u32 = 32 - (self.cells.len() as u32).leading_zeros();
-        let size_bytes: u32 = (size_bits + 7) / 8;
+        let size_bytes: u32 = size_bits.div_ceil(8);
 
         let mut tot_cells_size: u32 = 0;
         let mut index = Vec::<u32>::with_capacity(self.cells.len());
@@ -340,7 +340,7 @@ impl BitPackWithArgs for RawBagOfCells {
         }
 
         let off_bits: u32 = 32 - tot_cells_size.leading_zeros();
-        let off_bytes: u32 = (off_bits + 7) / 8;
+        let off_bytes: u32 = off_bits.div_ceil(8);
 
         let mut buffered = writer.as_mut().tee(BitVec::<u8, Msb0>::new());
         buffered
@@ -537,7 +537,7 @@ impl BitPackWithArgs for RawCell {
 
         let padding_bits = self.data.len() % 8;
         let full_bytes = padding_bits == 0;
-        let data_bytes = (self.data.len() + 7) / 8;
+        let data_bytes = self.data.len().div_ceil(8);
         let bits_descriptor: u8 = data_bytes as u8 * 2 - if full_bytes { 0 } else { 1 }; // subtract 1 if the last byte is not full
         writer.pack(bits_descriptor)?;
 
@@ -555,7 +555,7 @@ impl BitPackWithArgs for RawCell {
 
 impl RawCell {
     fn size(&self, ref_size_bytes: u32) -> u32 {
-        let data_len: u32 = (self.data.len() as u32 + 7) / 8;
+        let data_len: u32 = self.data.len().div_ceil(8) as u32;
         2 + data_len + self.references.len() as u32 * ref_size_bytes
     }
 }
