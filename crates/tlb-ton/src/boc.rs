@@ -493,7 +493,7 @@ impl BitUnpackWithArgs for RawCell {
     {
         let refs_descriptor: u8 = reader.unpack()?;
         let level: u8 = refs_descriptor >> 5;
-        let _is_exotic: bool = refs_descriptor >> 3 & 0b1 == 1;
+        let _is_exotic: bool = (refs_descriptor >> 3) & 0b1 == 1;
         let ref_num: usize = refs_descriptor as usize & 0b111;
 
         let bits_descriptor: u8 = reader.unpack()?;

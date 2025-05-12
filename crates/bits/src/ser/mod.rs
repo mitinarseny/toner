@@ -93,7 +93,7 @@ impl BitPack for bool {
     where
         W: BitWriter,
     {
-        writer.write_bit(*self).map_err(Into::into)
+        writer.write_bit(*self)
     }
 }
 
