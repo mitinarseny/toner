@@ -3,12 +3,12 @@ pub mod r#as;
 use core::mem::MaybeUninit;
 use std::{rc::Rc, sync::Arc};
 
-use bitvec::{order::Msb0, vec::BitVec};
+use bitvec::{mem::bits_of, order::Msb0, vec::BitVec};
 use either::Either;
 
 use crate::{
+    Error, ResultExt,
     r#as::{FromInto, Same},
-    ResultExt,
 };
 
 use super::{BitReader, BitReaderExt};
@@ -195,7 +195,28 @@ impl BitUnpackWithArgs for BitVec<u8, Msb0> {
     {
         let mut dst = BitVec::with_capacity(len);
         dst.resize(len, false);
-        reader.read_bits_into(&mut dst)?;
+        let n = reader.read_bits_into(&mut dst)?;
+        if n != len {
+            return Err(Error::custom("EOF"));
+        }
+        Ok(dst)
+    }
+}
+
+impl BitUnpackWithArgs for Vec<u8> {
+    /// length
+    type Args = usize;
+
+    #[inline]
+    fn unpack_with<R>(mut reader: R, len: Self::Args) -> Result<Self, R::Error>
+    where
+        R: BitReader,
+    {
+        let mut dst = vec![0; len];
+        let n = reader.read_bytes_into(&mut dst)?;
+        if n != len * bits_of::<u8>() {
+            return Err(Error::custom("EOF"));
+        }
         Ok(dst)
     }
 }

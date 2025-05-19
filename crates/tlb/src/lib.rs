@@ -140,7 +140,7 @@ pub mod ser;
 
 pub use self::cell::*;
 
-pub use tlbits::{self as bits, either, Error, ResultExt, StringError};
+pub use tlbits::{self as bits, Error, ResultExt, StringError, either};
 
 #[cfg(test)]
 mod tests;

@@ -2,13 +2,14 @@ use core::fmt::Debug;
 
 use crate::{
     de::{
-        r#as::{unpack_fully_as, BitUnpackAs},
-        unpack_fully, BitUnpack,
+        BitUnpack,
+        r#as::{BitUnpackAs, unpack_fully_as},
+        unpack_fully,
     },
     ser::{
-        pack,
-        r#as::{pack_as, BitPackAs},
         BitPack,
+        r#as::{BitPackAs, pack_as},
+        pack,
     },
 };
 

@@ -8,10 +8,10 @@ use bitvec::{
 };
 
 use crate::{
-    de::{r#as::BitUnpackAs, BitReader, BitReaderExt, BitUnpack},
-    r#as::{AsBytes, NBits},
-    ser::{r#as::BitPackAs, BitPack, BitWriter, BitWriterExt},
     Error,
+    r#as::{AsBytes, NBits},
+    de::{BitReader, BitReaderExt, BitUnpack, r#as::BitUnpackAs},
+    ser::{BitPack, BitWriter, BitWriterExt, r#as::BitPackAs},
 };
 
 /// Constant version of `bool`
@@ -261,7 +261,7 @@ mod tests {
     use num_bigint::BigUint;
 
     use crate::{
-        ser::{pack, r#as::pack_as},
+        ser::{r#as::pack_as, pack},
         tests::{assert_pack_unpack_as_eq, assert_pack_unpack_eq},
     };
 

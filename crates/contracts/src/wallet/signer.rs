@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use nacl::sign::{signature, Keypair};
+use nacl::sign::{Keypair, signature};
 
 pub use nacl::sign::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
 

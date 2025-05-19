@@ -8,14 +8,14 @@ pub use self::writer::*;
 use std::{rc::Rc, sync::Arc};
 
 use args::r#as::BitPackAsWithArgs;
+use r#as::BitPackAs;
 use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
 use either::Either;
 use impl_tools::autoimpl;
-use r#as::BitPackAs;
 
 use crate::{
-    r#as::{args::NoArgs, AsBytes, Same},
     ResultExt, StringError,
+    r#as::{AsBytes, Same, args::NoArgs},
 };
 
 use self::args::BitPackWithArgs;

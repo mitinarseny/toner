@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
 use crate::{
+    Cell, Error, ResultExt,
+    r#as::Ref,
     bits::{
         bitvec::{order::Msb0, slice::BitSlice, vec::BitVec},
         ser::{BitWriter, LimitWriter},
     },
-    r#as::Ref,
-    Cell, Error, ResultExt,
 };
 
 use super::{
-    args::{r#as::CellSerializeAsWithArgs, CellSerializeWithArgs},
-    r#as::CellSerializeAs,
     CellSerialize,
+    args::{CellSerializeWithArgs, r#as::CellSerializeAsWithArgs},
+    r#as::CellSerializeAs,
 };
 
 type CellBitWriter = LimitWriter<BitVec<u8, Msb0>>;

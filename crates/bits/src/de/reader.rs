@@ -4,15 +4,15 @@ use ::bitvec::{order::Msb0, slice::BitSlice, view::AsMutBits};
 use impl_tools::autoimpl;
 
 use crate::{
+    Error, ResultExt, StringError,
     adapters::{Join, MapErr, Tee},
     ser::BitWriter,
-    Error, ResultExt, StringError,
 };
 
 use super::{
-    args::{r#as::BitUnpackAsWithArgs, BitUnpackWithArgs},
-    r#as::BitUnpackAs,
     BitUnpack,
+    args::{BitUnpackWithArgs, r#as::BitUnpackAsWithArgs},
+    r#as::BitUnpackAs,
 };
 
 /// Bitwise reader.

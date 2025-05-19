@@ -4,9 +4,9 @@ use bitvec::{order::Msb0, vec::BitVec};
 use either::Either;
 
 use crate::{
-    r#as::{args::NoArgs, AsWrap},
-    ser::{BitWriter, BitWriterExt},
     StringError,
+    r#as::{AsWrap, args::NoArgs},
+    ser::{BitWriter, BitWriterExt},
 };
 
 use super::BitPackWithArgs;

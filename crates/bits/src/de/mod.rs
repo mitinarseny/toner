@@ -12,8 +12,8 @@ use bitvec::{order::Msb0, slice::BitSlice, view::AsBits};
 use either::Either;
 
 use crate::{
-    r#as::{FromInto, Same},
     Error, ResultExt, StringError,
+    r#as::{FromInto, Same},
 };
 
 /// A type that can be bitwise-**de**serialized from any [`BitReader`].

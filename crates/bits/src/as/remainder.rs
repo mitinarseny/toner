@@ -1,8 +1,8 @@
 use bitvec::{order::Msb0, vec::BitVec};
 
 use crate::{
-    de::{r#as::BitUnpackAs, BitReader, BitReaderExt},
     Error,
+    de::{BitReader, BitReaderExt, r#as::BitUnpackAs},
 };
 
 pub struct Remainder;

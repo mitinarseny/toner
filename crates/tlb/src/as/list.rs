@@ -1,10 +1,10 @@
 use core::marker::PhantomData;
 
-use tlb::{
-    de::{r#as::CellDeserializeAs, CellParser, CellParserError},
-    r#as::{Ref, Same},
-    ser::{r#as::CellSerializeAs, CellBuilder, CellBuilderError},
+use crate::{
     Cell, ResultExt,
+    r#as::{Ref, Same},
+    de::{CellParser, CellParserError, r#as::CellDeserializeAs},
+    ser::{CellBuilder, CellBuilderError, r#as::CellSerializeAs},
 };
 
 /// ```tlb

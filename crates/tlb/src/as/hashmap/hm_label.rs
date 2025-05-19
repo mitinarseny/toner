@@ -1,11 +1,11 @@
-use tlb::{
-    bits::{
-        bitvec::{order::Msb0, slice::BitSlice, vec::BitVec},
-        de::{args::r#as::BitUnpackAsWithArgs, BitReader, BitReaderExt},
-        r#as::{NBits, Unary, VarNBits},
-        ser::{args::r#as::BitPackAsWithArgs, BitWriter, BitWriterExt},
-    },
+use crate::{
     Error,
+    bits::{
+        r#as::{NBits, Unary, VarNBits},
+        bitvec::{order::Msb0, slice::BitSlice, vec::BitVec},
+        de::{BitReader, BitReaderExt, args::r#as::BitUnpackAsWithArgs},
+        ser::{BitWriter, BitWriterExt, args::r#as::BitPackAsWithArgs},
+    },
 };
 
 /// `HmLabel ~n m` for [`Hashmap`](super::Hashmap)

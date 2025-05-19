@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 
 use crate::de::{
-    args::r#as::CellDeserializeAsWithArgs, r#as::CellDeserializeAs, CellParser, CellParserError,
+    CellParser, CellParserError, args::r#as::CellDeserializeAsWithArgs, r#as::CellDeserializeAs,
 };
 
 use super::Same;

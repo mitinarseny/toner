@@ -4,6 +4,7 @@ default-members = ["./crates/toner"]
 resolver = "2"
 
 [workspace.package]
+rust-version = "1.87"
 edition = "2024"
 repository = "https://github.com/mitinarseny/toner"
 keywords = ["ton", "tlb", "tl-b", "boc"]

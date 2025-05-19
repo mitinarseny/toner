@@ -1,9 +1,9 @@
 use tlb::{
+    Cell,
+    r#as::{Data, Ref},
     de::{CellDeserialize, CellParser, CellParserError},
     either::Either,
-    r#as::{Data, Ref},
     ser::{CellBuilder, CellBuilderError, CellSerialize},
-    Cell,
 };
 
 /// ```tlb

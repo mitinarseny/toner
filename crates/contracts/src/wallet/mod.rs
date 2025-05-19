@@ -13,14 +13,14 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use num_bigint::BigUint;
 use tlb::{
-    ser::{CellBuilderError, CellSerializeExt},
     Cell,
+    ser::{CellBuilderError, CellSerializeExt},
 };
 use tlb_ton::{
+    MsgAddress,
     action::SendMsgAction,
     message::{CommonMsgInfo, ExternalInMsgInfo, Message},
     state_init::StateInit,
-    MsgAddress,
 };
 
 /// Generic wallet for signing messages

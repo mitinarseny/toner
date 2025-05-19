@@ -148,7 +148,7 @@ impl Cell {
     }
 
     /// [Standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#standard-cell-representation-hash-calculation)
-    fn repr(&self) -> Vec<u8> {
+    pub fn repr(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         buf.push(self.refs_descriptor());
         buf.push(self.bits_descriptor());

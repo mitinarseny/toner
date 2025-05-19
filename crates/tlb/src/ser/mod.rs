@@ -10,10 +10,10 @@ use std::{rc::Rc, sync::Arc};
 use impl_tools::autoimpl;
 
 use crate::{
+    Cell, ResultExt,
+    r#as::{Ref, Same},
     bits::ser::BitWriterExt,
     either::Either,
-    r#as::{Ref, Same},
-    Cell, ResultExt,
 };
 
 /// A type that can be **ser**ilalized into [`CellBuilder`].

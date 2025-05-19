@@ -1,6 +1,6 @@
 use crate::{
-    de::{r#as::CellDeserializeAs, CellParser, CellParserError},
-    ser::{r#as::CellSerializeAs, CellBuilder, CellBuilderError},
+    de::{CellParser, CellParserError, r#as::CellDeserializeAs},
+    ser::{CellBuilder, CellBuilderError, r#as::CellSerializeAs},
 };
 
 pub use crate::bits::r#as::DefaultOnNone;

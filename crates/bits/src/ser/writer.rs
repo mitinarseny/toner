@@ -2,14 +2,14 @@ use ::bitvec::{order::Msb0, slice::BitSlice, store::BitStore, vec::BitVec};
 use impl_tools::autoimpl;
 
 use crate::{
-    adapters::{BitCounter, MapErr, Tee},
     Error, ResultExt, StringError,
+    adapters::{BitCounter, MapErr, Tee},
 };
 
 use super::{
-    args::{r#as::BitPackAsWithArgs, BitPackWithArgs},
-    r#as::BitPackAs,
     BitPack,
+    args::{BitPackWithArgs, r#as::BitPackAsWithArgs},
+    r#as::BitPackAs,
 };
 
 /// Bitwise writer.
@@ -411,6 +411,23 @@ where
         Ok(())
     }
 }
+
+// TODO
+// impl<S> BitWriter for &mut BitSlice<S, Msb0>
+// where
+//     S: BitStore,
+// {
+//     type Error = StringError;
+
+//     #[inline]
+//     fn capacity_left(&self) -> usize {
+//         self.len()
+//     }
+
+//     fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error> {
+//         self
+//     }
+// }
 
 /// Binary string, e.g. `"0010110...."`
 impl BitWriter for String {

@@ -1,7 +1,7 @@
 use core::mem::MaybeUninit;
 use std::{rc::Rc, sync::Arc};
 
-use crate::{either::Either, r#as::AsWrap, ResultExt};
+use crate::{ResultExt, r#as::AsWrap, either::Either};
 
 use super::{CellDeserialize, CellParser, CellParserError};
 
