@@ -1,7 +1,7 @@
 use bitvec::{mem::bits_of, order::Msb0, vec::BitVec};
 use num_bigint::BigUint;
-use tlb::{
-    Cell, Error,
+use tlb_ton::{
+    Cell, Error, MsgAddress,
     r#as::{EitherInlineOrRef, ParseFully, Ref, Same},
     bits::{
         r#as::{Remainder, VarInt},
@@ -13,7 +13,6 @@ use tlb::{
     either::Either,
     ser::{CellBuilder, CellBuilderError, CellSerialize},
 };
-use tlb_ton::MsgAddress;
 
 /// Jetton Transfer message from [TEP-74](https://github.com/ton-blockchain/TEPs/blob/master/text/0074-jettons-standard.md#tl-b-schema)
 /// ```tlb

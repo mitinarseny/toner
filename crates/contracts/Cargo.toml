@@ -1,6 +1,6 @@
 [package]
 name = "ton-contracts"
-version = "0.4.0"
+version = "0.4.1"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -9,8 +9,7 @@ categories.workspace = true
 description = "Bindings for common smart-contracts on TON blockchain"
 
 [dependencies]
-tlb = { workspace = true, features = ["base64"] }
-tlb-ton.workspace = true
+tlb-ton = { workspace = true, features = ["base64"] }
 
 anyhow.workspace = true
 bitvec.workspace = true
