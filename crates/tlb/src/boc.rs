@@ -5,10 +5,11 @@ use std::{
     sync::Arc,
 };
 
-use base64::{Engine, engine::general_purpose::STANDARD};
+use bitvec::mem::bits_of;
 use crc::Crc;
-use tlb::{
-    Cell, Error, ResultExt, StringError,
+
+use crate::{
+    Cell, Context, Error, StringError,
     bits::{
         r#as::{NBits, VarNBytes},
         bitvec::{order::Msb0, vec::BitVec, view::AsBits},
@@ -27,15 +28,14 @@ pub type BoC = BagOfCells;
 /// # use tlb::{
 /// #     r#as::Data,
 /// #     bits::{de::unpack_fully, ser::{BitWriterExt, pack_with}},
-/// #     Cell,
+/// #     BagOfCells, BagOfCellsArgs, Cell,
 /// #     ser::CellSerializeExt,
 /// #     StringError,
 /// # };
-/// # use tlb_ton::{boc::{BagOfCells, BagOfCellsArgs}, MsgAddress};
 /// # fn main() -> Result<(), StringError> {
-/// let addr = MsgAddress::NULL;
+/// let data: u32 = 1234;
 /// let mut builder = Cell::builder();
-/// builder.pack(addr)?;
+/// builder.pack(data)?;
 /// let root = builder.into_cell();
 ///
 /// let boc = BagOfCells::from_root(root);
@@ -45,12 +45,12 @@ pub type BoC = BagOfCells;
 /// })?;
 ///
 /// let unpacked: BagOfCells = unpack_fully(packed)?;
-/// let got: MsgAddress = unpacked
+/// let got: u32 = unpacked
 ///     .single_root()
 ///     .unwrap()
 ///     .parse_fully_as::<_, Data>()?;
 ///
-/// assert_eq!(got, addr);
+/// assert_eq!(got, data);
 /// # Ok(())
 /// # }
 /// ```
@@ -81,6 +81,13 @@ impl BagOfCells {
         Some(root)
     }
 
+    /// Consume `self` and return single root or `None` otherwise
+    #[inline]
+    pub fn into_single_root(self) -> Option<Arc<Cell>> {
+        let [root] = self.roots.try_into().ok()?;
+        Some(root)
+    }
+
     /// Traverses all cells, fills all_cells set and inbound references map.
     fn traverse_cell_tree(
         cell: &Arc<Cell>,
@@ -99,16 +106,39 @@ impl BagOfCells {
         Ok(())
     }
 
-    /// Parse hexadecimal string
-    pub fn parse_hex(s: impl AsRef<[u8]>) -> Result<Self, StringError> {
-        let bytes = hex::decode(s).map_err(Error::custom)?;
+    pub fn serialize(&self, args: BagOfCellsArgs) -> Result<Vec<u8>, StringError> {
+        let mut buf = BitVec::new();
+        self.pack_with(&mut buf, args)?;
+        if buf.len() % bits_of::<u8>() != 0 {
+            return Err(Error::custom("data is not aligned"));
+        }
+        Ok(buf.into_vec())
+    }
+
+    /// Parse from bytes
+    #[inline]
+    pub fn deserialize(bytes: impl AsRef<[u8]>) -> Result<Self, StringError> {
         Self::unpack(bytes.as_bits())
     }
 
+    /// Parse hexadecimal string
+    #[inline]
+    pub fn parse_hex(s: impl AsRef<[u8]>) -> Result<Self, StringError> {
+        hex::decode(s)
+            .map_err(Error::custom)
+            .and_then(Self::deserialize)
+    }
+
     /// Parse base64-encoded string
+    #[cfg(feature = "base64")]
+    #[inline]
     pub fn parse_base64(s: impl AsRef<[u8]>) -> Result<Self, StringError> {
-        let bytes = STANDARD.decode(s).map_err(Error::custom)?;
-        Self::unpack(bytes.as_bits())
+        use base64::{Engine, engine::general_purpose::STANDARD};
+
+        STANDARD
+            .decode(s)
+            .map_err(Error::custom)
+            .and_then(Self::deserialize)
     }
 }
 
@@ -291,6 +321,15 @@ impl BitUnpack for BagOfCells {
                 .map(|r| cells[num_cells - 1 - r as usize].clone())
                 .collect(),
         })
+    }
+}
+
+impl TryFrom<Vec<u8>> for BagOfCells {
+    type Error = StringError;
+
+    #[inline]
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        Self::deserialize(value)
     }
 }
 

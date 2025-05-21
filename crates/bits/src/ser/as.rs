@@ -3,7 +3,7 @@ use std::{rc::Rc, sync::Arc};
 use bitvec::{order::Msb0, vec::BitVec};
 use either::Either;
 
-use crate::{ResultExt, StringError, r#as::AsWrap};
+use crate::{Context, StringError, r#as::AsWrap};
 
 use super::{BitPack, BitWriter, BitWriterExt};
 

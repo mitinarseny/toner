@@ -5,7 +5,7 @@ use std::{rc::Rc, sync::Arc};
 use either::Either;
 use impl_tools::autoimpl;
 
-use crate::{ResultExt, r#as::Same};
+use crate::{Context, r#as::Same};
 
 use super::{BitWriter, BitWriterExt};
 

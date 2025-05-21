@@ -1,6 +1,6 @@
 use std::{rc::Rc, sync::Arc};
 
-use crate::{ResultExt, r#as::AsWrap, either::Either};
+use crate::{Context, r#as::AsWrap, either::Either};
 
 use super::{CellBuilder, CellBuilderError, CellSerialize};
 

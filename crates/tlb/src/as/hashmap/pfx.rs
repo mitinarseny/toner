@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 
 use crate::{
-    Error, ResultExt,
+    Context, Error,
     r#as::{ParseFully, Ref, Same},
     bits::{
         bitvec::{order::Msb0, vec::BitVec},

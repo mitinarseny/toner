@@ -4,7 +4,7 @@ use std::{rc::Rc, sync::Arc};
 
 use impl_tools::autoimpl;
 
-use crate::{ResultExt, r#as::Same, bits::ser::BitWriterExt, either::Either};
+use crate::{Context, r#as::Same, bits::ser::BitWriterExt, either::Either};
 
 use super::{CellBuilder, CellBuilderError};
 

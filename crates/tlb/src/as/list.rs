@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 
 use crate::{
-    Cell, ResultExt,
+    Cell, Context,
     r#as::{Ref, Same},
     de::{CellParser, CellParserError, r#as::CellDeserializeAs},
     ser::{CellBuilder, CellBuilderError, r#as::CellSerializeAs},

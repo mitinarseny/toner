@@ -2,7 +2,7 @@ use ::bitvec::{order::Msb0, slice::BitSlice, store::BitStore, vec::BitVec};
 use impl_tools::autoimpl;
 
 use crate::{
-    Error, ResultExt, StringError,
+    Context, Error, StringError,
     adapters::{BitCounter, MapErr, Tee},
 };
 
@@ -411,23 +411,6 @@ where
         Ok(())
     }
 }
-
-// TODO
-// impl<S> BitWriter for &mut BitSlice<S, Msb0>
-// where
-//     S: BitStore,
-// {
-//     type Error = StringError;
-
-//     #[inline]
-//     fn capacity_left(&self) -> usize {
-//         self.len()
-//     }
-
-//     fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error> {
-//         self
-//     }
-// }
 
 /// Binary string, e.g. `"0010110...."`
 impl BitWriter for String {

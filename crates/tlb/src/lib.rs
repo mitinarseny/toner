@@ -134,13 +134,14 @@
 //! # }
 //! ```
 pub mod r#as;
+mod boc;
 mod cell;
 pub mod de;
 pub mod ser;
 
-pub use self::cell::*;
+pub use self::{boc::*, cell::*};
 
-pub use tlbits::{self as bits, Error, ResultExt, StringError, either};
+pub use tlbits::{self as bits, Context, Error, StringError, either};
 
 #[cfg(test)]
 mod tests;

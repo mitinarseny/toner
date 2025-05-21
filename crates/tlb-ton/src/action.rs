@@ -1,5 +1,5 @@
 use tlb::{
-    Cell, Error, ResultExt,
+    Cell, Context, Error,
     r#as::Ref,
     bits::{r#as::NBits, de::BitReaderExt, ser::BitWriterExt},
     de::{CellDeserialize, CellParser, CellParserError},

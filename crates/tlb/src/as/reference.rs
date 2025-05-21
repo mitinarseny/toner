@@ -3,7 +3,7 @@ use core::marker::PhantomData;
 use tlbits::{r#as::args::NoArgs, either::Either, ser::BitWriter};
 
 use crate::{
-    Cell, ResultExt,
+    Cell, Context,
     de::{
         CellParser, CellParserError, args::r#as::CellDeserializeAsWithArgs, r#as::CellDeserializeAs,
     },

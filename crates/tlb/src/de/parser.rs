@@ -1,7 +1,7 @@
 use core::{iter, mem};
 use std::sync::Arc;
 
-use tlbits::ResultExt;
+use tlbits::Context;
 
 use crate::{
     Cell, Error,

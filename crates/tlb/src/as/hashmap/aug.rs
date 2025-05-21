@@ -1,7 +1,7 @@
 use std::iter::once;
 
 use crate::{
-    Error, ResultExt,
+    Context, Error,
     r#as::{ParseFully, Ref, Same},
     bits::{
         bitvec::{order::Msb0, slice::BitSlice, vec::BitVec},

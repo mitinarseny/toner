@@ -12,7 +12,7 @@ use bitvec::{order::Msb0, slice::BitSlice, view::AsBits};
 use either::Either;
 
 use crate::{
-    Error, ResultExt, StringError,
+    Context, Error, StringError,
     r#as::{FromInto, Same},
 };
 

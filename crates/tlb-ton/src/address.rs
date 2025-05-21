@@ -9,7 +9,7 @@ use base64::{
 use crc::Crc;
 use strum::Display;
 use tlb::{
-    Error, ResultExt, StringError,
+    Context, Error, StringError,
     bits::{
         r#as::{NBits, VarBits},
         bitvec::{order::Msb0, vec::BitVec},

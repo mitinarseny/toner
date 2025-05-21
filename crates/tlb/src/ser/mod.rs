@@ -10,7 +10,7 @@ use std::{rc::Rc, sync::Arc};
 use impl_tools::autoimpl;
 
 use crate::{
-    Cell, ResultExt,
+    Cell, Context,
     r#as::{Ref, Same},
     bits::ser::BitWriterExt,
     either::Either,

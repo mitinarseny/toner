@@ -14,7 +14,7 @@ use either::Either;
 use impl_tools::autoimpl;
 
 use crate::{
-    ResultExt, StringError,
+    Context, StringError,
     r#as::{AsBytes, Same, args::NoArgs},
 };
 

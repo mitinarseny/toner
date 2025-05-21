@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    Cell, Error, ResultExt,
+    Cell, Context, Error,
     r#as::Ref,
     bits::{
         bitvec::{order::Msb0, slice::BitSlice, vec::BitVec},

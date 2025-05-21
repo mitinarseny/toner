@@ -1,10 +1,11 @@
 use core::iter;
 
 use ::bitvec::{order::Msb0, slice::BitSlice, view::AsMutBits};
+use bitvec::mem::bits_of;
 use impl_tools::autoimpl;
 
 use crate::{
-    Error, ResultExt, StringError,
+    Context, Error, StringError,
     adapters::{Join, MapErr, Tee},
     ser::BitWriter,
 };
@@ -70,7 +71,10 @@ pub trait BitReaderExt: BitReader {
     #[inline]
     fn read_bytes_array<const N: usize>(&mut self) -> Result<[u8; N], Self::Error> {
         let mut arr = [0; N];
-        self.read_bits_into(arr.as_mut_bits())?;
+        let n = self.read_bits_into(arr.as_mut_bits())?;
+        if n != N * bits_of::<u8>() {
+            return Err(Error::custom("EOF"));
+        }
         Ok(arr)
     }
 

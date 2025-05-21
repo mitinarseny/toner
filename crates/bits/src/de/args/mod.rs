@@ -7,7 +7,7 @@ use bitvec::{mem::bits_of, order::Msb0, vec::BitVec};
 use either::Either;
 
 use crate::{
-    Error, ResultExt,
+    Context, Error,
     r#as::{FromInto, Same},
 };
 
