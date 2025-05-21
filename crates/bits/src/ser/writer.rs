@@ -2,14 +2,14 @@ use ::bitvec::{order::Msb0, slice::BitSlice, store::BitStore, vec::BitVec};
 use impl_tools::autoimpl;
 
 use crate::{
+    Context, Error, StringError,
     adapters::{BitCounter, MapErr, Tee},
-    Error, ResultExt, StringError,
 };
 
 use super::{
-    args::{r#as::BitPackAsWithArgs, BitPackWithArgs},
-    r#as::BitPackAs,
     BitPack,
+    args::{BitPackWithArgs, r#as::BitPackAsWithArgs},
+    r#as::BitPackAs,
 };
 
 /// Bitwise writer.

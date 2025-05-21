@@ -1,18 +1,18 @@
 use core::marker::PhantomData;
 
-use tlb::{
+use crate::{
+    Context, Error,
+    r#as::{ParseFully, Ref, Same},
     bits::{
         bitvec::{order::Msb0, vec::BitVec},
         de::BitReaderExt,
         ser::BitWriterExt,
     },
-    de::{args::r#as::CellDeserializeAsWithArgs, CellParser, CellParserError},
-    r#as::{ParseFully, Ref, Same},
-    ser::{args::r#as::CellSerializeAsWithArgs, CellBuilder, CellBuilderError},
-    Error, ResultExt,
+    de::{CellParser, CellParserError, args::r#as::CellDeserializeAsWithArgs},
+    ser::{CellBuilder, CellBuilderError, args::r#as::CellSerializeAsWithArgs},
 };
 
-use super::{aug::HashmapAugNode, hm_label::HmLabel, Hashmap, HashmapE, HashmapNode};
+use super::{Hashmap, HashmapE, HashmapNode, aug::HashmapAugNode, hm_label::HmLabel};
 
 /// [`PfxHashmapE n X`](https://docs.ton.org/develop/data-formats/tl-b-types#pfxhashmap)
 /// ```tlb
@@ -32,9 +32,9 @@ where
     #[inline]
     fn store_as_with(
         source: &HashmapE<T>,
-        builder: &mut tlb::ser::CellBuilder,
+        builder: &mut CellBuilder,
         args: Self::Args,
-    ) -> Result<(), tlb::ser::CellBuilderError> {
+    ) -> Result<(), CellBuilderError> {
         match source {
             HashmapE::Empty => builder
                 // phme_empty$0
@@ -59,9 +59,9 @@ where
 
     #[inline]
     fn parse_as_with(
-        parser: &mut tlb::de::CellParser<'de>,
+        parser: &mut CellParser<'de>,
         (n, args): Self::Args,
-    ) -> Result<HashmapE<T>, tlb::de::CellParserError<'de>> {
+    ) -> Result<HashmapE<T>, CellParserError<'de>> {
         Ok(match parser.unpack()? {
             // hme_empty$0
             false => HashmapE::Empty,

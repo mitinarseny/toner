@@ -1,10 +1,10 @@
 use chrono::{DateTime, Utc};
 use tlb::{
-    bits::{
-        de::{r#as::BitUnpackAs, BitReader, BitReaderExt},
-        ser::{r#as::BitPackAs, BitWriter, BitWriterExt},
-    },
     Error,
+    bits::{
+        de::{BitReader, BitReaderExt, r#as::BitUnpackAs},
+        ser::{BitWriter, BitWriterExt, r#as::BitPackAs},
+    },
 };
 
 /// Adapter to **de**/**ser**ialize UNIX timestamp as `u32` from [`DateTime`]

@@ -1,8 +1,8 @@
 use core::marker::PhantomData;
 
 use crate::{
-    de::{args::r#as::BitUnpackAsWithArgs, r#as::BitUnpackAs, BitReader},
-    ser::{args::r#as::BitPackAsWithArgs, r#as::BitPackAs, BitWriter},
+    de::{BitReader, args::r#as::BitUnpackAsWithArgs, r#as::BitUnpackAs},
+    ser::{BitWriter, args::r#as::BitPackAsWithArgs, r#as::BitPackAs},
 };
 
 use super::Same;

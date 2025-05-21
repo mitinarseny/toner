@@ -3,10 +3,11 @@ pub mod aug;
 
 use std::ops::Deref;
 
-use tlb::bits::de::BitReaderExt;
-use tlb::de::args::r#as::CellDeserializeAsWithArgs;
-use tlb::de::{CellParser, CellParserError};
-use tlb::r#as::Ref;
+use crate::{
+    r#as::Ref,
+    bits::de::BitReaderExt,
+    de::{CellParser, CellParserError, args::r#as::CellDeserializeAsWithArgs},
+};
 
 /// [`BinTree X`](https://docs.ton.org/develop/data-formats/tl-b-types#bintree)
 /// ```tlb
@@ -128,11 +129,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::BinTree;
-    use tlb::bits::bitvec::bits;
-    use tlb::bits::bitvec::order::Msb0;
-    use tlb::r#as::{Data, NoArgs, Ref, Same};
-    use tlb::ser::r#as::CellSerializeWrapAsExt;
-    use tlb::ser::CellSerializeExt;
+    use crate::{
+        r#as::{Data, NoArgs, Ref, Same},
+        bits::bitvec::{bits, order::Msb0},
+        ser::{CellSerializeExt, r#as::CellSerializeWrapAsExt},
+    };
 
     #[test]
     fn bin_tree_leaf() {

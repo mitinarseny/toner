@@ -5,25 +5,30 @@
 //! [serde_with](https://docs.rs/serde_with/latest/serde_with).
 //! Please, read their docs for more usage examples.
 mod args;
+pub mod bin_tree;
 mod data;
 mod default;
 mod from_into;
 mod fully;
+pub mod hashmap;
+mod list;
 mod reference;
 mod same;
 
-pub use self::{args::*, data::*, default::*, from_into::*, fully::*, reference::*, same::*};
+pub use self::{
+    args::*, data::*, default::*, from_into::*, fully::*, list::*, reference::*, same::*,
+};
 
 use crate::{
     de::{
-        args::{r#as::CellDeserializeAsWithArgs, CellDeserializeWithArgs},
-        r#as::CellDeserializeAs,
         CellDeserialize, CellParser, CellParserError,
+        args::{CellDeserializeWithArgs, r#as::CellDeserializeAsWithArgs},
+        r#as::CellDeserializeAs,
     },
     ser::{
-        args::{r#as::CellSerializeAsWithArgs, CellSerializeWithArgs},
-        r#as::CellSerializeAs,
         CellBuilder, CellBuilderError, CellSerialize,
+        args::{CellSerializeWithArgs, r#as::CellSerializeAsWithArgs},
+        r#as::CellSerializeAs,
     },
 };
 

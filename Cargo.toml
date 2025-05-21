@@ -4,6 +4,7 @@ default-members = ["./crates/toner"]
 resolver = "2"
 
 [workspace.package]
+rust-version = "1.87"
 edition = "2024"
 repository = "https://github.com/mitinarseny/toner"
 keywords = ["ton", "tlb", "tl-b", "boc"]
@@ -11,16 +12,17 @@ categories = ["encoding"]
 license-file = "LICENSE.txt"
 
 [workspace.dependencies]
-tlb = { path = "./crates/tlb", version = "0.3.2" }
-tlbits = { path = "./crates/bits", version = "0.3.2" }
-tlb-ton = { path = "./crates/tlb-ton", version = "0.3.2" }
-ton-contracts = { path = "./crates/contracts", version = "0.3.4" }
-toner = { path = "./crates/toner", version = "0.3.4" }
+tlb = { path = "./crates/tlb", version = "0.4.0" }
+tlbits = { path = "./crates/bits", version = "0.4.0" }
+tlb-ton = { path = "./crates/tlb-ton", version = "0.4.0" }
+ton-contracts = { path = "./crates/contracts", version = "0.4.0" }
+toner = { path = "./crates/toner", version = "0.4.0" }
 
 anyhow = "1"
 base64 = "0.21"
 bitvec = "1"
 chrono = { version = "0.4", default-features = false }
+crc = "3"
 either = "1"
 hex = "0.4"
 hex-literal = "0.4"

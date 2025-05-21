@@ -1,17 +1,17 @@
 use core::{fmt::Display, marker::PhantomData};
 
 use crate::{
+    Error,
     de::{
-        args::{r#as::BitUnpackAsWithArgs, BitUnpackWithArgs},
-        r#as::BitUnpackAs,
         BitReader, BitUnpack,
+        args::{BitUnpackWithArgs, r#as::BitUnpackAsWithArgs},
+        r#as::BitUnpackAs,
     },
     ser::{
-        args::{r#as::BitPackAsWithArgs, BitPackWithArgs},
-        r#as::BitPackAs,
         BitPack, BitWriter,
+        args::{BitPackWithArgs, r#as::BitPackAsWithArgs},
+        r#as::BitPackAs,
     },
-    Error,
 };
 
 /// Serialize value by converting it to/from a proxy type

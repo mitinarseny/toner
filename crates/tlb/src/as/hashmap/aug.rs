@@ -1,23 +1,23 @@
 use std::iter::once;
 
-use impl_tools::autoimpl;
-use tlb::{
+use crate::{
+    Context, Error,
+    r#as::{ParseFully, Ref, Same},
     bits::{
         bitvec::{order::Msb0, slice::BitSlice, vec::BitVec},
         de::BitReaderExt,
         ser::BitWriterExt,
     },
     de::{
-        args::{r#as::CellDeserializeAsWithArgs, CellDeserializeWithArgs},
         CellParser, CellParserError,
+        args::{CellDeserializeWithArgs, r#as::CellDeserializeAsWithArgs},
     },
-    r#as::{ParseFully, Ref, Same},
     ser::{
-        args::{r#as::CellSerializeAsWithArgs, CellSerializeWithArgs},
         CellBuilder, CellBuilderError,
+        args::{CellSerializeWithArgs, r#as::CellSerializeAsWithArgs},
     },
-    Error, ResultExt,
 };
+use impl_tools::autoimpl;
 
 use super::hm_label::HmLabel;
 
@@ -691,13 +691,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{BTreeMap, HashMap};
-    use tlb::{
-        bits::bitvec::{bits, order::Msb0, view::AsBits},
-        r#as::{Data, NoArgs},
-        ser::{r#as::CellSerializeWrapAsExt, CellSerializeExt},
+    use crate::{
         Cell,
+        r#as::{Data, NoArgs},
+        bits::bitvec::{bits, order::Msb0, view::AsBits},
+        ser::{CellSerializeExt, r#as::CellSerializeWrapAsExt},
     };
+    use std::collections::{BTreeMap, HashMap};
 
     use super::*;
 

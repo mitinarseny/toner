@@ -1,8 +1,8 @@
 use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec, view::AsBits};
 
 use crate::{
-    de::{r#as::BitUnpackAs, BitReader, BitReaderExt},
-    ser::{r#as::BitPackAs, BitPack, BitWriter, BitWriterExt},
+    de::{BitReader, BitReaderExt, r#as::BitUnpackAs},
+    ser::{BitPack, BitWriter, BitWriterExt, r#as::BitPackAs},
 };
 
 use super::args::NoArgs;

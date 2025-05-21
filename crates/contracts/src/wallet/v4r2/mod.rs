@@ -6,15 +6,14 @@ use lazy_static::lazy_static;
 use nacl::sign::PUBLIC_KEY_LENGTH;
 use num_bigint::BigUint;
 use tlb::{
+    BagOfCells, Cell, Error,
+    r#as::{NoArgs, Ref, hashmap::HashmapE},
     bits::{de::BitReaderExt, ser::BitWriterExt},
     de::{CellDeserialize, CellParser, CellParserError},
-    r#as::{NoArgs, Ref},
     ser::{CellBuilder, CellBuilderError, CellSerialize},
-    Cell, Error,
 };
 use tlb_ton::{
-    action::SendMsgAction, boc::BagOfCells, currency::Grams, hashmap::HashmapE,
-    state_init::StateInit, MsgAddress, UnixTimestamp,
+    MsgAddress, UnixTimestamp, action::SendMsgAction, currency::Grams, state_init::StateInit,
 };
 
 use super::WalletVersion;
@@ -23,9 +22,8 @@ lazy_static! {
     static ref WALLET_V4R2_CODE_CELL: Arc<Cell> = {
         BagOfCells::parse_base64(include_str!("./wallet_v4r2.code"))
             .unwrap()
-            .single_root()
+            .into_single_root()
             .expect("code BoC must be single root")
-            .clone()
     };
 }
 
@@ -285,8 +283,10 @@ impl<'de> CellDeserialize<'de> for WalletV4R2ExternalBody {
 
 #[cfg(test)]
 mod tests {
-    use tlb::bits::{de::unpack_fully, ser::pack_with};
-    use tlb_ton::boc::{BagOfCellsArgs, BoC};
+    use tlb::{
+        BagOfCellsArgs, BoC,
+        bits::{de::unpack_fully, ser::pack_with},
+    };
 
     use super::*;
 

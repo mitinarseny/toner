@@ -6,7 +6,7 @@ use core::{
 use std::sync::Arc;
 
 use bitvec::{order::Msb0, vec::BitVec};
-use sha2::{Digest, Sha256};
+use sha2::{Digest, Sha256, digest::Output};
 
 use crate::{
     de::{
@@ -148,48 +148,48 @@ impl Cell {
     }
 
     /// [Standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#standard-cell-representation-hash-calculation)
-    fn repr(&self) -> Vec<u8> {
-        let mut buf = Vec::new();
-        buf.push(self.refs_descriptor());
-        buf.push(self.bits_descriptor());
+    pub fn hash_digest<D>(&self) -> [u8; 32]
+    where
+        D: Digest,
+        Output<D>: Into<[u8; 32]>,
+    {
+        let mut d = D::new();
+        d.update([self.refs_descriptor(), self.bits_descriptor()]);
 
         let rest_bits = self.data.len() % 8;
 
         if rest_bits == 0 {
-            buf.extend(self.data.as_raw_slice());
+            d.update(self.data.as_raw_slice());
         } else {
-            let (last, data) = self.data.as_raw_slice().split_last().unwrap();
-            buf.extend(data);
+            let (last, data) = self
+                .data
+                .as_raw_slice()
+                .split_last()
+                .unwrap_or_else(|| unreachable!());
+            d.update(data);
             let mut last = last & (!0u8 << (8 - rest_bits)); // clear the rest
             // let mut last = last;
             last |= 1 << (8 - rest_bits - 1); // put stop-bit
-            buf.push(last)
+            d.update([last])
         }
 
         // refs depth
-        buf.extend(
-            self.references
-                .iter()
-                .flat_map(|r| r.max_depth().to_be_bytes()),
-        );
+        for r in &self.references {
+            d.update(r.max_depth().to_be_bytes());
+        }
 
         // refs hashes
-        buf.extend(
-            self.references
-                .iter()
-                .map(Deref::deref)
-                .flat_map(Cell::hash),
-        );
+        for r in &self.references {
+            d.update(r.hash_digest::<D>());
+        }
 
-        buf
+        d.finalize().into()
     }
 
     /// Calculates [standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#cell-hash)
     #[inline]
     pub fn hash(&self) -> [u8; 32] {
-        let mut hasher = Sha256::new();
-        hasher.update(self.repr());
-        hasher.finalize().into()
+        self.hash_digest::<Sha256>()
     }
 }
 

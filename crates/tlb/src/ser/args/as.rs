@@ -1,8 +1,8 @@
 use std::{rc::Rc, sync::Arc};
 
 use crate::{
-    either::Either,
     r#as::{AsWrap, NoArgs},
+    either::Either,
 };
 
 use super::{

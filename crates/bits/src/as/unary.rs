@@ -1,9 +1,9 @@
 use num_traits::{ConstZero, One, ToPrimitive, Unsigned};
 
 use crate::{
-    de::{r#as::BitUnpackAs, BitReader},
-    ser::{r#as::BitPackAs, BitWriter, BitWriterExt},
     Error,
+    de::{BitReader, r#as::BitUnpackAs},
+    ser::{BitWriter, BitWriterExt, r#as::BitPackAs},
 };
 
 /// [`Unary ~n`](https://docs.ton.org/develop/data-formats/tl-b-types#unary)

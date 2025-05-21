@@ -1,13 +1,14 @@
 use tlb::{
-    bits::{de::BitReaderExt, r#as::NBits, ser::BitWriterExt},
-    de::{CellDeserialize, CellParser, CellParserError},
+    Cell, Context, Error,
     r#as::Ref,
+    bits::{r#as::NBits, de::BitReaderExt, ser::BitWriterExt},
+    de::{CellDeserialize, CellParser, CellParserError},
     ser::{CellBuilder, CellBuilderError, CellSerialize},
-    Cell, Error, ResultExt,
 };
 
 use crate::{currency::CurrencyCollection, library::LibRef, message::Message};
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OutAction {
     /// ```tlb

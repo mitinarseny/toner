@@ -9,10 +9,10 @@ use core::mem::{self, MaybeUninit};
 use std::{rc::Rc, sync::Arc};
 
 use crate::{
+    Cell, Context,
+    r#as::{FromInto, Same},
     bits::de::BitReaderExt,
     either::Either,
-    r#as::{FromInto, Same},
-    Cell, ResultExt,
 };
 
 /// A type that can be **de**serialized from [`CellParser`].

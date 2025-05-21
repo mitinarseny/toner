@@ -4,18 +4,15 @@ use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use nacl::sign::PUBLIC_KEY_LENGTH;
 use tlb::{
+    BagOfCells, Cell, Context, Error,
+    r#as::{Data, List, NoArgs, hashmap::HashmapE},
     bits::{de::BitReaderExt, ser::BitWriterExt},
     de::{CellDeserialize, CellParser, CellParserError},
-    r#as::{Data, NoArgs},
     ser::{CellBuilder, CellBuilderError, CellSerialize},
-    Cell, Error, ResultExt,
 };
 use tlb_ton::{
-    action::{OutAction, SendMsgAction},
-    boc::BagOfCells,
-    hashmap::HashmapE,
-    list::List,
     MsgAddress, UnixTimestamp,
+    action::{OutAction, SendMsgAction},
 };
 
 use super::WalletVersion;
@@ -24,9 +21,8 @@ lazy_static! {
     static ref WALLET_V5R1_CODE_CELL: Arc<Cell> = {
         BagOfCells::parse_base64(include_str!("./wallet_v5r1.code"))
             .unwrap()
-            .single_root()
+            .into_single_root()
             .expect("code BoC must be single root")
-            .clone()
     };
 }
 
@@ -114,7 +110,7 @@ impl<'de> CellDeserialize<'de> for WalletV5R1Data {
             wallet_id: parser.unpack()?,
             pubkey: parser.unpack()?,
             extensions: parser.parse_as_with::<_, HashmapE<Data<NoArgs<_>>, NoArgs<_>>>((
-                258,
+                256,
                 (),
                 (),
             ))?,
@@ -362,8 +358,10 @@ impl<'de> CellDeserialize<'de> for InternalExtensionWalletV5R1MsgBody {
 
 #[cfg(test)]
 mod tests {
-    use tlb::bits::{de::unpack_fully, ser::pack_with};
-    use tlb_ton::boc::{BagOfCellsArgs, BoC};
+    use tlb::{
+        BagOfCellsArgs, BoC,
+        bits::{de::unpack_fully, ser::pack_with},
+    };
 
     use super::*;
 

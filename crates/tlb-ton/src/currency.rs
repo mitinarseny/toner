@@ -3,13 +3,11 @@ use lazy_static::lazy_static;
 use num_bigint::BigUint;
 use num_traits::One;
 use tlb::{
-    bits::{de::BitReaderExt, r#as::VarInt, ser::BitWriterExt},
+    r#as::{Data, NoArgs, hashmap::HashmapE},
+    bits::{r#as::VarInt, de::BitReaderExt, ser::BitWriterExt},
     de::{CellDeserialize, CellParser, CellParserError},
-    r#as::{Data, NoArgs},
     ser::{CellBuilder, CellBuilderError, CellSerialize},
 };
-
-use crate::hashmap::HashmapE;
 
 lazy_static! {
     /// 1 gram (nano-TON)

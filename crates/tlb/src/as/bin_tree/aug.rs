@@ -1,8 +1,8 @@
-use tlb::{
-    bits::{de::BitReaderExt, ser::BitWriterExt},
-    de::{args::r#as::CellDeserializeAsWithArgs, CellParser, CellParserError},
+use crate::{
     r#as::{ParseFully, Ref},
-    ser::{args::r#as::CellSerializeAsWithArgs, CellBuilder, CellBuilderError},
+    bits::{de::BitReaderExt, ser::BitWriterExt},
+    de::{CellParser, CellParserError, args::r#as::CellDeserializeAsWithArgs},
+    ser::{CellBuilder, CellBuilderError, args::r#as::CellSerializeAsWithArgs},
 };
 
 /// [`BinTreeAug X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#bintree)  

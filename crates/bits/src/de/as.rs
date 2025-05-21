@@ -4,7 +4,7 @@ use std::{rc::Rc, sync::Arc};
 use bitvec::{order::Msb0, slice::BitSlice, view::AsBits};
 use either::Either;
 
-use crate::{r#as::AsWrap, Error, ResultExt, StringError};
+use crate::{Context, Error, StringError, r#as::AsWrap};
 
 use super::{BitReader, BitReaderExt, BitUnpack};
 

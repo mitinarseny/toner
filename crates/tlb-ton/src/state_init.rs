@@ -1,18 +1,16 @@
 //! Collection of types related to [StateInit](https://docs.ton.org/develop/data-formats/msg-tlb#stateinit-tl-b)
 use impl_tools::autoimpl;
 use tlb::{
+    Cell,
+    r#as::{NoArgs, ParseFully, Ref, hashmap::HashmapE},
     bits::{
-        de::{BitReader, BitReaderExt, BitUnpack},
         r#as::NBits,
+        de::{BitReader, BitReaderExt, BitUnpack},
         ser::{BitPack, BitWriter, BitWriterExt},
     },
     de::{CellDeserialize, CellParser, CellParserError},
-    r#as::{NoArgs, ParseFully, Ref},
     ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
-    Cell,
 };
-
-use crate::hashmap::HashmapE;
 
 /// [StateInit](https://docs.ton.org/develop/data-formats/msg-tlb#stateinit-tl-b)
 /// ```tlb

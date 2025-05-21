@@ -8,9 +8,9 @@ use num_bigint::{BigInt, BigUint};
 use num_traits::{PrimInt, ToBytes};
 
 use crate::{
-    de::{args::r#as::BitUnpackAsWithArgs, r#as::BitUnpackAs, BitReader, BitReaderExt},
-    ser::{args::r#as::BitPackAsWithArgs, r#as::BitPackAs, BitWriter, BitWriterExt},
     Error,
+    de::{BitReader, BitReaderExt, args::r#as::BitUnpackAsWithArgs, r#as::BitUnpackAs},
+    ser::{BitWriter, BitWriterExt, args::r#as::BitPackAsWithArgs, r#as::BitPackAs},
 };
 
 use super::{NBits, VarBytes};

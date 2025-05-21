@@ -3,8 +3,8 @@ use core::fmt::Debug;
 use crate::{
     de::r#as::CellDeserializeAsOwned,
     ser::{
-        r#as::{CellSerializeAs, CellSerializeWrapAsExt},
         CellSerializeExt,
+        r#as::{CellSerializeAs, CellSerializeWrapAsExt},
     },
 };
 
