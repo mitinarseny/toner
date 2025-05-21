@@ -12,14 +12,11 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use num_bigint::BigUint;
-use tlb::{
-    Cell,
-    ser::{CellBuilderError, CellSerializeExt},
-};
 use tlb_ton::{
-    MsgAddress,
+    Cell, MsgAddress,
     action::SendMsgAction,
     message::{CommonMsgInfo, ExternalInMsgInfo, Message},
+    ser::{CellBuilderError, CellSerializeExt},
     state_init::StateInit,
 };
 
@@ -123,8 +120,8 @@ where
     ///
     /// ```rust
     /// # use hex_literal::hex;
-    /// # use tlb::Cell;
     /// # use tlb_ton::{
+    /// #   Cell,
     /// #   message::Message,
     /// #   currency::ONE_TON,
     /// #   action::SendMsgAction,

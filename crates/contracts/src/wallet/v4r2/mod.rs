@@ -5,15 +5,15 @@ use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use nacl::sign::PUBLIC_KEY_LENGTH;
 use num_bigint::BigUint;
-use tlb::{
-    BagOfCells, Cell, Error,
+use tlb_ton::{
+    BagOfCells, Cell, Error, MsgAddress, UnixTimestamp,
+    action::SendMsgAction,
     r#as::{NoArgs, Ref, hashmap::HashmapE},
     bits::{de::BitReaderExt, ser::BitWriterExt},
+    currency::Grams,
     de::{CellDeserialize, CellParser, CellParserError},
     ser::{CellBuilder, CellBuilderError, CellSerialize},
-};
-use tlb_ton::{
-    MsgAddress, UnixTimestamp, action::SendMsgAction, currency::Grams, state_init::StateInit,
+    state_init::StateInit,
 };
 
 use super::WalletVersion;
@@ -283,7 +283,7 @@ impl<'de> CellDeserialize<'de> for WalletV4R2ExternalBody {
 
 #[cfg(test)]
 mod tests {
-    use tlb::{
+    use tlb_ton::{
         BagOfCellsArgs, BoC,
         bits::{de::unpack_fully, ser::pack_with},
     };

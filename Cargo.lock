@@ -723,7 +723,7 @@ dependencies = [
 
 [[package]]
 name = "tlb-ton"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "base64 0.21.7",
  "chrono",
@@ -753,7 +753,7 @@ dependencies = [
 
 [[package]]
 name = "ton-contracts"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "bitvec",
@@ -765,13 +765,12 @@ dependencies = [
  "num-bigint",
  "pbkdf2",
  "sha2",
- "tlb",
  "tlb-ton",
 ]
 
 [[package]]
 name = "toner"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "tlb",
  "tlb-ton",

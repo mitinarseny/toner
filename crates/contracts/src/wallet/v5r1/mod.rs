@@ -3,16 +3,13 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use nacl::sign::PUBLIC_KEY_LENGTH;
-use tlb::{
-    BagOfCells, Cell, Context, Error,
+use tlb_ton::{
+    BagOfCells, Cell, Context, Error, MsgAddress, UnixTimestamp,
+    action::{OutAction, SendMsgAction},
     r#as::{Data, List, NoArgs, hashmap::HashmapE},
     bits::{de::BitReaderExt, ser::BitWriterExt},
     de::{CellDeserialize, CellParser, CellParserError},
     ser::{CellBuilder, CellBuilderError, CellSerialize},
-};
-use tlb_ton::{
-    MsgAddress, UnixTimestamp,
-    action::{OutAction, SendMsgAction},
 };
 
 use super::WalletVersion;
@@ -358,7 +355,7 @@ impl<'de> CellDeserialize<'de> for InternalExtensionWalletV5R1MsgBody {
 
 #[cfg(test)]
 mod tests {
-    use tlb::{
+    use tlb_ton::{
         BagOfCellsArgs, BoC,
         bits::{de::unpack_fully, ser::pack_with},
     };

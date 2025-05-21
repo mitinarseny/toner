@@ -8,3 +8,5 @@ pub mod state_init;
 mod timestamp;
 
 pub use self::{address::*, timestamp::*};
+
+pub use tlb::*;
