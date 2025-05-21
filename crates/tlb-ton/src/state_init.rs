@@ -103,8 +103,8 @@ where
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TickTock {
-    tick: bool,
-    tock: bool,
+    pub tick: bool,
+    pub tock: bool,
 }
 
 impl BitPack for TickTock {
