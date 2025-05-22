@@ -25,6 +25,7 @@ use crate::{
 /// init:(Maybe (Either StateInit ^StateInit))
 /// body:(Either X ^X) = Message X;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Message<T = Cell, IC = Cell, ID = Cell> {
     pub info: CommonMsgInfo,
@@ -105,6 +106,7 @@ where
 }
 
 /// `info` field for [`Message`]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommonMsgInfo {
     /// ```tlb
@@ -178,6 +180,7 @@ impl<'de> CellDeserialize<'de> for CommonMsgInfo {
 /// value:CurrencyCollection ihr_fee:Grams fwd_fee:Grams
 /// created_lt:uint64 created_at:uint32 = CommonMsgInfo;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InternalMsgInfo {
     /// Hyper cube routing flag.
@@ -264,6 +267,7 @@ impl<'de> CellDeserialize<'de> for InternalMsgInfo {
 /// ext_in_msg_info$10 src:MsgAddressExt dest:MsgAddressInt
 /// import_fee:Grams = CommonMsgInfo;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExternalInMsgInfo {
     pub src: MsgAddress,
@@ -302,6 +306,7 @@ impl BitUnpack for ExternalInMsgInfo {
 /// ext_out_msg_info$11 src:MsgAddressInt dest:MsgAddressExt
 /// created_lt:uint64 created_at:uint32 = CommonMsgInfo;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExternalOutMsgInfo {
     pub src: MsgAddress,

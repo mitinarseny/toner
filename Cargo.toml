@@ -1,7 +1,7 @@
 [workspace]
 members = ["./crates/*"]
 default-members = ["./crates/toner"]
-resolver = "2"
+resolver = "3"
 
 [workspace.package]
 rust-version = "1.87"
@@ -12,13 +12,14 @@ categories = ["encoding"]
 license-file = "LICENSE.txt"
 
 [workspace.dependencies]
-tlb = { path = "./crates/tlb", version = "0.4.0" }
+tlb = { path = "./crates/tlb", version = "0.4.3" }
 tlbits = { path = "./crates/bits", version = "0.4.0" }
-tlb-ton = { path = "./crates/tlb-ton", version = "0.4.2" }
-ton-contracts = { path = "./crates/contracts", version = "0.4.2" }
-toner = { path = "./crates/toner", version = "0.4.2" }
+tlb-ton = { path = "./crates/tlb-ton", version = "0.4.3" }
+ton-contracts = { path = "./crates/contracts", version = "0.4.3" }
+toner = { path = "./crates/toner", version = "0.4.3" }
 
 anyhow = "1"
+arbitrary = "1.4"
 base64 = "0.21"
 bitvec = "1"
 chrono = { version = "0.4", default-features = false }

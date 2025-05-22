@@ -1,6 +1,6 @@
 [package]
 name = "tlb-ton"
-version = "0.4.2"
+version = "0.4.3"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -11,6 +11,7 @@ description = "Common TL-B types for TON blockchain"
 [dependencies]
 tlb.workspace = true
 
+arbitrary = { workspace = true, features = ["derive"], optional = true }
 base64.workspace = true
 chrono.workspace = true
 crc.workspace = true
@@ -23,8 +24,15 @@ serde_with = { workspace = true, optional = true }
 strum.workspace = true
 
 [features]
-serde = ["dep:serde_with"]
+arbitrary = [
+    "dep:arbitrary",
+    "chrono/arbitrary",
+    "chrono/std",
+    "num-bigint/arbitrary",
+    "tlb/arbitrary",
+]
 base64 = ["tlb/base64"]
+serde = ["dep:serde_with"]
 
 [dev-dependencies]
 serde_json = "1"

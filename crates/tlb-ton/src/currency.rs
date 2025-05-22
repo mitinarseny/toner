@@ -32,9 +32,11 @@ pub type Grams = Coins;
 /// ```tlb
 /// currencies$_ grams:Grams other:ExtraCurrencyCollection = CurrencyCollection;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct CurrencyCollection {
     pub grams: BigUint,
+    #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     pub other: ExtraCurrencyCollection,
 }
 

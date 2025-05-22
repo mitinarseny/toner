@@ -10,6 +10,7 @@ use tlb::{
 /// libref_hash$0 lib_hash:bits256 = LibRef;
 /// libref_ref$1 library:^Cell = LibRef;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LibRef<R = Cell> {
     Hash([u8; 32]),

@@ -21,6 +21,8 @@ use tlb_ton::{
 /// forward_ton_amount:(VarUInteger 16) forward_payload:(Either Cell ^Cell)
 /// = InternalMsgBody;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JettonTransfer<P = Cell, F = Cell> {
     pub query_id: u64,
     pub amount: BigUint,
@@ -90,6 +92,8 @@ where
     }
 }
 
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ForwardPayload<T = Cell> {
     Data(T),
     Comment(ForwardPayloadComment),
@@ -130,6 +134,8 @@ where
     }
 }
 
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ForwardPayloadComment {
     Text(String),
     Binary(Vec<u8>),
@@ -178,6 +184,8 @@ impl BitUnpack for ForwardPayloadComment {
 /// sender:MsgAddress forward_payload:(Either Cell ^Cell)
 /// = InternalMsgBody;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JettonTransferNotification<P = Cell> {
     pub query_id: u64,
     pub amount: BigUint,
@@ -225,6 +233,8 @@ where
 /// response_destination:MsgAddress custom_payload:(Maybe ^Cell)
 /// = InternalMsgBody;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JettonBurn<P = Cell> {
     pub query_id: u64,
     pub amount: BigUint,

@@ -2,6 +2,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt::Debug,
+    ops::Div,
     sync::Arc,
 };
 
@@ -54,7 +55,7 @@ pub type BoC = BagOfCells;
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BagOfCells {
     roots: Vec<Arc<Cell>>,
 }
@@ -149,6 +150,7 @@ impl Debug for BagOfCells {
 }
 
 /// [`BitPackWithArgs::Args`] for [`BagOfCells`]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BagOfCellsArgs {
     pub has_idx: bool,
@@ -332,6 +334,27 @@ impl TryFrom<Vec<u8>> for BagOfCells {
         Self::deserialize(value)
     }
 }
+
+#[cfg(any(feature = "arbitrary", test))]
+const _: () = {
+    use arbitrary::{Arbitrary, Result, Unstructured};
+
+    impl<'a> Arbitrary<'a> for BagOfCells {
+        #[inline]
+        fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+            Cell::arbitrary(u).map(Self::from_root)
+        }
+
+        #[inline]
+        fn size_hint(depth: usize) -> (usize, Option<usize>) {
+            Cell::size_hint(depth)
+        }
+
+        fn arbitrary_take_rest(u: Unstructured<'a>) -> Result<Self> {
+            Cell::arbitrary_take_rest(u).map(Self::from_root)
+        }
+    }
+};
 
 const CRC_32_ISCSI: Crc<u32> = Crc::<u32>::new(&crc::CRC_32_ISCSI);
 
@@ -576,8 +599,7 @@ impl BitPackWithArgs for RawCell {
 
         let padding_bits = self.data.len() % 8;
         let full_bytes = padding_bits == 0;
-        let data_bytes = self.data.len().div_ceil(8);
-        let bits_descriptor: u8 = data_bytes as u8 * 2 - if full_bytes { 0 } else { 1 }; // subtract 1 if the last byte is not full
+        let bits_descriptor: u8 = self.data.len().div(8) as u8 + self.data.len().div_ceil(8) as u8;
         writer.pack(bits_descriptor)?;
 
         writer.pack(self.data.as_bitslice())?;

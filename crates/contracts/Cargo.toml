@@ -1,6 +1,6 @@
 [package]
 name = "ton-contracts"
-version = "0.4.2"
+version = "0.4.3"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -12,6 +12,7 @@ description = "Bindings for common smart-contracts on TON blockchain"
 tlb-ton = { workspace = true, features = ["base64"] }
 
 anyhow.workspace = true
+arbitrary = { workspace = true, features = ["derive"], optional = true }
 bitvec.workspace = true
 chrono.workspace = true
 lazy_static.workspace = true
@@ -25,8 +26,16 @@ sha2 = { version = "0.10", optional = true }
 
 [features]
 default = ["wallet", "jetton"]
-wallet = ["dep:nacl", "dep:hmac", "dep:sha2", "dep:pbkdf2"]
+
+arbitrary = [
+    "dep:arbitrary",
+    "chrono/arbitrary",
+    "chrono/std",
+    "num-bigint/arbitrary",
+    "tlb-ton/arbitrary",
+]
 jetton = []
+wallet = ["dep:nacl", "dep:hmac", "dep:sha2", "dep:pbkdf2"]
 
 [dev-dependencies]
 hex-literal.workspace = true

@@ -36,11 +36,12 @@ const CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
 /// _ _:MsgAddressInt = MsgAddress;
 /// _ _:MsgAddressExt = MsgAddress;
 /// ```
-#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(
     feature = "serde",
     derive(::serde_with::SerializeDisplay, ::serde_with::DeserializeFromStr)
 )]
+#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MsgAddress {
     pub workchain_id: i32,
     pub address: [u8; 32],

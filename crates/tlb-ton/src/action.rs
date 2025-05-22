@@ -9,6 +9,7 @@ use tlb::{
 use crate::{currency::CurrencyCollection, library::LibRef, message::Message};
 
 #[allow(clippy::large_enum_variant)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OutAction {
     /// ```tlb
@@ -80,6 +81,7 @@ impl<'de> CellDeserialize<'de> for OutAction {
 /// ```tlb
 /// action_send_msg#0ec3c86d mode:(## 8) out_msg:^(MessageRelaxed Any) = OutAction;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SendMsgAction<T = Cell, IC = Cell, ID = Cell> {
     /// See <https://docs.ton.org/develop/func/stdlib#send_raw_message>
@@ -118,6 +120,7 @@ where
 /// ```tlb
 /// action_reserve_currency#36e6b809 mode:(## 8) currency:CurrencyCollection = OutAction;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReserveCurrencyAction {
     pub mode: u8,
@@ -145,6 +148,7 @@ impl<'de> CellDeserialize<'de> for ReserveCurrencyAction {
 /// ```tlb
 /// action_change_library#26fa1dd4 mode:(## 7) libref:LibRef = OutAction;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChangeLibraryAction<R = Cell> {
     pub mode: u8,

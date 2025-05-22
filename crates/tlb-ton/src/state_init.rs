@@ -18,6 +18,7 @@ use tlb::{
 /// code:(Maybe ^Cell) data:(Maybe ^Cell)
 /// library:(HashmapE 256 SimpleLib) = StateInitWithLibs;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[autoimpl(Default)]
 pub struct StateInit<C = Cell, D = Cell> {
@@ -25,6 +26,7 @@ pub struct StateInit<C = Cell, D = Cell> {
     pub special: Option<TickTock>,
     pub code: Option<C>,
     pub data: Option<D>,
+    #[cfg_attr(feature = "arbitrary", arbitrary(default))] // TODO
     pub library: HashmapE<SimpleLib>,
 }
 
@@ -101,6 +103,7 @@ where
 /// ```tlb
 /// tick_tock$_ tick:Bool tock:Bool = TickTock;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TickTock {
     pub tick: bool,
@@ -135,6 +138,7 @@ impl BitUnpack for TickTock {
 /// ```tlb
 /// simple_lib$_ public:Bool root:^Cell = SimpleLib;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SimpleLib {
     pub public: bool,

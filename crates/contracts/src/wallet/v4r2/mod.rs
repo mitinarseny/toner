@@ -69,12 +69,14 @@ impl WalletVersion for V4R2 {
     }
 }
 
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV4R2Data {
     pub seqno: u32,
     pub wallet_id: u32,
     pub pubkey: [u8; PUBLIC_KEY_LENGTH],
     /// plugin address -> ()
+    #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     pub plugins: HashmapE<()>,
 }
 
@@ -107,6 +109,7 @@ impl<'de> CellDeserialize<'de> for WalletV4R2Data {
     }
 }
 
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV4R2SignBody {
     pub wallet_id: u32,
@@ -137,6 +140,7 @@ impl<'de> CellDeserialize<'de> for WalletV4R2SignBody {
     }
 }
 
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WalletV4R2Op {
     Send(Vec<SendMsgAction>),
@@ -186,6 +190,7 @@ impl<'de> CellDeserialize<'de> for WalletV4R2Op {
     }
 }
 
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV4R2OpDeployAndInstallPlugin<T = Cell, IC = Cell, ID = Cell> {
     pub plugin_workchain: i8,
@@ -226,6 +231,7 @@ where
     }
 }
 
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV4R2OpPlugin {
     pub plugin_address: MsgAddress,
@@ -257,6 +263,7 @@ impl<'de> CellDeserialize<'de> for WalletV4R2OpPlugin {
     }
 }
 
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV4R2ExternalBody {
     pub signature: [u8; 64],

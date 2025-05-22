@@ -24,6 +24,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
+name = "arbitrary"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dde20b3d026af13f561bdd0f15edf01fc734f0dafcedbaf42bba506a9517f223"
+dependencies = [
+ "derive_arbitrary",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -96,6 +105,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c469d952047f47f91b68d1cba3f10d63c11d73e4636f24f08daf0278abf01c4d"
 dependencies = [
  "android-tzdata",
+ "arbitrary",
  "iana-time-zone",
  "num-traits",
  "serde",
@@ -185,6 +195,17 @@ checksum = "9c9e6a11ca8224451684bc0d7d5a7adbf8f2fd6887261a1cfc3c0432f9d4068e"
 dependencies = [
  "powerfmt",
  "serde",
+]
+
+[[package]]
+name = "derive_arbitrary"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30542c1ad912e0e3d22a1935c290e12e8a29d704a420177a31faad4a601a0800"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -399,6 +420,7 @@ version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a5e44f723f1133c9deac646763579fdb3ac745e418f2a7af9cd0c431da1f20b9"
 dependencies = [
+ "arbitrary",
  "num-integer",
  "num-traits",
 ]
@@ -708,8 +730,9 @@ dependencies = [
 
 [[package]]
 name = "tlb"
-version = "0.4.0"
+version = "0.4.3"
 dependencies = [
+ "arbitrary",
  "base64 0.21.7",
  "bitvec",
  "crc",
@@ -723,8 +746,9 @@ dependencies = [
 
 [[package]]
 name = "tlb-ton"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
+ "arbitrary",
  "base64 0.21.7",
  "chrono",
  "crc",
@@ -753,9 +777,10 @@ dependencies = [
 
 [[package]]
 name = "ton-contracts"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
+ "arbitrary",
  "bitvec",
  "chrono",
  "hex-literal",
@@ -770,7 +795,7 @@ dependencies = [
 
 [[package]]
 name = "toner"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "tlb",
  "tlb-ton",

@@ -17,7 +17,7 @@ use crate::{
     ser::CellBuilder,
 };
 
-/// A [Cell](https://docs.ton.org/develop/data-formats/cell-boc#cell).  
+/// A [Cell](https://docs.ton.org/develop/data-formats/cell-boc#cell).
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct Cell {
     pub data: BitVec<u8, Msb0>,
@@ -212,6 +212,64 @@ impl Debug for Cell {
         f.debug_set().entries(&self.references).finish()
     }
 }
+
+#[cfg(any(feature = "arbitrary", test))]
+const _: () = {
+    use arbitrary::{Arbitrary, MaxRecursionReached, Result, Unstructured, size_hint};
+    use bitvec::mem::bits_of;
+
+    use crate::ser::{MAX_BITS_LEN, MAX_REFS_COUNT};
+
+    impl<'a> Arbitrary<'a> for Cell {
+        fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+            Ok(Self {
+                data: {
+                    let len_bytes = u
+                        .arbitrary_len::<u8>()?
+                        .min(MAX_BITS_LEN.div_ceil(bits_of::<u8>()));
+                    let bytes = u.bytes(len_bytes)?;
+                    let mut bits = BitVec::from_slice(bytes);
+                    bits.truncate(MAX_BITS_LEN);
+                    bits
+                },
+                references: u
+                    .arbitrary_iter()?
+                    .take(MAX_REFS_COUNT)
+                    .collect::<Result<_>>()?,
+            })
+        }
+
+        #[inline]
+        fn size_hint(depth: usize) -> (usize, Option<usize>) {
+            Self::try_size_hint(depth).unwrap_or_default()
+        }
+
+        fn try_size_hint(depth: usize) -> Result<(usize, Option<usize>), MaxRecursionReached> {
+            size_hint::try_recursion_guard(depth, |depth| {
+                Ok(size_hint::and(
+                    (0, Some(MAX_BITS_LEN / bits_of::<u8>())),
+                    <Vec<Arc<Self>> as Arbitrary>::size_hint(depth),
+                ))
+            })
+        }
+
+        fn arbitrary_take_rest(mut u: Unstructured<'a>) -> Result<Self> {
+            Ok(Self {
+                data: {
+                    let len_bytes = u.len().min(MAX_BITS_LEN.div_ceil(bits_of::<u8>()));
+                    let bytes = u.bytes(len_bytes)?;
+                    let mut bits = BitVec::from_slice(bytes);
+                    bits.truncate(MAX_BITS_LEN);
+                    bits
+                },
+                references: u
+                    .arbitrary_take_rest_iter()?
+                    .take(MAX_REFS_COUNT)
+                    .collect::<Result<_>>()?,
+            })
+        }
+    }
+};
 
 #[cfg(test)]
 mod tests {

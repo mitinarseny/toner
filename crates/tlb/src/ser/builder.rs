@@ -29,8 +29,8 @@ pub struct CellBuilder {
     references: Vec<Arc<Cell>>,
 }
 
-const MAX_BITS_LEN: usize = 1023;
-const MAX_REFS_COUNT: usize = 4;
+pub(crate) const MAX_BITS_LEN: usize = 1023;
+pub(crate) const MAX_REFS_COUNT: usize = 4;
 
 impl CellBuilder {
     #[inline]
