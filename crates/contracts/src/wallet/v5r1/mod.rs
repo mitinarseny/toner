@@ -73,12 +73,14 @@ impl WalletVersion for V5R1 {
     }
 }
 
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV5R1Data {
     pub is_signature_allowed: bool,
     pub seqno: u32,
     pub wallet_id: u32,
     pub pubkey: [u8; PUBLIC_KEY_LENGTH],
+    #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     pub extensions: HashmapE<bool>,
 }
 
@@ -118,6 +120,7 @@ impl<'de> CellDeserialize<'de> for WalletV5R1Data {
 /// ```tlb
 /// actions$_ out_actions:(Maybe OutList) has_other_actions:(## 1) {m:#} {n:#} other_actions:(ActionList n m) = InnerRequest;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV5R1InnerRequest {
     pub out_actions: Vec<OutAction>,
@@ -155,6 +158,7 @@ impl<'de> CellDeserialize<'de> for WalletV5R1InnerRequest {
 /// action_delete_ext#03 addr:MsgAddressInt = ExtendedAction;
 /// action_set_signature_auth_allowed#04 allowed:(## 1) = ExtendedAction;
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExtendedAction {
     /// ```tlb
@@ -216,9 +220,14 @@ impl<'de> CellDeserialize<'de> for ExtendedAction {
 ///  signature:    bits512      // 512
 ///= SignedRequest;             // Total: 688 .. 976 + ^Cell
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV5RSignBody {
     pub wallet_id: u32,
+    #[cfg_attr(
+        feature = "arbitrary",
+        arbitrary(with = UnixTimestamp::arbitrary)
+    )]
     pub valid_until: DateTime<Utc>,
     pub msg_seqno: u32,
     pub inner: WalletV5R1InnerRequest,
@@ -255,6 +264,7 @@ impl<'de> CellDeserialize<'de> for WalletV5RSignBody {
 ///  signature:    bits512      // 512
 ///= SignedRequest;             // Total: 688 .. 976 + ^Cell
 /// ```
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV5R1SignedRequest {
     pub body: WalletV5RSignBody,
@@ -277,6 +287,7 @@ impl<'de> CellDeserialize<'de> for WalletV5R1SignedRequest {
     }
 }
 
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WalletV5R1MsgBody {
     /// ```tlb
@@ -331,6 +342,7 @@ impl<'de> CellDeserialize<'de> for WalletV5R1MsgBody {
     }
 }
 
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InternalExtensionWalletV5R1MsgBody {
     query_id: u64,

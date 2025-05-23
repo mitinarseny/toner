@@ -1,6 +1,6 @@
 [package]
 name = "tlb-ton"
-version = "0.4.4"
+version = "0.4.5"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true

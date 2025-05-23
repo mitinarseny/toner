@@ -203,6 +203,10 @@ pub struct InternalMsgInfo {
     /// Logic time of sending message assigned by validator. Using for odering actions in smart contract.
     pub created_lt: u64,
     /// Unix time
+    #[cfg_attr(
+        feature = "arbitrary",
+        arbitrary(with = UnixTimestamp::arbitrary_option)
+    )]
     pub created_at: Option<DateTime<Utc>>,
 }
 
