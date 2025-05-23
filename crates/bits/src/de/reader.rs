@@ -342,3 +342,58 @@ impl BitReader for &BitSlice<u8, Msb0> {
         Ok(n)
     }
 }
+
+impl BitReader for &[bool] {
+    type Error = StringError;
+
+    #[inline]
+    fn bits_left(&self) -> usize {
+        self.len()
+    }
+
+    #[inline]
+    fn read_bit(&mut self) -> Result<Option<bool>, Self::Error> {
+        let Some((bit, rest)) = self.split_first() else {
+            return Ok(None);
+        };
+        *self = rest;
+        Ok(Some(*bit))
+    }
+
+    #[inline]
+    fn skip(&mut self, mut n: usize) -> Result<usize, Self::Error> {
+        n = n.min(self.bits_left());
+        let (_, rest) = self.split_at(n);
+        *self = rest;
+        Ok(n)
+    }
+}
+
+/// Binary string, e.g. `"0010110...."`
+impl BitReader for &str {
+    type Error = StringError;
+
+    #[inline]
+    fn bits_left(&self) -> usize {
+        self.len()
+    }
+
+    #[inline]
+    fn read_bit(&mut self) -> Result<Option<bool>, Self::Error> {
+        let Some((char, rest)) = self.split_at_checked(1) else {
+            return Ok(None);
+        };
+        let bit = match char {
+            "0" => false,
+            "1" => true,
+            _ => {
+                return Err(Error::custom(format!(
+                    "invalid character: expected '0' or '1', got: {}",
+                    char
+                )));
+            }
+        };
+        *self = rest;
+        Ok(Some(bit))
+    }
+}

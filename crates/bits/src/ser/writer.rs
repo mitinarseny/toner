@@ -412,6 +412,21 @@ where
     }
 }
 
+impl BitWriter for Vec<bool> {
+    type Error = StringError;
+
+    #[inline]
+    fn capacity_left(&self) -> usize {
+        usize::MAX - self.len()
+    }
+
+    #[inline]
+    fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error> {
+        self.push(bit);
+        Ok(())
+    }
+}
+
 /// Binary string, e.g. `"0010110...."`
 impl BitWriter for String {
     type Error = StringError;
