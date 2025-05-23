@@ -335,7 +335,7 @@ impl TryFrom<Vec<u8>> for BagOfCells {
     }
 }
 
-#[cfg(any(feature = "arbitrary", test))]
+#[cfg(feature = "arbitrary")]
 const _: () = {
     use arbitrary::{Arbitrary, Result, Unstructured};
 

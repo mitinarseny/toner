@@ -6,7 +6,7 @@ use core::{
 use std::sync::Arc;
 
 use bitvec::{order::Msb0, vec::BitVec};
-use sha2::{Digest, Sha256, digest::Output};
+use digest::{Digest, Output};
 
 use crate::{
     de::{
@@ -168,7 +168,6 @@ impl Cell {
                 .unwrap_or_else(|| unreachable!());
             d.update(data);
             let mut last = last & (!0u8 << (8 - rest_bits)); // clear the rest
-            // let mut last = last;
             last |= 1 << (8 - rest_bits - 1); // put stop-bit
             d.update([last])
         }
@@ -187,9 +186,10 @@ impl Cell {
     }
 
     /// Calculates [standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#cell-hash)
+    #[cfg(feature = "sha2")]
     #[inline]
     pub fn hash(&self) -> [u8; 32] {
-        self.hash_digest::<Sha256>()
+        self.hash_digest::<sha2::Sha256>()
     }
 }
 
@@ -213,7 +213,7 @@ impl Debug for Cell {
     }
 }
 
-#[cfg(any(feature = "arbitrary", test))]
+#[cfg(feature = "arbitrary")]
 const _: () = {
     use arbitrary::{Arbitrary, MaxRecursionReached, Result, Unstructured, size_hint};
     use bitvec::mem::bits_of;

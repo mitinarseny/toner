@@ -7,6 +7,7 @@ use base64::{
     Engine, engine::general_purpose::STANDARD_NO_PAD, engine::general_purpose::URL_SAFE_NO_PAD,
 };
 use crc::Crc;
+use digest::{Digest, Output};
 use strum::Display;
 use tlb::{
     Context, Error, StringError,
@@ -59,6 +60,7 @@ impl MsgAddress {
 
     /// [Derive](https://docs.ton.org/learn/overviews/addresses#address-of-smart-contract)
     /// [`MsgAddress`] of a smart-contract by its workchain and [`StateInit`]
+    #[cfg(feature = "sha2")]
     #[inline]
     pub fn derive<C, D>(
         workchain_id: i32,
@@ -68,9 +70,23 @@ impl MsgAddress {
         C: CellSerialize,
         D: CellSerialize,
     {
+        Self::derive_digest::<C, D, sha2::Sha256>(workchain_id, state_init)
+    }
+
+    #[inline]
+    pub fn derive_digest<C, D, H>(
+        workchain_id: i32,
+        state_init: StateInit<C, D>,
+    ) -> Result<Self, CellBuilderError>
+    where
+        C: CellSerialize,
+        D: CellSerialize,
+        H: Digest,
+        Output<H>: Into<[u8; 32]>,
+    {
         Ok(Self {
             workchain_id,
-            address: state_init.to_cell()?.hash(),
+            address: state_init.to_cell()?.hash_digest::<H>(),
         })
     }
 

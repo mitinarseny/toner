@@ -11,12 +11,15 @@ keywords = ["ton", "tlb", "tl-b", "boc"]
 categories = ["encoding"]
 license-file = "LICENSE.txt"
 
+[workspace.package.metadata.docs.rs]
+all-features = true
+
 [workspace.dependencies]
-tlb = { path = "./crates/tlb", version = "0.4.3" }
 tlbits = { path = "./crates/bits", version = "0.4.0" }
-tlb-ton = { path = "./crates/tlb-ton", version = "0.4.5" }
-ton-contracts = { path = "./crates/contracts", version = "0.4.5" }
-toner = { path = "./crates/toner", version = "0.4.5" }
+tlb = { path = "./crates/tlb", version = "0.4.6" }
+tlb-ton = { path = "./crates/tlb-ton", version = "0.4.6" }
+ton-contracts = { path = "./crates/contracts", version = "0.4.6" }
+toner = { path = "./crates/toner", version = "0.4.6" }
 
 anyhow = "1"
 arbitrary = "1.4"
@@ -24,6 +27,7 @@ base64 = "0.21"
 bitvec = "1"
 chrono = { version = "0.4", default-features = false }
 crc = "3"
+digest = { version = "0.10", default-features = false }
 either = "1"
 hex = "0.4"
 hex-literal = "0.4"
