@@ -43,6 +43,10 @@ const CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
 )]
 #[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MsgAddress {
+    #[cfg_attr(
+        feature = "arbitrary",
+        arbitrary(with = |u: &mut ::arbitrary::Unstructured| u.int_in_range(i8::MIN as i32..=i8::MAX as i32))
+    )]
     pub workchain_id: i32,
     pub address: [u8; 32],
 }
@@ -215,12 +219,14 @@ impl MsgAddress {
 }
 
 impl Debug for MsgAddress {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Display::fmt(self, f)
+        f.write_str(self.to_hex().as_str())
     }
 }
 
 impl Display for MsgAddress {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.to_base64_url().as_str())
     }

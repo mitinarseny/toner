@@ -746,7 +746,7 @@ dependencies = [
 
 [[package]]
 name = "tlb-ton"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "arbitrary",
  "base64 0.21.7",
@@ -777,7 +777,7 @@ dependencies = [
 
 [[package]]
 name = "ton-contracts"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -795,7 +795,7 @@ dependencies = [
 
 [[package]]
 name = "toner"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "tlb",
  "tlb-ton",
