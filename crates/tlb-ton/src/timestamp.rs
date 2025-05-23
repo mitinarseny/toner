@@ -1,4 +1,3 @@
-use arbitrary::Arbitrary;
 use chrono::{DateTime, Utc};
 use tlb::{
     Error,
@@ -28,6 +27,8 @@ impl UnixTimestamp {
     pub fn arbitrary_option(
         u: &mut ::arbitrary::Unstructured,
     ) -> ::arbitrary::Result<Option<DateTime<Utc>>> {
+        use arbitrary::Arbitrary;
+
         Option::<()>::arbitrary(u)?
             .map(|()| Self::arbitrary(u))
             .transpose()
