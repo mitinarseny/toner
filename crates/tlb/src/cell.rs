@@ -247,7 +247,7 @@ const _: () = {
         fn try_size_hint(depth: usize) -> Result<(usize, Option<usize>), MaxRecursionReached> {
             size_hint::try_recursion_guard(depth, |depth| {
                 Ok(size_hint::and(
-                    (0, Some(MAX_BITS_LEN / bits_of::<u8>())),
+                    (0, Some(MAX_BITS_LEN.div_ceil(bits_of::<u8>()))),
                     <Vec<Arc<Self>> as Arbitrary>::size_hint(depth),
                 ))
             })
