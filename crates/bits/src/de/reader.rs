@@ -1,12 +1,20 @@
 use core::iter;
+use std::{
+    io::{self, Read, Sink},
+    usize,
+};
 
 use ::bitvec::{order::Msb0, slice::BitSlice, view::AsMutBits};
-use bitvec::mem::bits_of;
+use bitvec::{
+    domain::Domain,
+    mem::bits_of,
+    view::{AsBits, BitView},
+};
 use impl_tools::autoimpl;
 
 use crate::{
     Context, Error, StringError,
-    adapters::{Join, MapErr, Tee},
+    adapters::{Io, Join, MapErr, Tee},
     ser::BitWriter,
 };
 
@@ -44,7 +52,7 @@ pub trait BitReader {
     /// Reads and discards `n` bits
     #[inline]
     fn skip(&mut self, n: usize) -> Result<usize, Self::Error> {
-        for i in 0..n {
+        for i in 1..=n {
             if self.read_bit()?.is_none() {
                 return Ok(i);
             }
@@ -395,5 +403,95 @@ impl BitReader for &str {
         };
         *self = rest;
         Ok(Some(bit))
+    }
+}
+
+impl<R, const BUF_LEN: usize> BitReader for Io<R, BUF_LEN>
+where
+    R: Read,
+{
+    type Error = io::Error;
+
+    #[inline]
+    fn bits_left(&self) -> usize {
+        usize::MAX
+    }
+
+    fn read_bit(&mut self) -> Result<Option<bool>, Self::Error> {
+        let stop = if self.buffer().is_empty() {
+            match self.io.read(self.buf.as_raw_mut_slice())? {
+                0 => return Ok(None),
+                1 => 0,
+                _ => unreachable!(),
+            }
+        } else {
+            let old_stop = self.buf.leading_zeros();
+            unsafe { self.buf.set_unchecked(old_stop, false) };
+            old_stop + 1
+        };
+        Ok(Some(unsafe {
+            // put stop-bit
+            self.buf.replace_unchecked(stop, true)
+        }))
+    }
+
+    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<usize, Self::Error> {
+        let (_, mut dst) = dst.split_at_mut(0);
+        let mut n = 0;
+
+        loop {
+            {
+                let buf = self.buffer();
+                let head;
+                (head, dst) = unsafe { dst.split_at_unchecked_mut(buf.len().min(dst.len())) };
+                head.clone_from_bitslice(&buf[..head.len()]);
+                n += self.buf_skip_at_most(head.len());
+            }
+            if dst.is_empty() {
+                return Ok(n);
+            }
+            // buff is empty here
+
+            if let Some((head, body, _tail)) = dst
+                .domain_mut()
+                .region()
+                .filter(|(_head, body, _tail)| !body.is_empty())
+            {
+                let bytes = self.io.read(body)?.min(body.len());
+                if bytes == 0 {
+                    return Ok(n);
+                }
+                let shift_to_head = head.map_or(0, |p| p.into_bitslice().len());
+                dst.shift_left(shift_to_head);
+                let read_bits = bytes * bits_of::<u8>();
+                dst = unsafe { dst.get_unchecked_mut(read_bits..) };
+                n += read_bits;
+                continue;
+            }
+
+            // this will populate the buffer
+            let Some(bit) = self.read_bit()? else {
+                return Ok(n);
+            };
+
+            let mut first;
+            (first, dst) = unsafe { dst.split_first_mut().unwrap_unchecked() };
+            *first = bit;
+            n += 1;
+        }
+    }
+
+    #[inline]
+    fn skip(&mut self, n: usize) -> Result<usize, Self::Error> {
+        let mut skipped = self.buf_skip_at_most(n);
+        skipped += io::copy(
+            &mut self.io.by_ref().take((n / bits_of::<u8>()) as u64),
+            &mut io::sink(),
+        )? as usize
+            * bits_of::<u8>();
+        while skipped < n && self.read_bit()?.is_some() {
+            skipped += 1;
+        }
+        Ok(skipped)
     }
 }
