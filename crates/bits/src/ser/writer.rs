@@ -1,15 +1,10 @@
-use std::{
-    io::{self, Read, Write},
-    mem, usize,
-};
-
 use ::bitvec::{order::Msb0, slice::BitSlice, store::BitStore, vec::BitVec};
-use bitvec::{domain::Domain, index::BitIdx, mem::bits_of};
+
 use impl_tools::autoimpl;
 
 use crate::{
     Context, Error, StringError,
-    adapters::{BitCounter, Io, MapErr, Tee},
+    adapters::{BitCounter, MapErr, Tee},
 };
 
 use super::{
@@ -447,51 +442,4 @@ impl BitWriter for String {
         self.push(if bit { '1' } else { '0' });
         Ok(())
     }
-}
-
-impl<W, const BUF_LEN: usize> BitWriter for Io<W, BUF_LEN>
-where
-    W: Write,
-{
-    type Error = io::Error;
-
-    #[inline]
-    fn capacity_left(&self) -> usize {
-        usize::MAX
-    }
-
-    #[inline]
-    fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error> {
-        if let Some(flush) = self.buf_put(bit) {
-            self.io.write_all(&flush)?;
-        }
-        Ok(())
-    }
-
-    // #[inline]
-    // fn write_bitslice(&mut self, bits: &BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
-    //     bits.ch
-    //     let first_flush = loop {
-    //         match self.buf_put(bit)
-    //     };
-    //     bits.read(buf);
-    //     let mut chunks = bits.chunks_exact(bits_of::<u8>());
-
-    //     match bits.domain() {
-    //         Domain::Enclave(partial_element) => todo!(),
-    //         Domain::Region { head, body, tail } => {
-    //             self.io.write_all(body)?;
-    //         }
-    //     }
-    //     Ok(())
-    // }
-
-    // #[inline]
-    // fn repeat_bit(&mut self, n: usize, bit: bool) -> Result<(), Self::Error> {
-    //     // TODO
-    //     for _ in 0..n {
-    //         self.write_bit(bit)?;
-    //     }
-    //     Ok(())
-    // }
 }
