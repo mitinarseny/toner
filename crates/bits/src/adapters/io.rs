@@ -1,11 +1,12 @@
 use std::{
+    fmt::Display,
     io::{self, Read, Write},
     mem,
 };
 
 use bitvec::{array::BitArray, mem::bits_of, order::Msb0, slice::BitSlice};
 
-use crate::{de::BitReader, ser::BitWriter};
+use crate::{Error, de::BitReader, ser::BitWriter};
 
 type Buffer = BitArray<[u8; 1], Msb0>;
 
@@ -266,5 +267,23 @@ where
             }
         }
         Ok(())
+    }
+}
+
+impl Error for io::Error {
+    #[inline]
+    fn custom<T>(msg: T) -> Self
+    where
+        T: Display,
+    {
+        Self::other(msg.to_string())
+    }
+
+    #[inline]
+    fn context<C>(self, context: C) -> Self
+    where
+        C: Display,
+    {
+        Self::new(self.kind(), format!("{context}: {self}"))
     }
 }
