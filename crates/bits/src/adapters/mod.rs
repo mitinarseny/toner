@@ -57,6 +57,3 @@ impl<T> BitCounter<T> {
 }
 
 pub struct Join<T1, T2>(pub T1, pub T2);
-
-// TODO
-pub struct Iter<T>(T);

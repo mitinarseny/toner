@@ -9,13 +9,43 @@ use crate::{de::BitReader, ser::BitWriter};
 
 type Buffer = BitArray<[u8; 1], Msb0>;
 
+/// Binary adaptor for [`io::Read`] and [`io::Write`] with bit-level granularity
+/// ```rust
+/// # use std::io;
+/// #
+/// # use tlbits::{
+/// #     adapters::Io,
+/// #     r#as::NBits,
+/// #     de::BitReaderExt,
+/// #     ser::BitWriterExt
+/// # };
+/// # fn main() -> Result<(), io::Error> {
+/// // pack
+/// let mut writer = Io::new(Vec::<u8>::new());
+/// writer.pack_as::<u8, NBits<7>>(123)?
+///     .pack(true)?;
+/// let buf = writer.into_inner().unwrap();
+///
+/// // unpack
+/// let mut reader = Io::new(buf.as_slice());
+/// let value1 = reader.unpack_as::<u8, NBits<7>>()?;
+/// let value2 = reader.unpack::<bool>()?;
+///
+/// # assert!(reader.buffered().is_empty());
+/// # assert_eq!(value1, 123);
+/// # assert_eq!(value2, true);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone, Default)]
 pub struct Io<T> {
-    pub(crate) io: T,
-    // TODO: docs
-    // 1|0 0.0 0 0 1 1
-    // 0 0 1|0 0 0 1 1
-    pub(crate) buf: Buffer,
+    /// Buffer for not-yet-consumed or not-yet-flushed data.
+    /// Bits are stored in [`Msb0`] order and populated from the right.
+    /// Left-most set bit denotes the end of buffer.
+    ///
+    /// For example, `0b00011` is stored as `0 0 1|0 0 0 1 1`.
+    buf: Buffer,
+    io: T,
 }
 
 impl<T> Io<T> {
@@ -24,21 +54,21 @@ impl<T> Io<T> {
     #[inline]
     pub fn new(io: T) -> Self {
         let mut s = Self {
-            io,
             buf: Buffer::ZERO,
+            io,
         };
         let _ = s.reset_buf();
         s
     }
 
     #[inline]
-    pub(crate) fn buffer(&self) -> &BitSlice<u8, Msb0> {
+    pub fn buffered(&self) -> &BitSlice<u8, Msb0> {
         unsafe { self.buf.get_unchecked(self.buf.leading_zeros() + 1..) }
     }
 
     #[inline]
     pub(crate) fn buffer_capacity_left(&self) -> usize {
-        self.buf.leading_zeros()
+        self.buf.leading_zeros() + 1
     }
 
     #[must_use]
@@ -64,10 +94,35 @@ impl<T> Io<T> {
         new_stop - old_stop
     }
 
-    // TODO: better API
+    #[must_use]
     #[inline]
     pub fn into_inner(self) -> Option<T> {
-        self.buffer().is_empty().then_some(self.io)
+        self.buffered()
+            .is_empty()
+            .then_some(self.into_inner_unchecked())
+    }
+
+    #[inline]
+    pub fn into_inner_unchecked(self) -> T {
+        self.io
+    }
+}
+
+impl<W> Io<W>
+where
+    W: Write,
+{
+    pub fn fill_up_buffer_and_flush(
+        &mut self,
+        fill_bit: bool,
+    ) -> Result<usize, <Self as BitWriter>::Error> {
+        Ok(if !self.buffered().is_empty() {
+            let n = self.buffer_capacity_left();
+            self.repeat_bit(n, fill_bit)?;
+            n
+        } else {
+            0
+        })
     }
 }
 
@@ -83,7 +138,7 @@ where
     }
 
     fn read_bit(&mut self) -> Result<Option<bool>, Self::Error> {
-        let stop = if self.buffer().is_empty() {
+        let stop = if self.buffered().is_empty() {
             match self.io.read(self.buf.as_raw_mut_slice())? {
                 0 => return Ok(None),
                 1 => 0,
@@ -103,7 +158,7 @@ where
     fn read_bits_into(&mut self, mut rest: &mut BitSlice<u8, Msb0>) -> Result<usize, Self::Error> {
         let init_len = rest.len();
         while !rest.is_empty() {
-            let buf = self.buffer();
+            let buf = self.buffered();
             if !buf.is_empty() {
                 let buf_n = buf.len().min(rest.len());
                 rest = unsafe {
@@ -171,7 +226,7 @@ where
 
     #[inline]
     fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error> {
-        let flush = self.buffer_capacity_left() == 0;
+        let flush = self.buffer_capacity_left() == 1;
         self.buf.shift_left(1);
         unsafe { self.buf.set_unchecked(Self::BUF_LEN - 1, bit) };
         if flush {
@@ -183,7 +238,7 @@ where
 
     fn write_bitslice(&mut self, mut bits: &BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
         while !bits.is_empty() {
-            if self.buffer().is_empty() {
+            if self.buffered().is_empty() {
                 if let Some(body) = bits
                     .domain()
                     .region()
@@ -195,8 +250,9 @@ where
                 }
             }
 
-            let n = bits.len().min(self.buffer_capacity_left() + 1);
-            let flush = n > self.buffer_capacity_left();
+            let buf_cap_left = self.buffer_capacity_left();
+            let n = bits.len().min(buf_cap_left);
+            let flush = n == buf_cap_left;
             self.buf.shift_left(n);
             bits = unsafe {
                 self.buf
@@ -204,36 +260,11 @@ where
                     .copy_from_bitslice(bits.get_unchecked(..n));
                 bits.get_unchecked(n..)
             };
-            if let Some(flush) = flush.then(|| self.reset_buf()) {
-                self.io.write_all(&flush)?;
+            if flush {
+                let buf = self.reset_buf();
+                self.io.write_all(&buf)?;
             }
         }
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{
-        r#as::{NBits, Same},
-        de::BitReaderExt,
-        ser::BitWriterExt,
-    };
-
-    use super::*;
-
-    #[test]
-    fn io() {
-        type T = (u64, bool);
-        type As = (NBits<63>, Same);
-        const VALUE: T = (0x7e40f1e8ceabc94d, true);
-
-        let mut buf = Io::new(Vec::<u8>::new());
-        buf.pack_as::<_, As>(VALUE).unwrap();
-        let buf = buf.into_inner().unwrap();
-
-        let mut buf = Io::new(buf.as_slice());
-        let got: T = buf.unpack_as::<_, As>().unwrap();
-        assert_eq!(got, VALUE);
     }
 }
