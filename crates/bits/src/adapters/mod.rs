@@ -1,4 +1,8 @@
 //! Adapters for [`BitReader`](crate::de::BitReader) / [`BitWriter`](crate::ser::BitWriter)
+mod io;
+
+pub use self::io::*;
+
 use impl_tools::autoimpl;
 
 /// Adapter that maps an error using given closure

@@ -11,9 +11,6 @@ keywords = ["ton", "tlb", "tl-b", "boc"]
 categories = ["encoding"]
 license-file = "LICENSE.txt"
 
-[workspace.package.metadata.docs.rs]
-all-features = true
-
 [workspace.dependencies]
 tlbits = { path = "./crates/bits", version = "0.4.0" }
 tlb = { path = "./crates/tlb", version = "0.4.6" }

@@ -44,7 +44,7 @@ pub trait BitReader {
     /// Reads and discards `n` bits
     #[inline]
     fn skip(&mut self, n: usize) -> Result<usize, Self::Error> {
-        for i in 0..n {
+        for i in 1..=n {
             if self.read_bit()?.is_none() {
                 return Ok(i);
             }

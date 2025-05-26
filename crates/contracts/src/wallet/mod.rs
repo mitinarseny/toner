@@ -1,4 +1,6 @@
+#![cfg(feature = "wallet")]
 //! TON [Wallet](https://docs.ton.org/participate/wallets/contracts)
+
 pub mod mnemonic;
 mod signer;
 pub mod v4r2;

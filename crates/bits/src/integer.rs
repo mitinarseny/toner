@@ -126,9 +126,8 @@ macro_rules! impl_bit_serde_for_integers {
                     ));
                 }
                 let bytes = source.to_be_bytes();
-                let mut bits = bytes.as_bits::<Msb0>();
-                bits = &bits[bits.len() - BITS..];
-                writer.write_bitslice(bits)?;
+                let bits = bytes.as_bits::<Msb0>();
+                writer.write_bitslice(&bits[bits.len() - BITS..])?;
                 Ok(())
             }
         }
@@ -142,7 +141,10 @@ macro_rules! impl_bit_serde_for_integers {
                 const BITS_SIZE: usize = bits_of::<$t>();
                 assert!(BITS <= BITS_SIZE, "excessive bits for type");
                 let mut arr = [0u8; mem::size_of::<$t>()];
-                reader.read_bits_into(&mut arr.as_mut_bits()[BITS_SIZE - BITS..])?;
+                let arr_bits = &mut arr.as_mut_bits()[BITS_SIZE - BITS..];
+                if reader.read_bits_into(arr_bits)? != arr_bits.len() {
+                    return Err(Error::custom("EOF"));
+                }
                 Ok($t::from_be_bytes(arr))
             }
         }

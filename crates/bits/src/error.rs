@@ -1,5 +1,5 @@
 use core::fmt::{Debug, Display};
-use std::error::Error as StdError;
+use std::{error::Error as StdError, io};
 
 use thiserror::Error as ThisError;
 
@@ -93,5 +93,23 @@ impl AsRef<str> for StringError {
     #[inline]
     fn as_ref(&self) -> &str {
         self.0.as_str()
+    }
+}
+
+impl Error for io::Error {
+    #[inline]
+    fn custom<T>(msg: T) -> Self
+    where
+        T: Display,
+    {
+        Self::other(msg.to_string())
+    }
+
+    #[inline]
+    fn context<C>(self, context: C) -> Self
+    where
+        C: Display,
+    {
+        Self::new(self.kind(), format!("{context}: {self}"))
     }
 }
