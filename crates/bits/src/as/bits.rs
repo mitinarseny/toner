@@ -9,6 +9,7 @@ use crate::{
 };
 
 /// **Ser**ialize value by taking a reference to [`BitSlice`] on it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AsBitSlice;
 
 impl<T> BitPackAs<T> for AsBitSlice
@@ -25,6 +26,7 @@ where
 }
 
 /// **Ser**ialize value by taking a reference to `[u8]` on it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AsBytes;
 
 impl<T> BitPackAs<T> for AsBytes
@@ -41,9 +43,11 @@ where
 }
 
 /// **De**/**ser**ialize value from/into exactly `N` bits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NBits<const BITS: usize>;
 
 /// **De**/**ser**ialize bits by prefixing its length with `N`-bit integer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VarBits<const BITS_FOR_LEN: usize>;
 
 impl<const BITS_FOR_LEN: usize, T> BitPackAs<T> for VarBits<BITS_FOR_LEN>
@@ -89,6 +93,7 @@ impl<'de, const BITS_FOR_LEN: usize> BitUnpackAs<'de, BitVec<u8, Msb0>> for VarB
 }
 
 /// **De**/**ser**ialize bytes by prefixing its length with `N`-bit integer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VarBytes<const BITS_FOR_BYTES_LEN: usize>;
 
 impl<const BITS_FOR_BYTES_LEN: usize, T> BitPackAs<T> for VarBytes<BITS_FOR_BYTES_LEN>

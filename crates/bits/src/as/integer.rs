@@ -97,6 +97,7 @@ impl<'de, const BITS: usize> BitUnpackAs<'de, BigInt> for NBits<BITS> {
 /// var_int$_ {n:#} len:(#< n) value:(int (len * 8)) = VarInteger n;
 /// ```
 /// See [`VarNBits`] for *dynamic* version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VarInt<const BITS_FOR_BYTES_LEN: usize>;
 
 impl<const BITS_FOR_BYTES_LEN: usize> BitPackAs<BigUint> for VarInt<BITS_FOR_BYTES_LEN> {
@@ -169,6 +170,7 @@ impl<'de, const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<'de, BigInt> for VarInt<B
 /// var_int$_ {n:#} len:(#< n) value:(int (len * 8)) = VarInteger n;
 /// ```
 /// See [`VarInt`] for *constant* version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VarNBits;
 
 impl<T> BitPackAsWithArgs<T> for VarNBits
@@ -229,6 +231,7 @@ where
 /// var_int$_ {n:#} len:(#< n) value:(int (len * 8)) = VarInteger n;
 /// ```
 /// See [`VarInt`] for *constant* version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VarNBytes;
 
 impl<T> BitPackAsWithArgs<T> for VarNBytes

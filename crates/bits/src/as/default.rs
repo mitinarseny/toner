@@ -8,6 +8,7 @@ use crate::{
 use super::Same;
 
 /// **De**/**ser**ialize [`Default`] on `None` values
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DefaultOnNone<As: ?Sized = Same>(PhantomData<As>);
 
 impl<T, As> BitPackAs<Option<T>> for DefaultOnNone<As>

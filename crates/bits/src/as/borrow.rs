@@ -7,6 +7,7 @@ use crate::{
     de::{BitReader, BitReaderExt, args::r#as::BitUnpackAsWithArgs},
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BorrowCow;
 
 impl<'de: 'a, 'a> BitUnpackAsWithArgs<'de, Cow<'a, BitSlice<u8, Msb0>>> for BorrowCow {

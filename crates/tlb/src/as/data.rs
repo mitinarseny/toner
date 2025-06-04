@@ -74,6 +74,7 @@ use super::Same;
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Data<As: ?Sized = Same>(PhantomData<As>);
 
 impl<T, As> CellSerializeAs<T> for Data<As>

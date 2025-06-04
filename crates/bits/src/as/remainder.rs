@@ -7,6 +7,7 @@ use crate::{
     de::{BitReader, BitReaderExt, r#as::BitUnpackAs},
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Remainder;
 
 impl<'de: 'a, 'a> BitUnpackAs<'de, Cow<'a, BitSlice<u8, Msb0>>> for Remainder {

@@ -60,6 +60,7 @@ use crate::{
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ConstBit<const VALUE: bool>;
 
 impl<const VALUE: bool> BitPack for ConstBit<VALUE> {
@@ -213,6 +214,7 @@ macro_rules! const_uint {
         /// # Ok(())
         /// # }
         /// ```
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         $vis struct $name<const VALUE: $typ, const BITS: usize = { bits_of::<$typ>() }>;
 
         impl<const VALUE: $typ, const BITS: usize> BitPack for $name<VALUE, BITS> {

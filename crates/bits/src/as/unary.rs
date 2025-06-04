@@ -12,6 +12,7 @@ use crate::{
 /// unary_zero$0 = Unary ~0;
 /// unary_succ$1 {n:#} x:(Unary ~n) = Unary ~(n + 1);
 /// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Unary;
 
 impl<T> BitPackAs<T> for Unary

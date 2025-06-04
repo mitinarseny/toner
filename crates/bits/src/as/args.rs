@@ -9,7 +9,6 @@ use super::Same;
 
 /// Adapter to implement **de**/**ser**ialize with dynamic args for types
 /// that do not require args for seralization.
-// TODO
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NoArgs<Args, As: ?Sized = Same>(PhantomData<(Args, As)>);
 
@@ -44,6 +43,7 @@ where
 }
 
 /// Adapter to implement **de**/**ser**ialize with [`Default`] args.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DefaultArgs<As: ?Sized = Same>(PhantomData<As>);
 
 impl<T, As> BitPackAs<T> for DefaultArgs<As>

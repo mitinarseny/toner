@@ -19,6 +19,7 @@ use crate::{
 ///
 /// See [`TryFromInto`] for more generalized version of this adapter
 /// which uses [`TryFrom`] trait instead
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FromInto<T>(PhantomData<T>);
 
 impl<T, As> BitPackAs<T> for FromInto<As>
@@ -84,6 +85,7 @@ where
 ///
 /// See [`TryFromIntoRef`] for more generalized version of this adapter
 /// which uses [`TryFrom`] trait instead
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FromIntoRef<T>(PhantomData<T>);
 
 impl<T, As> BitPackAs<T> for FromIntoRef<As>
@@ -149,6 +151,7 @@ where
 ///
 /// **Note:** [`FromInto`] is more specialized version of this adapter
 /// which the infailable [`Into`] trait instead.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryFromInto<T>(PhantomData<T>);
 
 impl<T, As> BitPackAs<T> for TryFromInto<As>
@@ -228,6 +231,7 @@ where
 ///
 /// **Note:** [`FromIntoRef`] is more specialized version of this adapter
 /// which the infailable [`Into`] trait instead.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryFromIntoRef<T>(PhantomData<T>);
 
 impl<T, As> BitPackAs<T> for TryFromIntoRef<As>

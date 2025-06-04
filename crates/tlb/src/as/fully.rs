@@ -8,6 +8,7 @@ use super::Same;
 
 /// Adapter to **de**serialize value and ensure that no more data and references
 /// left.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ParseFully<As: ?Sized = Same>(PhantomData<As>);
 
 impl<'de, T, As> CellDeserializeAs<'de, T> for ParseFully<As>
