@@ -50,11 +50,11 @@ impl BitPackAs<DateTime<Utc>> for UnixTimestamp {
     }
 }
 
-impl BitUnpackAs<DateTime<Utc>> for UnixTimestamp {
+impl<'de> BitUnpackAs<'de, DateTime<Utc>> for UnixTimestamp {
     #[inline]
     fn unpack_as<R>(mut reader: R) -> Result<DateTime<Utc>, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         let timestamp: u32 = reader.unpack()?;
         DateTime::from_timestamp(timestamp as i64, 0)
@@ -73,7 +73,7 @@ mod tests {
         let ts = DateTime::UNIX_EPOCH;
 
         let packed = pack_as::<_, UnixTimestamp>(ts).unwrap();
-        let got: DateTime<Utc> = unpack_fully_as::<_, UnixTimestamp>(packed).unwrap();
+        let got: DateTime<Utc> = unpack_fully_as::<_, UnixTimestamp>(&packed).unwrap();
 
         assert_eq!(got, ts);
     }

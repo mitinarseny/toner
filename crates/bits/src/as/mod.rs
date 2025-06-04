@@ -6,6 +6,7 @@
 //! Please, read their docs for more usage examples.
 pub mod args;
 mod bits;
+mod borrow;
 mod default;
 mod from_into;
 mod integer;
@@ -30,7 +31,9 @@ use crate::{
     },
 };
 
-pub use self::{bits::*, default::*, from_into::*, integer::*, remainder::*, same::*, unary::*};
+pub use self::{
+    bits::*, borrow::*, default::*, from_into::*, integer::*, remainder::*, same::*, unary::*,
+};
 
 /// Helper to implement **de**/**ser**ialize trait for adapters
 #[autoimpl(Clone where T: Clone)]
@@ -93,14 +96,14 @@ where
     }
 }
 
-impl<T, As> BitUnpack for AsWrap<T, As>
+impl<'de, T, As> BitUnpack<'de> for AsWrap<T, As>
 where
-    As: BitUnpackAs<T> + ?Sized,
+    As: BitUnpackAs<'de, T> + ?Sized,
 {
     #[inline]
     fn unpack<R>(reader: R) -> Result<Self, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         As::unpack_as(reader).map(|value| Self {
             value,
@@ -109,16 +112,16 @@ where
     }
 }
 
-impl<T, As> BitUnpackWithArgs for AsWrap<T, As>
+impl<'de, T, As> BitUnpackWithArgs<'de> for AsWrap<T, As>
 where
-    As: BitUnpackAsWithArgs<T> + ?Sized,
+    As: BitUnpackAsWithArgs<'de, T> + ?Sized,
 {
     type Args = As::Args;
 
     #[inline]
     fn unpack_with<R>(reader: R, args: Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         As::unpack_as_with(reader, args).map(Self::new)
     }

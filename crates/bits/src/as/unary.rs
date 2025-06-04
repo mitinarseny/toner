@@ -36,14 +36,14 @@ where
     }
 }
 
-impl<T> BitUnpackAs<T> for Unary
+impl<'de, T> BitUnpackAs<'de, T> for Unary
 where
     T: Unsigned + ConstZero + One,
 {
     #[inline]
     fn unpack_as<R>(mut reader: R) -> Result<T, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         let mut n = T::ZERO;
         while reader.read_bit()?.ok_or_else(|| Error::custom("EOF"))? {

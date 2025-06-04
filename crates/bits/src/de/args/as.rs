@@ -18,30 +18,30 @@ use crate::{
 /// See [`as`](crate::as) module-level documentation for more.
 ///
 /// For version without arguments, see [`BitUnpackAs`](super::super::as::BitUnpackAs).
-pub trait BitUnpackAsWithArgs<T> {
+pub trait BitUnpackAsWithArgs<'de, T> {
     type Args;
 
     /// Unpacks value with args using an adapter
     fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader;
+        R: BitReader<'de>;
 }
 
 /// **De**serialize value from [`BitSlice`] with args using an adapter
 #[inline]
-pub fn unpack_as_with<T, As>(
-    bits: impl AsRef<BitSlice<u8, Msb0>>,
+pub fn unpack_as_with<'de, T, As>(
+    mut bits: &'de BitSlice<u8, Msb0>,
     args: As::Args,
 ) -> Result<T, StringError>
 where
-    As: BitUnpackAsWithArgs<T>,
+    As: BitUnpackAsWithArgs<'de, T>,
 {
-    bits.as_ref().unpack_as_with::<_, As>(args)
+    bits.unpack_as_with::<_, As>(args)
 }
 
-impl<T, As, const N: usize> BitUnpackAsWithArgs<[T; N]> for [As; N]
+impl<'de, T, As, const N: usize> BitUnpackAsWithArgs<'de, [T; N]> for [As; N]
 where
-    As: BitUnpackAsWithArgs<T>,
+    As: BitUnpackAsWithArgs<'de, T>,
     As::Args: Clone,
 {
     type Args = As::Args;
@@ -49,7 +49,7 @@ where
     #[inline]
     fn unpack_as_with<R>(mut reader: R, args: Self::Args) -> Result<[T; N], R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         let mut arr: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
         for a in &mut arr {
@@ -59,9 +59,9 @@ where
     }
 }
 
-impl<T, As> BitUnpackAsWithArgs<Vec<T>> for Vec<As>
+impl<'de, T, As> BitUnpackAsWithArgs<'de, Vec<T>> for Vec<As>
 where
-    As: BitUnpackAsWithArgs<T>,
+    As: BitUnpackAsWithArgs<'de, T>,
     As::Args: Clone,
 {
     type Args = (usize, As::Args);
@@ -69,7 +69,7 @@ where
     #[inline]
     fn unpack_as_with<R>(mut reader: R, (len, args): Self::Args) -> Result<Vec<T>, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         reader
             .unpack_iter_as_with::<_, As>(args)
@@ -80,9 +80,9 @@ where
 
 macro_rules! impl_bit_unpack_as_with_args_for_tuple {
     ($($n:tt:$t:ident as $a:ident),+) => {
-        impl<$($t, $a),+> BitUnpackAsWithArgs<($($t,)+)> for ($($a,)+)
+        impl<'de, $($t, $a),+> BitUnpackAsWithArgs<'de, ($($t,)+)> for ($($a,)+)
         where $(
-            $a: BitUnpackAsWithArgs<$t>,
+            $a: BitUnpackAsWithArgs<'de, $t>,
         )+
         {
             type Args = ($($a::Args,)+);
@@ -90,7 +90,7 @@ macro_rules! impl_bit_unpack_as_with_args_for_tuple {
             #[inline]
             fn unpack_as_with<R>(mut reader: R, args: Self::Args) -> Result<($($t,)+), R::Error>
             where
-                R: BitReader,
+                R: BitReader<'de>,
             {
                 Ok(($(
                     $a::unpack_as_with(&mut reader, args.$n)
@@ -111,16 +111,16 @@ impl_bit_unpack_as_with_args_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3
 impl_bit_unpack_as_with_args_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5,6:T6 as As6,7:T7 as As7,8:T8 as As8);
 impl_bit_unpack_as_with_args_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5,6:T6 as As6,7:T7 as As7,8:T8 as As8,9:T9 as As9);
 
-impl<T, As> BitUnpackAsWithArgs<Box<T>> for Box<As>
+impl<'de, T, As> BitUnpackAsWithArgs<'de, Box<T>> for Box<As>
 where
-    As: BitUnpackAsWithArgs<T> + ?Sized,
+    As: BitUnpackAsWithArgs<'de, T> + ?Sized,
 {
     type Args = As::Args;
 
     #[inline]
     fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<Box<T>, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         AsWrap::<T, As>::unpack_with(reader, args)
             .map(AsWrap::into_inner)
@@ -128,16 +128,16 @@ where
     }
 }
 
-impl<T, As> BitUnpackAsWithArgs<Rc<T>> for Rc<As>
+impl<'de, T, As> BitUnpackAsWithArgs<'de, Rc<T>> for Rc<As>
 where
-    As: BitUnpackAsWithArgs<T> + ?Sized,
+    As: BitUnpackAsWithArgs<'de, T> + ?Sized,
 {
     type Args = As::Args;
 
     #[inline]
     fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<Rc<T>, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         AsWrap::<T, As>::unpack_with(reader, args)
             .map(AsWrap::into_inner)
@@ -145,16 +145,16 @@ where
     }
 }
 
-impl<T, As> BitUnpackAsWithArgs<Arc<T>> for Arc<As>
+impl<'de, T, As> BitUnpackAsWithArgs<'de, Arc<T>> for Arc<As>
 where
-    As: BitUnpackAsWithArgs<T> + ?Sized,
+    As: BitUnpackAsWithArgs<'de, T> + ?Sized,
 {
     type Args = As::Args;
 
     #[inline]
     fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<Arc<T>, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         AsWrap::<T, As>::unpack_with(reader, args)
             .map(AsWrap::into_inner)
@@ -163,18 +163,18 @@ where
 }
 
 /// Always unpacks as [`Cow::Owned`]
-impl<'a, T, As> BitUnpackAsWithArgs<Cow<'a, T>> for Cow<'a, As>
+impl<'de, 'a, T, As> BitUnpackAsWithArgs<'de, Cow<'a, T>> for Cow<'a, As>
 where
     T: ToOwned + ?Sized,
     As: ToOwned + ?Sized,
-    As::Owned: BitUnpackAsWithArgs<T::Owned>,
+    As::Owned: BitUnpackAsWithArgs<'de, T::Owned>,
 {
-    type Args = <As::Owned as BitUnpackAsWithArgs<T::Owned>>::Args;
+    type Args = <As::Owned as BitUnpackAsWithArgs<'de, T::Owned>>::Args;
 
     #[inline]
     fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<Cow<'a, T>, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         AsWrap::<T::Owned, As::Owned>::unpack_with(reader, args)
             .map(AsWrap::into_inner)
@@ -187,18 +187,18 @@ where
 /// left$0 {X:Type} {Y:Type} value:X = Either X Y;
 /// right$1 {X:Type} {Y:Type} value:Y = Either X Y;
 /// ```
-impl<Left, Right, AsLeft, AsRight> BitUnpackAsWithArgs<Either<Left, Right>>
+impl<'de, Left, Right, AsLeft, AsRight> BitUnpackAsWithArgs<'de, Either<Left, Right>>
     for Either<AsLeft, AsRight>
 where
-    AsLeft: BitUnpackAsWithArgs<Left>,
-    AsRight: BitUnpackAsWithArgs<Right, Args = AsLeft::Args>,
+    AsLeft: BitUnpackAsWithArgs<'de, Left>,
+    AsRight: BitUnpackAsWithArgs<'de, Right, Args = AsLeft::Args>,
 {
     type Args = AsLeft::Args;
 
     #[inline]
     fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<Either<Left, Right>, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         Ok(
             Either::<AsWrap<Left, AsLeft>, AsWrap<Right, AsRight>>::unpack_with(reader, args)?
@@ -207,16 +207,16 @@ where
     }
 }
 
-impl<T, As> BitUnpackAsWithArgs<Option<T>> for Either<(), As>
+impl<'de, T, As> BitUnpackAsWithArgs<'de, Option<T>> for Either<(), As>
 where
-    As: BitUnpackAsWithArgs<T>,
+    As: BitUnpackAsWithArgs<'de, T>,
 {
     type Args = As::Args;
 
     #[inline]
     fn unpack_as_with<R>(mut reader: R, args: Self::Args) -> Result<Option<T>, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         Ok(reader
             .unpack_as_with::<Either<(), T>, Either<NoArgs<_>, As>>(args)?
@@ -229,16 +229,16 @@ where
 /// nothing$0 {X:Type} = Maybe X;
 /// just$1 {X:Type} value:X = Maybe X;
 /// ```
-impl<T, As> BitUnpackAsWithArgs<Option<T>> for Option<As>
+impl<'de, T, As> BitUnpackAsWithArgs<'de, Option<T>> for Option<As>
 where
-    As: BitUnpackAsWithArgs<T>,
+    As: BitUnpackAsWithArgs<'de, T>,
 {
     type Args = As::Args;
 
     #[inline]
     fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<Option<T>, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         Ok(Option::<AsWrap<T, As>>::unpack_with(reader, args)?.map(AsWrap::into_inner))
     }

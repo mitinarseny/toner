@@ -127,7 +127,7 @@ where
     }
 }
 
-impl<R> BitReader for Io<R>
+impl<'de, R> BitReader<'de> for Io<R>
 where
     R: Read,
 {

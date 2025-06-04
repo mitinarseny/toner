@@ -308,7 +308,7 @@ mod tests {
         )
         .unwrap();
 
-        let unpacked: BoC = unpack_fully(packed).unwrap();
+        let unpacked: BoC = unpack_fully(&packed).unwrap();
 
         let got: Cell = unpacked.single_root().unwrap().parse_fully().unwrap();
         assert_eq!(&got, WALLET_V4R2_CODE_CELL.as_ref());

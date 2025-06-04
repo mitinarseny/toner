@@ -1,4 +1,4 @@
-use bitvec::{mem::bits_of, order::Msb0, vec::BitVec};
+use bitvec::mem::bits_of;
 use num_bigint::BigUint;
 use tlb_ton::{
     Cell, Error, MsgAddress,
@@ -159,20 +159,18 @@ impl BitPack for ForwardPayloadComment {
     }
 }
 
-impl BitUnpack for ForwardPayloadComment {
+impl<'de> BitUnpack<'de> for ForwardPayloadComment {
     #[inline]
-    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+    fn unpack<R>(reader: R) -> Result<Self, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
-        let mut buf = BitVec::<u8, Msb0>::new();
-        let mut r = reader.tee(&mut buf);
+        let mut r = reader.checkpoint();
         if r.bits_left() >= bits_of::<u8>() && r.unpack::<u8>()? == Self::BINARY_PREFIX {
             return r.unpack_as::<_, Remainder>().map(Self::Binary);
         }
-        reader = r.into_inner();
-        let mut r = buf.join(reader);
-        r.unpack_as::<_, Remainder>()
+        r.restore()
+            .unpack_as::<_, Remainder>()
             .map(Self::Text)
             .map_err(Error::custom)
     }

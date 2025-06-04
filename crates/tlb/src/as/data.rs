@@ -50,9 +50,9 @@ use super::Same;
 ///     }
 /// }
 ///
-/// impl BitUnpack for BinaryData {
+/// impl<'de> BitUnpack<'de> for BinaryData {
 ///     fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
-///         where R: BitReader,
+///         where R: BitReader<'de>,
 ///     {
 ///         Ok(Self {
 ///             field: reader.unpack()?,
@@ -106,7 +106,7 @@ where
 
 impl<'de, T, As> CellDeserializeAs<'de, T> for Data<As>
 where
-    As: BitUnpackAs<T> + ?Sized,
+    As: BitUnpackAs<'de, T> + ?Sized,
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
@@ -116,7 +116,7 @@ where
 
 impl<'de, T, As> CellDeserializeAsWithArgs<'de, T> for Data<As>
 where
-    As: BitUnpackAsWithArgs<T> + ?Sized,
+    As: BitUnpackAsWithArgs<'de, T> + ?Sized,
 {
     type Args = As::Args;
 

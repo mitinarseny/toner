@@ -51,29 +51,29 @@ where
     }
 }
 
-impl<T, As> BitUnpackAs<T> for FromInto<As>
+impl<'de, T, As> BitUnpackAs<'de, T> for FromInto<As>
 where
-    As: Into<T> + BitUnpack,
+    As: Into<T> + BitUnpack<'de>,
 {
     #[inline]
     fn unpack_as<R>(reader: R) -> Result<T, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         As::unpack(reader).map(Into::into)
     }
 }
 
-impl<T, As> BitUnpackAsWithArgs<T> for FromInto<As>
+impl<'de, T, As> BitUnpackAsWithArgs<'de, T> for FromInto<As>
 where
-    As: Into<T> + BitUnpackWithArgs,
+    As: Into<T> + BitUnpackWithArgs<'de>,
 {
     type Args = As::Args;
 
     #[inline]
     fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         As::unpack_with(reader, args).map(Into::into)
     }
@@ -116,29 +116,29 @@ where
     }
 }
 
-impl<T, As> BitUnpackAs<T> for FromIntoRef<As>
+impl<'de, T, As> BitUnpackAs<'de, T> for FromIntoRef<As>
 where
-    As: Into<T> + BitUnpack,
+    As: Into<T> + BitUnpack<'de>,
 {
     #[inline]
     fn unpack_as<R>(reader: R) -> Result<T, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         As::unpack(reader).map(Into::into)
     }
 }
 
-impl<T, As> BitUnpackAsWithArgs<T> for FromIntoRef<As>
+impl<'de, T, As> BitUnpackAsWithArgs<'de, T> for FromIntoRef<As>
 where
-    As: Into<T> + BitUnpackWithArgs,
+    As: Into<T> + BitUnpackWithArgs<'de>,
 {
     type Args = As::Args;
 
     #[inline]
     fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         As::unpack_with(reader, args).map(Into::into)
     }
@@ -191,23 +191,23 @@ where
     }
 }
 
-impl<T, As> BitUnpackAs<T> for TryFromInto<As>
+impl<'de, T, As> BitUnpackAs<'de, T> for TryFromInto<As>
 where
-    As: TryInto<T> + BitUnpack,
+    As: TryInto<T> + BitUnpack<'de>,
     <As as TryInto<T>>::Error: Display,
 {
     #[inline]
     fn unpack_as<R>(reader: R) -> Result<T, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         As::unpack(reader)?.try_into().map_err(Error::custom)
     }
 }
 
-impl<T, As> BitUnpackAsWithArgs<T> for TryFromInto<As>
+impl<'de, T, As> BitUnpackAsWithArgs<'de, T> for TryFromInto<As>
 where
-    As: TryInto<T> + BitUnpackWithArgs,
+    As: TryInto<T> + BitUnpackWithArgs<'de>,
     <As as TryInto<T>>::Error: Display,
 {
     type Args = As::Args;
@@ -215,7 +215,7 @@ where
     #[inline]
     fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         As::unpack_with(reader, args)?
             .try_into()
@@ -265,23 +265,23 @@ where
     }
 }
 
-impl<T, As> BitUnpackAs<T> for TryFromIntoRef<As>
+impl<'de, T, As> BitUnpackAs<'de, T> for TryFromIntoRef<As>
 where
-    As: TryInto<T> + BitUnpack,
+    As: TryInto<T> + BitUnpack<'de>,
     <As as TryInto<T>>::Error: Display,
 {
     #[inline]
     fn unpack_as<R>(reader: R) -> Result<T, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         As::unpack(reader)?.try_into().map_err(Error::custom)
     }
 }
 
-impl<T, As> BitUnpackAsWithArgs<T> for TryFromIntoRef<As>
+impl<'de, T, As> BitUnpackAsWithArgs<'de, T> for TryFromIntoRef<As>
 where
-    As: TryInto<T> + BitUnpackWithArgs,
+    As: TryInto<T> + BitUnpackWithArgs<'de>,
     <As as TryInto<T>>::Error: Display,
 {
     type Args = As::Args;
@@ -289,7 +289,7 @@ where
     #[inline]
     fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         As::unpack_with(reader, args)?
             .try_into()

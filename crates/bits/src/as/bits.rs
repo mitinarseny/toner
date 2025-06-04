@@ -1,11 +1,12 @@
+use std::borrow::Cow;
+
 use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec, view::AsBits};
 
 use crate::{
+    r#as::BorrowCow,
     de::{BitReader, BitReaderExt, r#as::BitUnpackAs},
     ser::{BitPack, BitWriter, BitWriterExt, r#as::BitPackAs},
 };
-
-use super::args::NoArgs;
 
 /// **Ser**ialize value by taking a reference to [`BitSlice`] on it.
 pub struct AsBitSlice;
@@ -62,14 +63,28 @@ where
     }
 }
 
-impl<const BITS_FOR_LEN: usize> BitUnpackAs<BitVec<u8, Msb0>> for VarBits<BITS_FOR_LEN> {
+impl<'de: 'a, 'a, const BITS_FOR_LEN: usize> BitUnpackAs<'de, Cow<'a, BitSlice<u8, Msb0>>>
+    for VarBits<BITS_FOR_LEN>
+{
+    #[inline]
+    fn unpack_as<R>(mut reader: R) -> Result<Cow<'a, BitSlice<u8, Msb0>>, R::Error>
+    where
+        R: BitReader<'de>,
+    {
+        let num_bits = reader.unpack_as::<_, NBits<BITS_FOR_LEN>>()?;
+        reader.unpack_as_with::<_, BorrowCow>(num_bits)
+    }
+}
+
+impl<'de, const BITS_FOR_LEN: usize> BitUnpackAs<'de, BitVec<u8, Msb0>> for VarBits<BITS_FOR_LEN> {
     #[inline]
     fn unpack_as<R>(mut reader: R) -> Result<BitVec<u8, Msb0>, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
-        let num_bits = reader.unpack_as::<_, NBits<BITS_FOR_LEN>>()?;
-        reader.unpack_with(num_bits)
+        reader
+            .unpack_as::<Cow<BitSlice<u8, Msb0>>, Self>()
+            .map(Cow::into_owned)
     }
 }
 
@@ -93,13 +108,27 @@ where
     }
 }
 
-impl<const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<Vec<u8>> for VarBytes<BITS_FOR_BYTES_LEN> {
+impl<'de: 'a, 'a, const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<'de, Cow<'a, [u8]>>
+    for VarBytes<BITS_FOR_BYTES_LEN>
+{
+    #[inline]
+    fn unpack_as<R>(mut reader: R) -> Result<Cow<'a, [u8]>, R::Error>
+    where
+        R: BitReader<'de>,
+    {
+        let num_bytes = reader.unpack_as::<_, NBits<BITS_FOR_BYTES_LEN>>()?;
+        reader.unpack_as_with::<_, BorrowCow>(num_bytes)
+    }
+}
+
+impl<'de, const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<'de, Vec<u8>>
+    for VarBytes<BITS_FOR_BYTES_LEN>
+{
     #[inline]
     fn unpack_as<R>(mut reader: R) -> Result<Vec<u8>, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
-        let num_bytes = reader.unpack_as::<_, NBits<BITS_FOR_BYTES_LEN>>()?;
-        reader.unpack_as_with::<_, Vec<NoArgs<_>>>((num_bytes, ()))
+        reader.unpack_as::<Cow<[u8]>, Self>().map(Cow::into_owned)
     }
 }

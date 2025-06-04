@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
+use tlbits::adapters::LimitWriter;
+
 use crate::{
     Cell, Context, Error,
     r#as::Ref,
     bits::{
         bitvec::{order::Msb0, slice::BitSlice, vec::BitVec},
-        ser::{BitWriter, LimitWriter},
+        ser::BitWriter,
     },
 };
 

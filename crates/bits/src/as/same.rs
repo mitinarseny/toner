@@ -42,29 +42,29 @@ where
     }
 }
 
-impl<T> BitUnpackAs<T> for Same
+impl<'de, T> BitUnpackAs<'de, T> for Same
 where
-    T: BitUnpack,
+    T: BitUnpack<'de>,
 {
     #[inline]
     fn unpack_as<R>(reader: R) -> Result<T, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         T::unpack(reader)
     }
 }
 
-impl<T> BitUnpackAsWithArgs<T> for Same
+impl<'de, T> BitUnpackAsWithArgs<'de, T> for Same
 where
-    T: BitUnpackWithArgs,
+    T: BitUnpackWithArgs<'de>,
 {
     type Args = T::Args;
 
     #[inline]
     fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         T::unpack_with(reader, args)
     }

@@ -1,5 +1,5 @@
 use core::{iter, mem};
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use tlbits::Context;
 
@@ -18,7 +18,7 @@ use super::{
 };
 
 /// [`Error`] for [`CellParser`]
-pub type CellParserError<'de> = <CellParser<'de> as BitReader>::Error;
+pub type CellParserError<'de> = <CellParser<'de> as BitReader<'de>>::Error;
 
 /// Cell parser created with [`Cell::parser()`].
 #[derive(Clone)]
@@ -199,8 +199,8 @@ impl<'de> CellParser<'de> {
     }
 }
 
-impl<'de> BitReader for CellParser<'de> {
-    type Error = <&'de BitSlice<u8, Msb0> as BitReader>::Error;
+impl<'de> BitReader<'de> for CellParser<'de> {
+    type Error = <&'de BitSlice<u8, Msb0> as BitReader<'de>>::Error;
 
     #[inline]
     fn bits_left(&self) -> usize {
@@ -215,6 +215,11 @@ impl<'de> BitReader for CellParser<'de> {
     #[inline]
     fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<usize, Self::Error> {
         self.data.read_bits_into(dst)
+    }
+
+    #[inline]
+    fn read_bits(&mut self, n: usize) -> Result<Cow<'de, BitSlice<u8, Msb0>>, Self::Error> {
+        self.data.read_bits(n)
     }
 
     #[inline]
