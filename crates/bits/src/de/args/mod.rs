@@ -3,12 +3,12 @@ pub mod r#as;
 use core::mem::MaybeUninit;
 use std::{borrow::Cow, rc::Rc, sync::Arc};
 
-use bitvec::{mem::bits_of, order::Msb0, vec::BitVec};
+use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
 use either::Either;
 
 use crate::{
-    Context, Error,
-    r#as::{FromInto, Same},
+    Context,
+    r#as::{BorrowCow, FromInto, Same},
 };
 
 use super::{BitReader, BitReaderExt};
@@ -202,7 +202,7 @@ where
 }
 
 impl<'de> BitUnpackWithArgs<'de> for BitVec<u8, Msb0> {
-    /// length
+    /// length in bits
     type Args = usize;
 
     #[inline]
@@ -210,17 +210,14 @@ impl<'de> BitUnpackWithArgs<'de> for BitVec<u8, Msb0> {
     where
         R: BitReader<'de>,
     {
-        // let v = reader.unpack_as_with::<>(args)
-        let v = reader.read_bits(len)?;
-        if v.len() != len {
-            return Err(Error::custom("EOF"));
-        }
-        Ok(v.into_owned())
+        reader
+            .unpack_as_with::<Cow<BitSlice<u8, Msb0>>, BorrowCow>(len)
+            .map(Cow::into_owned)
     }
 }
 
 impl<'de> BitUnpackWithArgs<'de> for Vec<u8> {
-    /// length
+    /// length in bytes
     type Args = usize;
 
     #[inline]
@@ -228,11 +225,8 @@ impl<'de> BitUnpackWithArgs<'de> for Vec<u8> {
     where
         R: BitReader<'de>,
     {
-        let mut dst = vec![0; len];
-        let n = reader.read_bytes_into(&mut dst)?;
-        if n != len * bits_of::<u8>() {
-            return Err(Error::custom("EOF"));
-        }
-        Ok(dst)
+        reader
+            .unpack_as_with::<Cow<[u8]>, BorrowCow>(len)
+            .map(Cow::into_owned)
     }
 }

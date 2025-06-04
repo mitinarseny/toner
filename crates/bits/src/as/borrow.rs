@@ -50,7 +50,11 @@ impl<'de: 'a, 'a> BitUnpackAsWithArgs<'de, Cow<'a, [u8]>> for BorrowCow {
                 }
             }
         }
-        Ok(Cow::Owned(v.into_owned().into_vec()))
+
+        let mut v = v.into_owned();
+        // BitVec might not start from the first element after ToOwned
+        v.force_align();
+        Ok(Cow::Owned(v.into_vec()))
     }
 }
 

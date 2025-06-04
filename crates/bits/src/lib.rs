@@ -94,9 +94,9 @@
 //! #         Ok(())
 //! #     }
 //! # }
-//! impl BitUnpack for Hello {
+//! impl<'de> BitUnpack<'de> for Hello {
 //!     fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
-//!         where R: BitReader,
+//!         where R: BitReader<'de>,
 //!     {
 //!         // tag$10
 //!         let tag: u8 = reader.unpack_as::<_, NBits<2>>()?;
