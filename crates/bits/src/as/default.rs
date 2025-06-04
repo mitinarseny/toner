@@ -8,6 +8,7 @@ use crate::{
 use super::Same;
 
 /// **De**/**ser**ialize [`Default`] on `None` values
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DefaultOnNone<As: ?Sized = Same>(PhantomData<As>);
 
 impl<T, As> BitPackAs<Option<T>> for DefaultOnNone<As>
@@ -27,15 +28,15 @@ where
     }
 }
 
-impl<T, As> BitUnpackAs<T> for DefaultOnNone<As>
+impl<'de, T, As> BitUnpackAs<'de, T> for DefaultOnNone<As>
 where
     T: Default,
-    As: BitUnpackAs<T>,
+    As: BitUnpackAs<'de, T>,
 {
     #[inline]
     fn unpack_as<R>(mut reader: R) -> Result<T, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         reader
             .unpack_as::<_, Option<As>>()

@@ -286,11 +286,11 @@ impl BitPack for MsgAddress {
     }
 }
 
-impl BitUnpack for MsgAddress {
+impl<'de> BitUnpack<'de> for MsgAddress {
     #[inline]
     fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         match reader.unpack()? {
             MsgAddressTag::Null => Ok(Self::NULL),
@@ -351,11 +351,11 @@ impl BitPack for MsgAddressTag {
     }
 }
 
-impl BitUnpack for MsgAddressTag {
+impl<'de> BitUnpack<'de> for MsgAddressTag {
     #[inline]
     fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         Ok(match reader.unpack_as::<u8, NBits<2>>()? {
             0b00 => Self::Null,
@@ -387,12 +387,12 @@ impl BitPack for Anycast {
     }
 }
 
-impl BitUnpack for Anycast {
+impl<'de> BitUnpack<'de> for Anycast {
     fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
-        let rewrite_pfx = reader.unpack_as::<_, VarBits<5>>()?;
+        let rewrite_pfx: BitVec<u8, Msb0> = reader.unpack_as::<_, VarBits<5>>()?;
         if rewrite_pfx.is_empty() {
             return Err(Error::custom("depth >= 1"));
         }

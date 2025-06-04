@@ -292,10 +292,10 @@ impl BitPack for ExternalInMsgInfo {
     }
 }
 
-impl BitUnpack for ExternalInMsgInfo {
+impl<'de> BitUnpack<'de> for ExternalInMsgInfo {
     fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         Ok(Self {
             src: reader.unpack()?,
@@ -333,10 +333,10 @@ impl BitPack for ExternalOutMsgInfo {
     }
 }
 
-impl BitUnpack for ExternalOutMsgInfo {
+impl<'de> BitUnpack<'de> for ExternalOutMsgInfo {
     fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         Ok(Self {
             src: reader.unpack()?,

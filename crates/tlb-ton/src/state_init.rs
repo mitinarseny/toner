@@ -121,11 +121,11 @@ impl BitPack for TickTock {
     }
 }
 
-impl BitUnpack for TickTock {
+impl<'de> BitUnpack<'de> for TickTock {
     #[inline]
     fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         Ok(Self {
             tick: reader.unpack()?,

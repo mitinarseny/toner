@@ -38,11 +38,11 @@ impl<const BITS: usize> BitPackAs<BigUint> for NBits<BITS> {
     }
 }
 
-impl<const BITS: usize> BitUnpackAs<BigUint> for NBits<BITS> {
+impl<'de, const BITS: usize> BitUnpackAs<'de, BigUint> for NBits<BITS> {
     #[inline]
     fn unpack_as<R>(mut reader: R) -> Result<BigUint, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         let mut bits: BitVec<u8, Msb0> = reader.unpack_with(BITS)?;
         let total_bits = (BITS + 7) & !7;
@@ -75,11 +75,11 @@ impl<const BITS: usize> BitPackAs<BigInt> for NBits<BITS> {
     }
 }
 
-impl<const BITS: usize> BitUnpackAs<BigInt> for NBits<BITS> {
+impl<'de, const BITS: usize> BitUnpackAs<'de, BigInt> for NBits<BITS> {
     #[inline]
     fn unpack_as<R>(mut reader: R) -> Result<BigInt, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         let mut bits: BitVec<u8, Msb0> = reader.unpack_with(BITS)?;
         let total_bits = (BITS + 7) & !7;
@@ -97,6 +97,7 @@ impl<const BITS: usize> BitUnpackAs<BigInt> for NBits<BITS> {
 /// var_int$_ {n:#} len:(#< n) value:(int (len * 8)) = VarInteger n;
 /// ```
 /// See [`VarNBits`] for *dynamic* version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VarInt<const BITS_FOR_BYTES_LEN: usize>;
 
 impl<const BITS_FOR_BYTES_LEN: usize> BitPackAs<BigUint> for VarInt<BITS_FOR_BYTES_LEN> {
@@ -116,11 +117,13 @@ impl<const BITS_FOR_BYTES_LEN: usize> BitPackAs<BigUint> for VarInt<BITS_FOR_BYT
     }
 }
 
-impl<const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<BigUint> for VarInt<BITS_FOR_BYTES_LEN> {
+impl<'de, const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<'de, BigUint>
+    for VarInt<BITS_FOR_BYTES_LEN>
+{
     #[inline]
     fn unpack_as<R>(mut reader: R) -> Result<BigUint, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         let mut bits = BitVec::<u8, Msb0>::from_vec(
             reader.unpack_as::<Vec<u8>, VarBytes<BITS_FOR_BYTES_LEN>>()?,
@@ -144,11 +147,11 @@ impl<const BITS_FOR_BYTES_LEN: usize> BitPackAs<BigInt> for VarInt<BITS_FOR_BYTE
     }
 }
 
-impl<const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<BigInt> for VarInt<BITS_FOR_BYTES_LEN> {
+impl<'de, const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<'de, BigInt> for VarInt<BITS_FOR_BYTES_LEN> {
     #[inline]
     fn unpack_as<R>(mut reader: R) -> Result<BigInt, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         let mut bits = BitVec::<u8, Msb0>::from_vec(
             reader.unpack_as::<Vec<u8>, VarBytes<BITS_FOR_BYTES_LEN>>()?,
@@ -167,6 +170,7 @@ impl<const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<BigInt> for VarInt<BITS_FOR_BY
 /// var_int$_ {n:#} len:(#< n) value:(int (len * 8)) = VarInteger n;
 /// ```
 /// See [`VarInt`] for *constant* version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VarNBits;
 
 impl<T> BitPackAsWithArgs<T> for VarNBits
@@ -196,7 +200,7 @@ where
     }
 }
 
-impl<T> BitUnpackAsWithArgs<T> for VarNBits
+impl<'de, T> BitUnpackAsWithArgs<'de, T> for VarNBits
 where
     T: PrimInt,
 {
@@ -206,7 +210,7 @@ where
     #[inline]
     fn unpack_as_with<R>(mut reader: R, num_bits: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         let size_bits: u32 = bits_of::<T>() as u32;
         if num_bits > size_bits {
@@ -227,6 +231,7 @@ where
 /// var_int$_ {n:#} len:(#< n) value:(int (len * 8)) = VarInteger n;
 /// ```
 /// See [`VarInt`] for *constant* version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VarNBytes;
 
 impl<T> BitPackAsWithArgs<T> for VarNBytes
@@ -256,7 +261,7 @@ where
     }
 }
 
-impl<T> BitUnpackAsWithArgs<T> for VarNBytes
+impl<'de, T> BitUnpackAsWithArgs<'de, T> for VarNBytes
 where
     T: PrimInt,
 {
@@ -266,7 +271,7 @@ where
     #[inline]
     fn unpack_as_with<R>(mut reader: R, num_bytes: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         let size_bytes: u32 = size_of::<T>() as u32;
         if num_bytes > size_bytes {

@@ -1,12 +1,12 @@
 use core::iter;
+use std::borrow::Cow;
 
-use ::bitvec::{order::Msb0, slice::BitSlice, view::AsMutBits};
-use bitvec::mem::bits_of;
+use bitvec::{mem::bits_of, order::Msb0, slice::BitSlice, vec::BitVec, view::AsMutBits};
 use impl_tools::autoimpl;
 
 use crate::{
     Context, Error, StringError,
-    adapters::{Join, MapErr, Tee},
+    adapters::{Checkpoint, Join, MapErr, Tee},
     ser::BitWriter,
 };
 
@@ -18,7 +18,7 @@ use super::{
 
 /// Bitwise reader.
 #[autoimpl(for <R: trait + ?Sized> &mut R, Box<R>)]
-pub trait BitReader {
+pub trait BitReader<'de> {
     // An error ocurred while reading
     type Error: Error;
 
@@ -41,6 +41,15 @@ pub trait BitReader {
         Ok(dst.len())
     }
 
+    // TODO: docs
+    #[inline]
+    fn read_bits(&mut self, mut n: usize) -> Result<Cow<'de, BitSlice<u8, Msb0>>, Self::Error> {
+        let mut buf = BitVec::repeat(false, n);
+        n = self.read_bits_into(&mut buf)?;
+        buf.truncate(n);
+        Ok(Cow::Owned(buf))
+    }
+
     /// Reads and discards `n` bits
     #[inline]
     fn skip(&mut self, n: usize) -> Result<usize, Self::Error> {
@@ -54,7 +63,7 @@ pub trait BitReader {
 }
 
 /// Extension helper for [`BitReader`].
-pub trait BitReaderExt: BitReader {
+pub trait BitReaderExt<'de>: BitReader<'de> {
     /// Returns wheather the reader is empty
     #[inline]
     fn is_empty(&self) -> bool {
@@ -82,7 +91,7 @@ pub trait BitReaderExt: BitReader {
     #[inline]
     fn unpack<T>(&mut self) -> Result<T, Self::Error>
     where
-        T: BitUnpack,
+        T: BitUnpack<'de>,
     {
         T::unpack(self)
     }
@@ -91,7 +100,7 @@ pub trait BitReaderExt: BitReader {
     #[inline]
     fn unpack_with<T>(&mut self, args: T::Args) -> Result<T, Self::Error>
     where
-        T: BitUnpackWithArgs,
+        T: BitUnpackWithArgs<'de>,
     {
         T::unpack_with(self, args)
     }
@@ -100,7 +109,7 @@ pub trait BitReaderExt: BitReader {
     #[inline]
     fn unpack_iter<T>(&mut self) -> impl Iterator<Item = Result<T, Self::Error>> + '_
     where
-        T: BitUnpack,
+        T: BitUnpack<'de>,
     {
         iter::repeat_with(move || self.unpack::<T>())
             .enumerate()
@@ -114,7 +123,7 @@ pub trait BitReaderExt: BitReader {
         args: T::Args,
     ) -> impl Iterator<Item = Result<T, Self::Error>> + 'a
     where
-        T: BitUnpackWithArgs,
+        T: BitUnpackWithArgs<'de>,
         T::Args: Clone + 'a,
     {
         iter::repeat_with(move || self.unpack_with::<T>(args.clone()))
@@ -127,7 +136,7 @@ pub trait BitReaderExt: BitReader {
     #[inline]
     fn unpack_as<T, As>(&mut self) -> Result<T, Self::Error>
     where
-        As: BitUnpackAs<T> + ?Sized,
+        As: BitUnpackAs<'de, T> + ?Sized,
     {
         As::unpack_as(self)
     }
@@ -137,7 +146,7 @@ pub trait BitReaderExt: BitReader {
     #[inline]
     fn unpack_as_with<T, As>(&mut self, args: As::Args) -> Result<T, Self::Error>
     where
-        As: BitUnpackAsWithArgs<T> + ?Sized,
+        As: BitUnpackAsWithArgs<'de, T> + ?Sized,
     {
         As::unpack_as_with(self, args)
     }
@@ -147,7 +156,7 @@ pub trait BitReaderExt: BitReader {
     #[inline]
     fn unpack_iter_as<T, As>(&mut self) -> impl Iterator<Item = Result<T, Self::Error>> + '_
     where
-        As: BitUnpackAs<T> + ?Sized,
+        As: BitUnpackAs<'de, T> + ?Sized,
     {
         iter::repeat_with(|| self.unpack_as::<_, As>())
             .enumerate()
@@ -162,7 +171,7 @@ pub trait BitReaderExt: BitReader {
         args: As::Args,
     ) -> impl Iterator<Item = Result<T, Self::Error>> + 'a
     where
-        As: BitUnpackAsWithArgs<T> + ?Sized,
+        As: BitUnpackAsWithArgs<'de, T> + ?Sized,
         As::Args: Clone + 'a,
     {
         iter::repeat_with(move || self.unpack_as_with::<_, As>(args.clone()))
@@ -192,123 +201,29 @@ pub trait BitReaderExt: BitReader {
         Self: Sized,
         W: BitWriter,
     {
-        Tee {
-            inner: self,
-            writer,
-        }
+        Tee::new(self, writer)
+    }
+
+    #[inline]
+    fn checkpoint(self) -> Checkpoint<Self>
+    where
+        Self: Sized,
+    {
+        Checkpoint::new(self)
     }
 
     #[inline]
     fn join<R>(self, next: R) -> Join<Self, R>
     where
         Self: Sized,
-        R: BitReader,
+        R: BitReader<'de>,
     {
-        Join(self, next)
+        Join::new(self, next)
     }
 }
-impl<T> BitReaderExt for T where T: BitReader {}
+impl<'de, T> BitReaderExt<'de> for T where T: BitReader<'de> {}
 
-impl<R, F, E> BitReader for MapErr<R, F>
-where
-    R: BitReader,
-    F: FnMut(R::Error) -> E,
-    E: Error,
-{
-    type Error = E;
-
-    #[inline]
-    fn bits_left(&self) -> usize {
-        self.inner.bits_left()
-    }
-
-    #[inline]
-    fn read_bit(&mut self) -> Result<Option<bool>, Self::Error> {
-        self.inner.read_bit().map_err(&mut self.f)
-    }
-
-    #[inline]
-    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<usize, Self::Error> {
-        self.inner.read_bits_into(dst).map_err(&mut self.f)
-    }
-
-    #[inline]
-    fn skip(&mut self, n: usize) -> Result<usize, Self::Error> {
-        self.inner.skip(n).map_err(&mut self.f)
-    }
-}
-
-impl<R, W> BitReader for Tee<R, W>
-where
-    R: BitReader,
-    W: BitWriter,
-{
-    type Error = R::Error;
-
-    #[inline]
-    fn bits_left(&self) -> usize {
-        self.inner.bits_left()
-    }
-
-    #[inline]
-    fn read_bit(&mut self) -> Result<Option<bool>, Self::Error> {
-        let Some(bit) = self.inner.read_bit()? else {
-            return Ok(None);
-        };
-        self.writer
-            .write_bit(bit)
-            .map_err(<R::Error>::custom)
-            .context("writer")?;
-        Ok(Some(bit))
-    }
-
-    #[inline]
-    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<usize, Self::Error> {
-        let n = self.inner.read_bits_into(dst)?;
-        self.writer
-            .write_bitslice(&dst[..n])
-            .map_err(|err| <R::Error>::custom(err).context("writer"))?;
-        Ok(n)
-    }
-}
-
-impl<R1, R2> BitReader for Join<R1, R2>
-where
-    R1: BitReader,
-    R2: BitReader,
-{
-    type Error = R1::Error;
-
-    #[inline]
-    fn bits_left(&self) -> usize {
-        self.0.bits_left() + self.1.bits_left()
-    }
-
-    #[inline]
-    fn read_bit(&mut self) -> Result<Option<bool>, Self::Error> {
-        if let Some(bit) = self.0.read_bit()? {
-            return Ok(Some(bit));
-        }
-        self.1.read_bit().map_err(Error::custom)
-    }
-
-    #[inline]
-    fn read_bits_into(&mut self, dst: &mut BitSlice<u8, Msb0>) -> Result<usize, Self::Error> {
-        let n = self.0.read_bits_into(dst)?;
-        Ok(n + self
-            .1
-            .read_bits_into(&mut dst[n..])
-            .map_err(Error::custom)?)
-    }
-
-    #[inline]
-    fn skip(&mut self, n: usize) -> Result<usize, Self::Error> {
-        let skipped = self.0.skip(n)?;
-        Ok(skipped + self.1.skip(n - skipped).map_err(Error::custom)?)
-    }
-}
-
-impl BitReader for &BitSlice<u8, Msb0> {
+impl<'de> BitReader<'de> for &'de BitSlice<u8, Msb0> {
     type Error = StringError;
 
     #[inline]
@@ -335,6 +250,13 @@ impl BitReader for &BitSlice<u8, Msb0> {
     }
 
     #[inline]
+    fn read_bits(&mut self, n: usize) -> Result<Cow<'de, BitSlice<u8, Msb0>>, Self::Error> {
+        let (v, rest) = self.split_at(n.min(self.bits_left()));
+        *self = rest;
+        Ok(Cow::Borrowed(v))
+    }
+
+    #[inline]
     fn skip(&mut self, mut n: usize) -> Result<usize, Self::Error> {
         n = n.min(self.bits_left());
         let (_, rest) = self.split_at(n);
@@ -343,7 +265,7 @@ impl BitReader for &BitSlice<u8, Msb0> {
     }
 }
 
-impl BitReader for &[bool] {
+impl<'de> BitReader<'de> for &[bool] {
     type Error = StringError;
 
     #[inline]
@@ -370,7 +292,7 @@ impl BitReader for &[bool] {
 }
 
 /// Binary string, e.g. `"0010110...."`
-impl BitReader for &str {
+impl<'de> BitReader<'de> for &str {
     type Error = StringError;
 
     #[inline]

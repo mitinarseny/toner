@@ -15,6 +15,7 @@ use crate::{
 use super::Same;
 
 /// Adapter to **de**/**ser**ialize value from/into reference to the child cell.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Ref<As: ?Sized = Same>(PhantomData<As>);
 
 impl<T, As> CellSerializeAs<T> for Ref<As>

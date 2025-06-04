@@ -60,6 +60,7 @@ use crate::{
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ConstBit<const VALUE: bool>;
 
 impl<const VALUE: bool> BitPack for ConstBit<VALUE> {
@@ -72,11 +73,11 @@ impl<const VALUE: bool> BitPack for ConstBit<VALUE> {
     }
 }
 
-impl<const VALUE: bool> BitUnpack for ConstBit<VALUE> {
+impl<'de, const VALUE: bool> BitUnpack<'de> for ConstBit<VALUE> {
     #[inline]
     fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         if VALUE != reader.unpack::<bool>()? {
             Err(Error::custom(format!(
@@ -102,11 +103,11 @@ macro_rules! impl_bit_serde_for_integers {
             }
         }
 
-        impl BitUnpack for $t {
+        impl<'de> BitUnpack<'de> for $t {
             #[inline]
             fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
             where
-                R: BitReader,
+                R: BitReader<'de>,
             {
                 reader.read_bytes_array().map(Self::from_be_bytes)
             }
@@ -132,11 +133,11 @@ macro_rules! impl_bit_serde_for_integers {
             }
         }
 
-        impl<const BITS: usize> BitUnpackAs<$t> for NBits<BITS> {
+        impl<'de, const BITS: usize> BitUnpackAs<'de, $t> for NBits<BITS> {
             #[inline]
             fn unpack_as<R>(mut reader: R) -> Result<$t, R::Error>
             where
-                R: BitReader,
+                R: BitReader<'de>,
             {
                 const BITS_SIZE: usize = bits_of::<$t>();
                 assert!(BITS <= BITS_SIZE, "excessive bits for type");
@@ -213,6 +214,7 @@ macro_rules! const_uint {
         /// # Ok(())
         /// # }
         /// ```
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         $vis struct $name<const VALUE: $typ, const BITS: usize = { bits_of::<$typ>() }>;
 
         impl<const VALUE: $typ, const BITS: usize> BitPack for $name<VALUE, BITS> {
@@ -226,11 +228,11 @@ macro_rules! const_uint {
             }
         }
 
-        impl<const VALUE: $typ, const BITS: usize> BitUnpack for $name<VALUE, BITS> {
+        impl<'de, const VALUE: $typ, const BITS: usize> BitUnpack<'de> for $name<VALUE, BITS> {
             #[inline]
             fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
             where
-                R: BitReader,
+                R: BitReader<'de>,
             {
                 let v = reader.unpack_as::<$typ, NBits<BITS>>()?;
                 if v != VALUE {

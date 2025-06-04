@@ -11,6 +11,7 @@ use crate::{
 /// list_empty$_ {X:Type} = List X 0;
 /// list$_ {X:Type} {n:#} prev:^(List X n) v:X = List X (n + 1);
 /// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct List<T = Same>(PhantomData<T>);
 
 impl<T, As> CellSerializeAs<T> for List<As>

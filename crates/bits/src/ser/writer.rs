@@ -1,10 +1,12 @@
+use std::mem;
+
 use ::bitvec::{order::Msb0, slice::BitSlice, store::BitStore, vec::BitVec};
 
 use impl_tools::autoimpl;
 
 use crate::{
     Context, Error, StringError,
-    adapters::{BitCounter, MapErr, Tee},
+    adapters::{BitCounter, LimitWriter, MapErr, Tee},
 };
 
 use super::{
@@ -212,10 +214,7 @@ pub trait BitWriterExt: BitWriter {
         Self: Sized,
         W: BitWriter,
     {
-        Tee {
-            inner: self,
-            writer,
-        }
+        Tee::new(self, writer)
     }
 }
 impl<T> BitWriterExt for T where T: BitWriter {}
@@ -247,139 +246,49 @@ impl BitWriter for NoopBitWriter {
     }
 }
 
-impl<W> BitWriter for BitCounter<W>
-where
-    W: BitWriter,
-{
-    type Error = W::Error;
+impl BitWriter for &mut BitSlice<u8, Msb0> {
+    type Error = StringError;
 
     #[inline]
     fn capacity_left(&self) -> usize {
-        self.inner.capacity_left()
+        self.len()
     }
 
     #[inline]
     fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error> {
-        self.inner.write_bit(bit)?;
-        self.counter += 1;
+        if self.is_empty() {
+            return Err(Error::custom("EOF"));
+        }
+        *self = unsafe {
+            *self.get_unchecked_mut(0) = bit;
+            mem::take(self).get_unchecked_mut(1..)
+        };
         Ok(())
     }
 
     #[inline]
     fn write_bitslice(&mut self, bits: &BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
-        self.inner.write_bitslice(bits)?;
-        self.counter += bits.len();
+        if self.capacity_left() < bits.len() {
+            return Err(Error::custom("EOF"));
+        }
+        *self = unsafe {
+            self.get_unchecked_mut(..bits.len())
+                .copy_from_bitslice(bits);
+            mem::take(self).get_unchecked_mut(bits.len()..)
+        };
         Ok(())
     }
 
     #[inline]
     fn repeat_bit(&mut self, n: usize, bit: bool) -> Result<(), Self::Error> {
-        self.inner.repeat_bit(n, bit)?;
-        self.counter += n;
-        Ok(())
-    }
-}
-
-/// Adapter returned by [`.limit()`](BitWriterExt::limit)
-#[autoimpl(Deref using self.inner)]
-pub struct LimitWriter<W> {
-    inner: BitCounter<W>,
-    limit: usize,
-}
-
-impl<W> LimitWriter<W>
-where
-    W: BitWriter,
-{
-    #[inline]
-    pub const fn new(writer: W, limit: usize) -> Self {
-        Self {
-            inner: BitCounter::new(writer),
-            limit,
-        }
-    }
-
-    #[inline]
-    fn ensure_more(&self, n: usize) -> Result<(), W::Error> {
         if self.capacity_left() < n {
-            return Err(Error::custom("max bits limit reached"));
+            return Err(Error::custom("EOF"));
         }
+        *self = unsafe {
+            self.get_unchecked_mut(..n).fill(bit);
+            mem::take(self).get_unchecked_mut(n..)
+        };
         Ok(())
-    }
-
-    #[inline]
-    pub fn into_inner(self) -> W {
-        self.inner.into_inner()
-    }
-}
-
-impl<W> BitWriter for LimitWriter<W>
-where
-    W: BitWriter,
-{
-    type Error = W::Error;
-
-    #[inline]
-    fn capacity_left(&self) -> usize {
-        (self.limit - self.bit_count()).min(self.inner.capacity_left())
-    }
-
-    #[inline]
-    fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error> {
-        self.ensure_more(1)?;
-        self.inner.write_bit(bit)
-    }
-
-    #[inline]
-    fn write_bitslice(&mut self, bits: &BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
-        self.ensure_more(bits.len())?;
-        self.inner.write_bitslice(bits)
-    }
-
-    #[inline]
-    fn repeat_bit(&mut self, n: usize, bit: bool) -> Result<(), Self::Error> {
-        self.ensure_more(n)?;
-        self.inner.repeat_bit(n, bit)
-    }
-}
-
-impl<T, W> BitWriter for Tee<T, W>
-where
-    T: BitWriter,
-    W: BitWriter,
-{
-    type Error = T::Error;
-
-    #[inline]
-    fn capacity_left(&self) -> usize {
-        self.inner.capacity_left().min(self.writer.capacity_left())
-    }
-
-    #[inline]
-    fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error> {
-        self.inner.write_bit(bit)?;
-        self.writer
-            .write_bit(bit)
-            .map_err(<T::Error>::custom)
-            .context("writer")
-    }
-
-    #[inline]
-    fn write_bitslice(&mut self, bits: &BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
-        self.inner.write_bitslice(bits)?;
-        self.writer
-            .write_bitslice(bits)
-            .map_err(<T::Error>::custom)
-            .context("writer")
-    }
-
-    #[inline]
-    fn repeat_bit(&mut self, n: usize, bit: bool) -> Result<(), Self::Error> {
-        self.inner.repeat_bit(n, bit)?;
-        self.writer
-            .repeat_bit(n, bit)
-            .map_err(<T::Error>::custom)
-            .context("writer")
     }
 }
 

@@ -45,7 +45,7 @@ pub type BoC = BagOfCells;
 ///     has_crc32c: true,
 /// })?;
 ///
-/// let unpacked: BagOfCells = unpack_fully(packed)?;
+/// let unpacked: BagOfCells = unpack_fully(&packed)?;
 /// let got: u32 = unpacked
 ///     .single_root()
 ///     .unwrap()
@@ -288,10 +288,10 @@ impl BitPackWithArgs for BagOfCells {
 ///   crc32c:has_crc32c?uint32
 ///   = BagOfCells;
 /// ```
-impl BitUnpack for BagOfCells {
+impl<'de> BitUnpack<'de> for BagOfCells {
     fn unpack<R>(reader: R) -> Result<Self, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         let raw = RawBagOfCells::unpack(reader)?;
         let num_cells = raw.cells.len();
@@ -453,10 +453,10 @@ impl BitPackWithArgs for RawBagOfCells {
     }
 }
 
-impl BitUnpack for RawBagOfCells {
+impl<'de> BitUnpack<'de> for RawBagOfCells {
     fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         let mut buffered = reader.as_mut().tee(BitVec::<u8, Msb0>::new());
 
@@ -545,13 +545,13 @@ pub(crate) struct RawCell {
     pub level: u8,
 }
 
-impl BitUnpackWithArgs for RawCell {
+impl<'de> BitUnpackWithArgs<'de> for RawCell {
     /// size_bytes
     type Args = u32;
 
     fn unpack_with<R>(mut reader: R, size_bytes: Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader,
+        R: BitReader<'de>,
     {
         let refs_descriptor: u8 = reader.unpack()?;
         let level: u8 = refs_descriptor >> 5;
