@@ -135,6 +135,7 @@ where
 /// tail#_ {bn:#} b:(bits bn) = SnakeData ~0;
 /// cons#_ {bn:#} {n:#} b:(bits bn) next:^(SnakeData ~n) = SnakeData ~(n + 1);
 /// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SnakeData;
 
 impl<T> CellSerializeAs<T> for SnakeData
