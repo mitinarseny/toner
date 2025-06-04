@@ -1,6 +1,6 @@
 pub mod r#as;
 
-use std::{rc::Rc, sync::Arc};
+use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use either::Either;
 use impl_tools::autoimpl;
@@ -13,6 +13,7 @@ use super::{BitWriter, BitWriterExt};
 /// In contrast with [`BitPack`](super::BitPack) it allows to pass
 /// [`Args`](BitPackWithArgs::Args) and these arguments can be
 /// calculated dynamically in runtime.
+#[autoimpl(for<T: trait + ToOwned + ?Sized> Cow<'_, T>)]
 #[autoimpl(for<S: trait + ?Sized> &S, &mut S, Box<S>, Rc<S>, Arc<S>)]
 pub trait BitPackWithArgs {
     type Args;

@@ -1,5 +1,5 @@
 use core::mem::MaybeUninit;
-use std::{rc::Rc, sync::Arc};
+use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, slice::BitSlice};
 use either::Either;
@@ -159,6 +159,26 @@ where
         AsWrap::<T, As>::unpack_with(reader, args)
             .map(AsWrap::into_inner)
             .map(Into::into)
+    }
+}
+
+/// Always unpacks as [`Cow::Owned`]
+impl<'a, T, As> BitUnpackAsWithArgs<Cow<'a, T>> for Cow<'a, As>
+where
+    T: ToOwned + ?Sized,
+    As: ToOwned + ?Sized,
+    As::Owned: BitUnpackAsWithArgs<T::Owned>,
+{
+    type Args = <As::Owned as BitUnpackAsWithArgs<T::Owned>>::Args;
+
+    #[inline]
+    fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<Cow<'a, T>, R::Error>
+    where
+        R: BitReader,
+    {
+        AsWrap::<T::Owned, As::Owned>::unpack_with(reader, args)
+            .map(AsWrap::into_inner)
+            .map(Cow::Owned)
     }
 }
 

@@ -1,6 +1,6 @@
 pub mod r#as;
 
-use std::{mem::MaybeUninit, rc::Rc, sync::Arc};
+use std::{borrow::Cow, mem::MaybeUninit, rc::Rc, sync::Arc};
 
 use crate::{
     Context,
@@ -136,6 +136,23 @@ where
         args: Self::Args,
     ) -> Result<Self, CellParserError<'de>> {
         parser.parse_as_with::<_, FromInto<T>>(args)
+    }
+}
+
+/// Always deserializes as [`Cow::Owned`]
+impl<'de, 'a, T> CellDeserializeWithArgs<'de> for Cow<'a, T>
+where
+    T: ToOwned + ?Sized,
+    T::Owned: CellDeserializeWithArgs<'de>,
+{
+    type Args = <T::Owned as CellDeserializeWithArgs<'de>>::Args;
+
+    #[inline]
+    fn parse_with(
+        parser: &mut CellParser<'de>,
+        args: Self::Args,
+    ) -> Result<Self, CellParserError<'de>> {
+        parser.parse_with::<T::Owned>(args).map(Self::Owned)
     }
 }
 

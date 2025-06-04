@@ -5,7 +5,7 @@ mod builder;
 
 pub use self::builder::*;
 
-use std::{rc::Rc, sync::Arc};
+use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use impl_tools::autoimpl;
 
@@ -17,7 +17,8 @@ use crate::{
 };
 
 /// A type that can be **ser**ilalized into [`CellBuilder`].
-#[autoimpl(for <T: trait + ?Sized> &T, &mut T, Box<T>, Rc<T>, Arc<T>)]
+#[autoimpl(for<T: trait + ToOwned + ?Sized> Cow<'_, T>)]
+#[autoimpl(for<T: trait + ?Sized> &T, &mut T, Box<T>, Rc<T>, Arc<T>)]
 pub trait CellSerialize {
     /// Store the value into [`CellBuilder`]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError>;

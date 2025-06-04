@@ -1,7 +1,7 @@
 pub mod r#as;
 
 use core::mem::MaybeUninit;
-use std::{rc::Rc, sync::Arc};
+use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use bitvec::{mem::bits_of, order::Msb0, vec::BitVec};
 use either::Either;
@@ -137,6 +137,23 @@ where
         R: BitReader,
     {
         reader.unpack_as_with::<_, FromInto<T>>(args)
+    }
+}
+
+/// Always unpacks as [`Cow::Owned`]
+impl<T> BitUnpackWithArgs for Cow<'_, T>
+where
+    T: ToOwned + ?Sized,
+    T::Owned: BitUnpackWithArgs,
+{
+    type Args = <T::Owned as BitUnpackWithArgs>::Args;
+
+    #[inline]
+    fn unpack_with<R>(mut reader: R, args: Self::Args) -> Result<Self, R::Error>
+    where
+        R: BitReader,
+    {
+        reader.unpack_with::<T::Owned>(args).map(Self::Owned)
     }
 }
 

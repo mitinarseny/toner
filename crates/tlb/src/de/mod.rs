@@ -6,7 +6,7 @@ mod parser;
 pub use self::parser::*;
 
 use core::mem::{self, MaybeUninit};
-use std::{rc::Rc, sync::Arc};
+use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use crate::{
     Cell, Context,
@@ -101,6 +101,18 @@ where
     #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         parser.parse_as::<_, FromInto<T>>()
+    }
+}
+
+/// Always deserializes as [`Cow::Owned`]
+impl<'de, 'a, T> CellDeserialize<'de> for Cow<'a, T>
+where
+    T: ToOwned + ?Sized,
+    T::Owned: CellDeserialize<'de>,
+{
+    #[inline]
+    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+        <T::Owned as CellDeserialize>::parse(parser).map(Self::Owned)
     }
 }
 

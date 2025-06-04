@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::Arc};
+use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, vec::BitVec};
 use either::Either;
@@ -152,6 +152,20 @@ where
 {
     #[inline]
     fn pack_as<W>(source: &Arc<T>, writer: W) -> Result<(), W::Error>
+    where
+        W: BitWriter,
+    {
+        AsWrap::<&T, As>::new(source).pack(writer)
+    }
+}
+
+impl<'a, T, As> BitPackAs<Cow<'a, T>> for Cow<'a, As>
+where
+    T: ToOwned + ?Sized,
+    As: ToOwned + BitPackAs<T> + ?Sized,
+{
+    #[inline]
+    fn pack_as<W>(source: &Cow<'a, T>, writer: W) -> Result<(), W::Error>
     where
         W: BitWriter,
     {

@@ -1,6 +1,6 @@
 pub mod r#as;
 
-use std::{rc::Rc, sync::Arc};
+use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use impl_tools::autoimpl;
 
@@ -12,6 +12,7 @@ use super::{CellBuilder, CellBuilderError};
 /// In contrast with [`CellSerialize`](super::CellSerialize) it allows to pass
 /// [`Args`](CellSerializeWithArgs::Args) and these arguments can be
 /// calculated dynamically in runtime.
+#[autoimpl(for<T: trait + ToOwned + ?Sized> Cow<'_, T>)]
 #[autoimpl(for <T: trait + ?Sized> &T, &mut T, Box<T>, Rc<T>, Arc<T>)]
 pub trait CellSerializeWithArgs {
     type Args;

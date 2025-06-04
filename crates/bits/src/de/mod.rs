@@ -6,7 +6,7 @@ mod reader;
 pub use self::reader::*;
 
 use core::mem::MaybeUninit;
-use std::{rc::Rc, sync::Arc};
+use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, slice::BitSlice, view::AsBits};
 use either::Either;
@@ -168,6 +168,21 @@ where
         R: BitReader,
     {
         reader.unpack_as::<_, FromInto<T>>()
+    }
+}
+
+/// Always unpacks as [`Cow::Owned`]
+impl<T> BitUnpack for Cow<'_, T>
+where
+    T: ToOwned + ?Sized,
+    T::Owned: BitUnpack,
+{
+    #[inline]
+    fn unpack<R>(reader: R) -> Result<Self, R::Error>
+    where
+        R: BitReader,
+    {
+        <T::Owned as BitUnpack>::unpack(reader).map(Self::Owned)
     }
 }
 

@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::Arc};
+use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use crate::{Context, r#as::AsWrap, either::Either};
 
@@ -115,6 +115,17 @@ where
 {
     #[inline]
     fn store_as(source: &Arc<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+        AsWrap::<&T, As>::new(source).store(builder)
+    }
+}
+
+impl<'a, T, As> CellSerializeAs<Cow<'a, T>> for Cow<'a, As>
+where
+    T: ToOwned + ?Sized,
+    As: ToOwned + CellSerializeAs<T> + ?Sized,
+{
+    #[inline]
+    fn store_as(source: &Cow<'a, T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
         AsWrap::<&T, As>::new(source).store(builder)
     }
 }

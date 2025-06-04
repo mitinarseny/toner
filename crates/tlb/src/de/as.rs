@@ -1,5 +1,5 @@
 use core::mem::MaybeUninit;
-use std::{rc::Rc, sync::Arc};
+use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use crate::{Context, r#as::AsWrap, either::Either};
 
@@ -94,6 +94,21 @@ where
         AsWrap::<T, As>::parse(parser)
             .map(AsWrap::into_inner)
             .map(Arc::new)
+    }
+}
+
+/// Always deserializes as [`Cow::Owned`]
+impl<'de, 'a, T, As> CellDeserializeAs<'de, Cow<'a, T>> for Cow<'a, As>
+where
+    T: ToOwned + ?Sized,
+    As: ToOwned + ?Sized,
+    As::Owned: CellDeserializeAs<'de, T::Owned>,
+{
+    #[inline]
+    fn parse_as(parser: &mut CellParser<'de>) -> Result<Cow<'a, T>, CellParserError<'de>> {
+        AsWrap::<T::Owned, As::Owned>::parse(parser)
+            .map(AsWrap::into_inner)
+            .map(Cow::Owned)
     }
 }
 

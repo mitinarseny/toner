@@ -5,7 +5,7 @@ mod writer;
 
 pub use self::writer::*;
 
-use std::{rc::Rc, sync::Arc};
+use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use args::r#as::BitPackAsWithArgs;
 use r#as::BitPackAs;
@@ -21,7 +21,8 @@ use crate::{
 use self::args::BitPackWithArgs;
 
 /// A type that can be bitwise-**ser**ilalized into any [`BitWriter`].
-#[autoimpl(for<S: trait + ?Sized> &S, &mut S, Box<S>, Rc<S>, Arc<S>)]
+#[autoimpl(for<T: trait + ToOwned + ?Sized> Cow<'_, T>)]
+#[autoimpl(for<T: trait + ?Sized> &T, &mut T, Box<T>, Rc<T>, Arc<T>)]
 pub trait BitPack {
     /// Pack value into the writer.
     fn pack<W>(&self, writer: W) -> Result<(), W::Error>
