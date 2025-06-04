@@ -156,7 +156,7 @@ impl_bit_serde_for_integers! {
 }
 
 macro_rules! const_uint {
-    ($($vis:vis $name:ident<$typ:tt, $bits:literal>)+) => {$(
+    ($($vis:vis $name:ident<$typ:tt>)+) => {$(
         #[doc = concat!("Constant version of `", stringify!($typ), "`")]
         /// ## Deserialization
         #[doc = concat!(
@@ -213,7 +213,7 @@ macro_rules! const_uint {
         /// # Ok(())
         /// # }
         /// ```
-        $vis struct $name<const VALUE: $typ, const BITS: usize = $bits>;
+        $vis struct $name<const VALUE: $typ, const BITS: usize = { bits_of::<$typ>() }>;
 
         impl<const VALUE: $typ, const BITS: usize> BitPack for $name<VALUE, BITS> {
             #[inline]
@@ -245,16 +245,16 @@ macro_rules! const_uint {
 }
 
 const_uint! {
-    pub ConstU8  <u8,   8>
-    pub ConstI8  <i8,   8>
-    pub ConstU16 <u16,  16>
-    pub ConstI16 <i16,  16>
-    pub ConstU32 <u32,  32>
-    pub ConstI32 <i32,  32>
-    pub ConstU64 <u64,  64>
-    pub ConstI64 <i64,  64>
-    pub ConstU128<u128, 128>
-    pub ConstI128<i128, 128>
+    pub ConstU8  <u8>
+    pub ConstI8  <i8>
+    pub ConstU16 <u16>
+    pub ConstI16 <i16>
+    pub ConstU32 <u32>
+    pub ConstI32 <i32>
+    pub ConstU64 <u64>
+    pub ConstI64 <i64>
+    pub ConstU128<u128>
+    pub ConstI128<i128>
 }
 
 #[cfg(test)]
