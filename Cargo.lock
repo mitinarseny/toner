@@ -775,6 +775,7 @@ dependencies = [
  "impl-tools",
  "num-bigint",
  "num-traits",
+ "rustversion",
  "thiserror",
 ]
 

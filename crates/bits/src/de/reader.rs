@@ -41,7 +41,7 @@ pub trait BitReader<'de> {
         Ok(dst.len())
     }
 
-    // TODO: docs
+    /// Reads `n` bits and returns possibly borrowed [`BitSlice`]
     #[inline]
     fn read_bits(&mut self, mut n: usize) -> Result<Cow<'de, BitSlice<u8, Msb0>>, Self::Error> {
         let mut buf = BitVec::repeat(false, n);

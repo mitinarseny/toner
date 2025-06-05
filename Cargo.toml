@@ -4,7 +4,7 @@ default-members = ["./crates/toner"]
 resolver = "3"
 
 [workspace.package]
-rust-version = "1.87"
+rust-version = "1.85"
 edition = "2024"
 repository = "https://github.com/mitinarseny/toner"
 keywords = ["ton", "tlb", "tl-b", "boc"]
@@ -33,6 +33,7 @@ itertools = "0.12"
 lazy_static = "1.4"
 num-bigint = "0.4"
 num-traits = "0.2"
+rustversion = "1"
 serde_with = { version = "3.8", features = ["macros"] }
 sha2 = "0.10"
 strum = { version = "0.25", features = ["derive"] }

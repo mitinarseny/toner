@@ -1,4 +1,4 @@
-//! Adapters for [`BitReader`](crate::de::BitReader) / [`BitWriter`](crate::ser::BitWriter)
+//! Adapters for [`BitReader`]/[`BitWriter`]
 mod io;
 
 use std::borrow::Cow;
