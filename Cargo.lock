@@ -730,7 +730,7 @@ dependencies = [
 
 [[package]]
 name = "tlb"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "arbitrary",
  "base64 0.21.7",
@@ -747,7 +747,7 @@ dependencies = [
 
 [[package]]
 name = "tlb-ton"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "arbitrary",
  "base64 0.21.7",
@@ -768,7 +768,7 @@ dependencies = [
 
 [[package]]
 name = "tlbits"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "bitvec",
  "either",
@@ -781,7 +781,7 @@ dependencies = [
 
 [[package]]
 name = "ton-contracts"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -799,7 +799,7 @@ dependencies = [
 
 [[package]]
 name = "toner"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "tlb",
  "tlb-ton",
