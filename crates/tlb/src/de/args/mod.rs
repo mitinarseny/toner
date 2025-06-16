@@ -1,6 +1,6 @@
 pub mod r#as;
 
-use std::{borrow::Cow, mem::MaybeUninit, rc::Rc, sync::Arc};
+use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use crate::{
     Context,
@@ -40,11 +40,10 @@ where
         parser: &mut CellParser<'de>,
         args: Self::Args,
     ) -> Result<Self, CellParserError<'de>> {
-        let mut arr: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
-        for (i, a) in arr.iter_mut().enumerate() {
-            a.write(T::parse_with(parser, args.clone()).with_context(|| format!("[{i}]"))?);
-        }
-        Ok(unsafe { arr.as_ptr().cast::<[T; N]>().read() })
+        // TODO: replace with [`core::array::try_from_fn`](https://github.com/rust-lang/rust/issues/89379) when stabilized
+        array_util::try_from_fn(|i| {
+            T::parse_with(parser, args.clone()).with_context(|| format!("[{i}]"))
+        })
     }
 }
 

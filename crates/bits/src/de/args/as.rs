@@ -1,4 +1,3 @@
-use core::mem::MaybeUninit;
 use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, slice::BitSlice};
@@ -51,11 +50,10 @@ where
     where
         R: BitReader<'de>,
     {
-        let mut arr: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
-        for a in &mut arr {
-            a.write(reader.unpack_as_with::<T, As>(args.clone())?);
-        }
-        Ok(unsafe { arr.as_ptr().cast::<[T; N]>().read() })
+        // TODO: replace with [`core::array::try_from_fn`](https://github.com/rust-lang/rust/issues/89379) when stabilized
+        array_util::try_from_fn(|i| {
+            As::unpack_as_with(&mut reader, args.clone()).with_context(|| format!("[{i}]"))
+        })
     }
 }
 

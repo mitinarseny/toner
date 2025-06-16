@@ -5,7 +5,7 @@ mod parser;
 
 pub use self::parser::*;
 
-use core::mem::{self, MaybeUninit};
+use core::mem;
 use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use crate::{
@@ -38,11 +38,8 @@ where
 {
     #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        let mut arr: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
-        for a in &mut arr {
-            a.write(T::parse(parser)?);
-        }
-        Ok(unsafe { arr.as_ptr().cast::<[T; N]>().read() })
+        // TODO: replace with [`core::array::try_from_fn`](https://github.com/rust-lang/rust/issues/89379) when stabilized
+        array_util::try_from_fn(|i| T::parse(parser).with_context(|| format!("[{i}]")))
     }
 }
 
