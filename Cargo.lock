@@ -33,6 +33,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "array-util"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e509844de8f09b90a2c3444684a2b6695f4071360e13d2fda0af9f749cc2ed6"
+dependencies = [
+ "arrayvec",
+]
+
+[[package]]
+name = "arrayvec"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
+
+[[package]]
 name = "autocfg"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -730,9 +745,10 @@ dependencies = [
 
 [[package]]
 name = "tlb"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "arbitrary",
+ "array-util",
  "base64 0.21.7",
  "bitvec",
  "crc",
@@ -747,7 +763,7 @@ dependencies = [
 
 [[package]]
 name = "tlb-ton"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "arbitrary",
  "base64 0.21.7",
@@ -768,8 +784,9 @@ dependencies = [
 
 [[package]]
 name = "tlbits"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
+ "array-util",
  "bitvec",
  "either",
  "impl-tools",
@@ -781,7 +798,7 @@ dependencies = [
 
 [[package]]
 name = "ton-contracts"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -799,7 +816,7 @@ dependencies = [
 
 [[package]]
 name = "toner"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "tlb",
  "tlb-ton",

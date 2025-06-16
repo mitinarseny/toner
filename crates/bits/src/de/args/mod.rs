@@ -1,6 +1,5 @@
 pub mod r#as;
 
-use core::mem::MaybeUninit;
 use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
@@ -38,11 +37,10 @@ where
     where
         R: BitReader<'de>,
     {
-        let mut arr: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
-        for (i, a) in arr.iter_mut().enumerate() {
-            a.write(T::unpack_with(&mut reader, args.clone()).with_context(|| format!("[{i}]"))?);
-        }
-        Ok(unsafe { arr.as_ptr().cast::<[T; N]>().read() })
+        // TODO: replace with [`core::array::try_from_fn`](https://github.com/rust-lang/rust/issues/89379) when stabilized
+        array_util::try_from_fn(|i| {
+            T::unpack_with(&mut reader, args.clone()).with_context(|| format!("[{i}]"))
+        })
     }
 }
 

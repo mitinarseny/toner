@@ -1,6 +1,6 @@
 [package]
 name = "tlbits"
-version = "0.5.2"
+version = "0.5.3"
 edition.workspace = true
 rust-version.workspace = true
 repository.workspace = true
@@ -10,6 +10,7 @@ categories.workspace = true
 description = "TL-B serialization (bits only)"
 
 [dependencies]
+array-util.workspace = true
 bitvec.workspace = true
 either.workspace = true
 impl-tools.workspace = true

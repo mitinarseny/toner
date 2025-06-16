@@ -1,4 +1,3 @@
-use core::mem::MaybeUninit;
 use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use crate::{Context, r#as::AsWrap, either::Either};
@@ -24,11 +23,8 @@ where
 {
     #[inline]
     fn parse_as(parser: &mut CellParser<'de>) -> Result<[T; N], CellParserError<'de>> {
-        let mut arr: [MaybeUninit<T>; N] = unsafe { MaybeUninit::uninit().assume_init() };
-        for a in &mut arr {
-            a.write(parser.parse_as::<T, As>()?);
-        }
-        Ok(unsafe { arr.as_ptr().cast::<[T; N]>().read() })
+        // TODO: replace with [`core::array::try_from_fn`](https://github.com/rust-lang/rust/issues/89379) when stabilized
+        array_util::try_from_fn(|i| As::parse_as(parser).with_context(|| format!("[{i}]")))
     }
 }
 
