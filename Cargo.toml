@@ -29,7 +29,7 @@ digest = { version = "0.10", default-features = false }
 either = "1"
 hex = "0.4"
 hex-literal = "0.4"
-impl-tools = "0.10"
+impl-tools = "0.11"
 itertools = "0.12"
 lazy_static = "1.4"
 num-bigint = "0.4"
