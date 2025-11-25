@@ -26,7 +26,13 @@ serde_with = { workspace = true, optional = true }
 strum.workspace = true
 sha2 = { workspace = true, optional = true }
 
-[dependencies.schemars]
+[dependencies.schemars_0_8]
+workspace = true
+default-features = false
+features = ["derive"]
+optional = true
+
+[dependencies.schemars_1]
 workspace = true
 default-features = false
 features = ["derive"]
@@ -43,7 +49,8 @@ arbitrary = [
     "tlb/arbitrary",
 ]
 base64 = ["tlb/base64"]
-schemars = ["dep:schemars"]
+schemars_0_8 = ["dep:schemars_0_8"]
+schemars_1 = ["dep:schemars_1"]
 serde = ["dep:serde_with"]
 sha2 = ["dep:sha2", "tlb/sha2"]
 

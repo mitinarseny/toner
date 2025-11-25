@@ -39,8 +39,17 @@ const CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
 /// ```
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(
-    feature = "schemars",
-    derive(::schemars::JsonSchema),
+    all(feature = "schemars_0_8", not(feature = "schemars_1")),
+    derive(::schemars_0_8::JsonSchema),
+    schemars(crate = "::schemars_0_8")
+)]
+#[cfg_attr(
+    feature = "schemars_1",
+    derive(::schemars_1::JsonSchema),
+    schemars(crate = "::schemars_1")
+)]
+#[cfg_attr(
+    any(feature = "schemars_0_8", feature = "schemars_1"),
     schemars(with = "String")
 )]
 #[cfg_attr(

@@ -35,7 +35,8 @@ lazy_static = "1.4"
 num-bigint = "0.4"
 num-traits = "0.2"
 rustversion = "1"
-schemars = { version = "*", default-features = false }
+schemars_0_8 = { package = "schemars", version = "0.8", default-features = false }
+schemars_1 = { package = "schemars", version = "1", default-features = false }
 serde_with = { version = "3.8", features = ["macros"] }
 sha2 = "0.10"
 strum = { version = "0.25", features = ["derive"] }
