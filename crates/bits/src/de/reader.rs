@@ -310,8 +310,7 @@ impl<'de> BitReader<'de> for &str {
             "1" => true,
             _ => {
                 return Err(Error::custom(format!(
-                    "invalid character: expected '0' or '1', got: {}",
-                    char
+                    "invalid character: expected '0' or '1', got: {char}",
                 )));
             }
         };
