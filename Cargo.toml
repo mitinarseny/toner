@@ -14,9 +14,9 @@ license-file = "LICENSE.txt"
 [workspace.dependencies]
 tlbits = { path = "./crates/bits", version = "0.5.4" }
 tlb = { path = "./crates/tlb", version = "0.5.4" }
-tlb-ton = { path = "./crates/tlb-ton", version = "0.5.5" }
-ton-contracts = { path = "./crates/contracts", version = "0.5.5" }
-toner = { path = "./crates/toner", version = "0.5.5" }
+tlb-ton = { path = "./crates/tlb-ton", version = "0.5.6" }
+ton-contracts = { path = "./crates/contracts", version = "0.5.6" }
+toner = { path = "./crates/toner", version = "0.5.6" }
 
 anyhow = "1"
 arbitrary = "1.4"
