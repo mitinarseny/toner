@@ -39,18 +39,9 @@ const CRC_16_XMODEM: Crc<u16> = Crc::<u16>::new(&crc::CRC_16_XMODEM);
 /// ```
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(
-    all(feature = "schemars_0_8", not(feature = "schemars_1")),
-    derive(::schemars_0_8::JsonSchema),
-    schemars(crate = "::schemars_0_8")
-)]
-#[cfg_attr(
     feature = "schemars_1",
     derive(::schemars_1::JsonSchema),
-    schemars(crate = "::schemars_1")
-)]
-#[cfg_attr(
-    any(feature = "schemars_0_8", feature = "schemars_1"),
-    schemars(with = "String")
+    schemars(crate = "::schemars_1", with = "String")
 )]
 #[cfg_attr(
     feature = "serde",
@@ -413,6 +404,22 @@ impl<'de> BitUnpack<'de> for Anycast {
         Ok(Self { rewrite_pfx })
     }
 }
+
+#[cfg(feature = "schemars_0_8")]
+// schemars 0.8 supports #[schemars(with = "...")] attribute only for fields
+const _: () = {
+    use schemars_0_8::{JsonSchema, r#gen::SchemaGenerator, schema::Schema};
+
+    impl JsonSchema for MsgAddress {
+        fn schema_name() -> String {
+            String::schema_name()
+        }
+
+        fn json_schema(generator: &mut SchemaGenerator) -> Schema {
+            String::json_schema(generator)
+        }
+    }
+};
 
 #[cfg(test)]
 mod tests {
