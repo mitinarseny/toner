@@ -22,11 +22,11 @@ impl BitPackAsWithArgs<BitSlice<u8, Msb0>> for HmLabel {
 
     fn pack_as_with<W>(
         source: &BitSlice<u8, Msb0>,
-        mut writer: W,
+        writer: &mut W,
         m: Self::Args,
     ) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         let n = source.len() as u32;
         // {n <= m}
@@ -72,9 +72,9 @@ impl<'de> BitUnpackAsWithArgs<'de, BitVec<u8, Msb0>> for HmLabel {
     /// m
     type Args = u32;
 
-    fn unpack_as_with<R>(mut reader: R, m: Self::Args) -> Result<BitVec<u8, Msb0>, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, m: Self::Args) -> Result<BitVec<u8, Msb0>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         match reader.unpack()? {
             // hml_short$0

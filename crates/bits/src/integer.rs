@@ -30,7 +30,7 @@ use crate::{
 /// #   StringError,
 /// # };
 /// # fn main() -> Result<(), StringError> {
-/// # let mut reader = bits![u8, Msb0; 1, 1];
+/// # let reader = bits![u8, Msb0; 1, 1];
 /// reader.unpack::<ConstBit<true>>()?;
 /// // is equivalent of:
 /// if !reader.unpack::<bool>()? {
@@ -65,9 +65,9 @@ pub struct ConstBit<const VALUE: bool>;
 
 impl<const VALUE: bool> BitPack for ConstBit<VALUE> {
     #[inline]
-    fn pack<W>(&self, writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         VALUE.pack(writer)
     }
@@ -75,9 +75,9 @@ impl<const VALUE: bool> BitPack for ConstBit<VALUE> {
 
 impl<'de, const VALUE: bool> BitUnpack<'de> for ConstBit<VALUE> {
     #[inline]
-    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         if VALUE != reader.unpack::<bool>()? {
             Err(Error::custom(format!(
@@ -94,9 +94,9 @@ macro_rules! impl_bit_serde_for_integers {
     ($($t:tt)+) => {$(
         impl BitPack for $t {
             #[inline]
-            fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+            fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
             where
-                W: BitWriter,
+                W: BitWriter + ?Sized,
             {
                 writer.pack_as::<_, AsBytes>(self.to_be_bytes())?;
                 Ok(())
@@ -105,9 +105,9 @@ macro_rules! impl_bit_serde_for_integers {
 
         impl<'de> BitUnpack<'de> for $t {
             #[inline]
-            fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+            fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
             where
-                R: BitReader<'de>,
+                R: BitReader<'de> + ?Sized,
             {
                 reader.read_bytes_array().map(Self::from_be_bytes)
             }
@@ -115,9 +115,9 @@ macro_rules! impl_bit_serde_for_integers {
 
         impl<const BITS: usize> BitPackAs<$t> for NBits<BITS> {
             #[inline]
-            fn pack_as<W>(source: &$t, mut writer: W) -> Result<(), W::Error>
+            fn pack_as<W>(source: &$t, writer: &mut W) -> Result<(), W::Error>
             where
-                W: BitWriter,
+                W: BitWriter + ?Sized,
             {
                 const BITS_SIZE: usize = bits_of::<$t>();
                 assert!(BITS <= BITS_SIZE, "excessive bits for type");
@@ -135,9 +135,9 @@ macro_rules! impl_bit_serde_for_integers {
 
         impl<'de, const BITS: usize> BitUnpackAs<'de, $t> for NBits<BITS> {
             #[inline]
-            fn unpack_as<R>(mut reader: R) -> Result<$t, R::Error>
+            fn unpack_as<R>(reader: &mut R) -> Result<$t, R::Error>
             where
-                R: BitReader<'de>,
+                R: BitReader<'de> + ?Sized,
             {
                 const BITS_SIZE: usize = bits_of::<$t>();
                 assert!(BITS <= BITS_SIZE, "excessive bits for type");
@@ -177,7 +177,7 @@ macro_rules! const_uint {
         /// # fn main() -> Result<(), StringError> {
         /// # let mut buff = BitVec::<u8, Msb0>::new();
         #[doc = concat!("# buff.pack::<[", stringify!($typ), "; 2]>([123; 2])?;")]
-        /// # let mut reader = buff.as_bitslice();
+        /// # let reader = buff.as_bitslice();
         #[doc = concat!("reader.unpack::<", stringify!($name), "<123>>()?;")]
         /// // is equivalent of:
         #[doc = concat!("let got: ", stringify!($typ), " = reader.unpack()?;")]
@@ -207,7 +207,7 @@ macro_rules! const_uint {
         #[doc = concat!("writer.pack(", stringify!($name), "::<123>)?;")]
         /// // is equivalent of:
         #[doc = concat!("writer.pack::<", stringify!($typ), ">(123)?;")]
-        /// # let mut reader = writer.as_bitslice();
+        /// # let reader = writer.as_bitslice();
         #[doc = concat!(
             "# assert_eq!(reader.unpack::<[", stringify!($typ), "; 2]>()?, [123; 2]);"
         )]
@@ -219,9 +219,9 @@ macro_rules! const_uint {
 
         impl<const VALUE: $typ, const BITS: usize> BitPack for $name<VALUE, BITS> {
             #[inline]
-            fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+            fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
             where
-                W: BitWriter,
+                W: BitWriter + ?Sized,
             {
                 writer.pack_as::<_, NBits<BITS>>(VALUE)?;
                 Ok(())
@@ -230,9 +230,9 @@ macro_rules! const_uint {
 
         impl<'de, const VALUE: $typ, const BITS: usize> BitUnpack<'de> for $name<VALUE, BITS> {
             #[inline]
-            fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+            fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
             where
-                R: BitReader<'de>,
+                R: BitReader<'de> + ?Sized,
             {
                 let v = reader.unpack_as::<$typ, NBits<BITS>>()?;
                 if v != VALUE {

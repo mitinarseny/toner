@@ -19,9 +19,9 @@ pub trait BitPackAsWithArgs<T: ?Sized> {
     type Args;
 
     /// Packs the value with args using an adapter
-    fn pack_as_with<W>(source: &T, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &T, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter;
+        W: BitWriter + ?Sized;
 }
 
 /// **Ser**ialize given value into [`BitVec`] with argmuments using an adapter
@@ -43,9 +43,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn pack_as_with<W>(source: &&'a T, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &&'a T, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         AsWrap::<&T, As>::new(source).pack_with(writer, args)
     }
@@ -59,9 +59,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn pack_as_with<W>(source: &&'a mut T, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &&'a mut T, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         AsWrap::<&T, As>::new(source).pack_with(writer, args)
     }
@@ -75,9 +75,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn pack_as_with<W>(source: &[T], mut writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &[T], writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         writer.pack_many_as_with::<_, &As>(source, args)?;
         Ok(())
@@ -92,9 +92,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn pack_as_with<W>(source: &[T; N], writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &[T; N], writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         <[As]>::pack_as_with(source.as_slice(), writer, args)
     }
@@ -110,9 +110,9 @@ macro_rules! impl_bit_pack_as_with_args_for_tuple {
             type Args = ($($a::Args,)+);
 
             #[inline]
-            fn pack_as_with<W>(source: &($($t,)+), mut writer: W, args: Self::Args) -> Result<(), W::Error>
+            fn pack_as_with<W>(source: &($($t,)+), writer: &mut W, args: Self::Args) -> Result<(), W::Error>
             where
-                W: BitWriter,
+                W: BitWriter + ?Sized,
             {
                 writer$(
                     .pack_as_with::<&$t, &$a>(&source.$n, args.$n)?)+;
@@ -139,9 +139,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn pack_as_with<W>(source: &Rc<T>, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &Rc<T>, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         AsWrap::<&T, As>::new(source).pack_with(writer, args)
     }
@@ -154,9 +154,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn pack_as_with<W>(source: &Arc<T>, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &Arc<T>, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         AsWrap::<&T, As>::new(source).pack_with(writer, args)
     }
@@ -170,9 +170,13 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn pack_as_with<W>(source: &Cow<'a, T>, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(
+        source: &Cow<'a, T>,
+        writer: &mut W,
+        args: Self::Args,
+    ) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         AsWrap::<&T, As>::new(source).pack_with(writer, args)
     }
@@ -194,11 +198,11 @@ where
     #[inline]
     fn pack_as_with<W>(
         source: &Either<Left, Right>,
-        writer: W,
+        writer: &mut W,
         args: Self::Args,
     ) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         source
             .as_ref()
@@ -214,9 +218,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn pack_as_with<W>(source: &Option<T>, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &Option<T>, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         BitPackWithArgs::pack_with(
             &match source.as_ref() {
@@ -241,9 +245,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn pack_as_with<W>(source: &Option<T>, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &Option<T>, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         source
             .as_ref()

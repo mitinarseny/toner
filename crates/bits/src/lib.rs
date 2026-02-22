@@ -36,8 +36,8 @@
 //! #     pub amount: BigUint,
 //! # }
 //! impl BitPack for Hello {
-//!     fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
-//!         where W: BitWriter,
+//!     fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
+//!         where W: BitWriter + ?Sized,
 //!     {
 //!         writer
 //!             // tag$10
@@ -81,8 +81,8 @@
 //! #     pub amount: BigUint,
 //! # }
 //! # impl BitPack for Hello {
-//! #     fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
-//! #         where W: BitWriter,
+//! #     fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
+//! #         where W: BitWriter + ?Sized,
 //! #     {
 //! #         writer
 //! #             // tag$10
@@ -95,8 +95,8 @@
 //! #     }
 //! # }
 //! impl<'de> BitUnpack<'de> for Hello {
-//!     fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
-//!         where R: BitReader<'de>,
+//!     fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
+//!         where R: BitReader<'de> + ?Sized,
 //!     {
 //!         // tag$10
 //!         let tag: u8 = reader.unpack_as::<_, NBits<2>>()?;

@@ -21,9 +21,9 @@ pub trait BitUnpackAsWithArgs<'de, T> {
     type Args;
 
     /// Unpacks value with args using an adapter
-    fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<T, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader<'de>;
+        R: BitReader<'de> + ?Sized;
 }
 
 /// **De**serialize value from [`BitSlice`] with args using an adapter
@@ -46,13 +46,13 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn unpack_as_with<R>(mut reader: R, args: Self::Args) -> Result<[T; N], R::Error>
+    fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<[T; N], R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         // TODO: replace with [`core::array::try_from_fn`](https://github.com/rust-lang/rust/issues/89379) when stabilized
         array_util::try_from_fn(|i| {
-            As::unpack_as_with(&mut reader, args.clone()).with_context(|| format!("[{i}]"))
+            As::unpack_as_with(reader, args.clone()).with_context(|| format!("[{i}]"))
         })
     }
 }
@@ -65,9 +65,9 @@ where
     type Args = (usize, As::Args);
 
     #[inline]
-    fn unpack_as_with<R>(mut reader: R, (len, args): Self::Args) -> Result<Vec<T>, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, (len, args): Self::Args) -> Result<Vec<T>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         reader
             .unpack_iter_as_with::<_, As>(args)
@@ -86,12 +86,12 @@ macro_rules! impl_bit_unpack_as_with_args_for_tuple {
             type Args = ($($a::Args,)+);
 
             #[inline]
-            fn unpack_as_with<R>(mut reader: R, args: Self::Args) -> Result<($($t,)+), R::Error>
+            fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<($($t,)+), R::Error>
             where
-                R: BitReader<'de>,
+                R: BitReader<'de> + ?Sized,
             {
                 Ok(($(
-                    $a::unpack_as_with(&mut reader, args.$n)
+                    $a::unpack_as_with(reader, args.$n)
                         .context(concat!(".", stringify!($n)))?,
                 )+))
             }
@@ -116,9 +116,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<Box<T>, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<Box<T>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         AsWrap::<T, As>::unpack_with(reader, args)
             .map(AsWrap::into_inner)
@@ -133,9 +133,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<Rc<T>, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<Rc<T>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         AsWrap::<T, As>::unpack_with(reader, args)
             .map(AsWrap::into_inner)
@@ -150,9 +150,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<Arc<T>, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<Arc<T>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         AsWrap::<T, As>::unpack_with(reader, args)
             .map(AsWrap::into_inner)
@@ -170,9 +170,9 @@ where
     type Args = <As::Owned as BitUnpackAsWithArgs<'de, T::Owned>>::Args;
 
     #[inline]
-    fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<Cow<'a, T>, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<Cow<'a, T>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         AsWrap::<T::Owned, As::Owned>::unpack_with(reader, args)
             .map(AsWrap::into_inner)
@@ -194,9 +194,9 @@ where
     type Args = AsLeft::Args;
 
     #[inline]
-    fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<Either<Left, Right>, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<Either<Left, Right>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         Ok(
             Either::<AsWrap<Left, AsLeft>, AsWrap<Right, AsRight>>::unpack_with(reader, args)?
@@ -212,9 +212,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn unpack_as_with<R>(mut reader: R, args: Self::Args) -> Result<Option<T>, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<Option<T>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         Ok(reader
             .unpack_as_with::<Either<(), T>, Either<NoArgs<_>, As>>(args)?
@@ -234,9 +234,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<Option<T>, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<Option<T>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         Ok(Option::<AsWrap<T, As>>::unpack_with(reader, args)?.map(AsWrap::into_inner))
     }

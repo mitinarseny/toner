@@ -5,29 +5,35 @@ mod writer;
 
 pub use self::writer::*;
 
-use std::{borrow::Cow, rc::Rc, sync::Arc};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque},
+    rc::Rc,
+    sync::Arc,
+};
 
-use args::r#as::BitPackAsWithArgs;
-use r#as::BitPackAs;
 use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
 use either::Either;
 use impl_tools::autoimpl;
 
 use crate::{
-    Context, StringError,
+    Context, Error, StringError,
     r#as::{AsBytes, Same, args::NoArgs},
 };
 
-use self::args::BitPackWithArgs;
+use self::{
+    args::{BitPackWithArgs, r#as::BitPackAsWithArgs},
+    r#as::BitPackAs,
+};
 
 /// A type that can be bitwise-**ser**ilalized into any [`BitWriter`].
 #[autoimpl(for<T: trait + ToOwned + ?Sized> Cow<'_, T>)]
 #[autoimpl(for<T: trait + ?Sized> &T, &mut T, Box<T>, Rc<T>, Arc<T>)]
 pub trait BitPack {
     /// Pack value into the writer.
-    fn pack<W>(&self, writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter;
+        W: BitWriter + ?Sized;
 }
 
 /// **Ser**ialize given value into [`BitVec`]
@@ -80,9 +86,9 @@ where
 
 impl BitPack for () {
     #[inline]
-    fn pack<W>(&self, _writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, _writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         Ok(())
     }
@@ -90,9 +96,9 @@ impl BitPack for () {
 
 impl BitPack for bool {
     #[inline]
-    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         writer.write_bit(*self)
     }
@@ -103,10 +109,16 @@ where
     T: BitPack,
 {
     #[inline]
-    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
+        // TODO: save bytes
+        u32::try_from(self.len())
+            .map_err(Error::custom)
+            .context("length")?
+            .pack(writer)?;
+
         writer.pack_many(self)?;
         Ok(())
     }
@@ -117,24 +129,12 @@ where
     T: BitPack,
 {
     #[inline]
-    fn pack<W>(&self, writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
-        self.as_slice().pack(writer)
-    }
-}
-
-impl<T> BitPack for Vec<T>
-where
-    T: BitPack,
-{
-    #[inline]
-    fn pack<W>(&self, writer: W) -> Result<(), W::Error>
-    where
-        W: BitWriter,
-    {
-        self.as_slice().pack(writer)
+        writer.pack_many(self)?;
+        Ok(())
     }
 }
 
@@ -146,11 +146,11 @@ macro_rules! impl_bit_pack_for_tuple {
         )+
         {
             #[inline]
-            fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+            fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
             where
-                W: BitWriter,
+                W: BitWriter + ?Sized,
             {
-                $(self.$n.pack(&mut writer).context(concat!(".", stringify!($n)))?;)+
+                $(self.$n.pack(writer).context(concat!(".", stringify!($n)))?;)+
                 Ok(())
             }
         }
@@ -178,9 +178,9 @@ where
     R: BitPack,
 {
     #[inline]
-    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         match self {
             Self::Left(l) => writer.pack(false).context("tag")?.pack(l).context("left")?,
@@ -200,9 +200,9 @@ where
     T: BitPack,
 {
     #[inline]
-    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         writer.pack_as::<_, Either<(), Same>>(self.as_ref())?;
         Ok(())
@@ -211,9 +211,9 @@ where
 
 impl BitPack for BitSlice<u8, Msb0> {
     #[inline]
-    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         writer.write_bitslice(self)
     }
@@ -221,9 +221,9 @@ impl BitPack for BitSlice<u8, Msb0> {
 
 impl BitPack for BitVec<u8, Msb0> {
     #[inline]
-    fn pack<W>(&self, writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         self.as_bitslice().pack(writer)
     }
@@ -231,10 +231,11 @@ impl BitPack for BitVec<u8, Msb0> {
 
 impl BitPack for str {
     #[inline]
-    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
+        // TODO: len
         writer.pack_as::<_, AsBytes>(self)?;
         Ok(())
     }
@@ -242,10 +243,142 @@ impl BitPack for str {
 
 impl BitPack for String {
     #[inline]
-    fn pack<W>(&self, writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         self.as_str().pack(writer)
+    }
+}
+
+impl<T> BitPack for Vec<T>
+where
+    T: BitPack,
+{
+    #[inline]
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
+    where
+        W: BitWriter + ?Sized,
+    {
+        self.as_slice().pack(writer)
+    }
+}
+
+impl<T> BitPack for VecDeque<T>
+where
+    T: BitPack,
+{
+    #[inline]
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
+    where
+        W: BitWriter + ?Sized,
+    {
+        u32::try_from(self.len())
+            .map_err(Error::custom)
+            .context("length")?
+            .pack(writer)?;
+
+        let (a, b) = self.as_slices();
+        writer.pack_many(a)?.pack_many(b)?;
+
+        Ok(())
+    }
+}
+
+impl<T> BitPack for LinkedList<T>
+where
+    T: BitPack,
+{
+    #[inline]
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
+    where
+        W: BitWriter + ?Sized,
+    {
+        u32::try_from(self.len())
+            .map_err(Error::custom)
+            .context("length")?
+            .pack(writer)?;
+
+        writer.pack_many(self)?;
+
+        Ok(())
+    }
+}
+
+impl<T> BitPack for BTreeSet<T>
+where
+    T: BitPack,
+{
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
+    where
+        W: BitWriter + ?Sized,
+    {
+        u32::try_from(self.len())
+            .map_err(Error::custom)
+            .context("length")?
+            .pack(writer)?;
+
+        writer.pack_many(self)?;
+
+        Ok(())
+    }
+}
+
+impl<K, V> BitPack for BTreeMap<K, V>
+where
+    K: BitPack,
+    V: BitPack,
+{
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
+    where
+        W: BitWriter + ?Sized,
+    {
+        u32::try_from(self.len())
+            .map_err(Error::custom)
+            .context("length")?
+            .pack(writer)?;
+
+        writer.pack_many(self)?;
+
+        Ok(())
+    }
+}
+
+impl<T> BitPack for HashSet<T>
+where
+    T: BitPack,
+{
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
+    where
+        W: BitWriter + ?Sized,
+    {
+        u32::try_from(self.len())
+            .map_err(Error::custom)
+            .context("length")?
+            .pack(writer)?;
+
+        writer.pack_many(self)?;
+
+        Ok(())
+    }
+}
+
+impl<K, V> BitPack for HashMap<K, V>
+where
+    K: BitPack,
+    V: BitPack,
+{
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
+    where
+        W: BitWriter + ?Sized,
+    {
+        u32::try_from(self.len())
+            .map_err(Error::custom)
+            .context("length")?
+            .pack(writer)?;
+
+        writer.pack_many(self)?;
+
+        Ok(())
     }
 }

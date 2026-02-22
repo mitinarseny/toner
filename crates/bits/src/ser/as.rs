@@ -14,9 +14,9 @@ use super::{BitPack, BitWriter, BitWriterExt};
 /// [`BitPackAsWithArgs`](super::args::as::BitPackAsWithArgs).
 pub trait BitPackAs<T: ?Sized> {
     /// Packs given value using an adapter.
-    fn pack_as<W>(source: &T, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &T, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter;
+        W: BitWriter + ?Sized;
 }
 
 /// **Ser**ialize given value into [`BitVec`] using an adapter
@@ -36,9 +36,9 @@ where
     T: ?Sized,
 {
     #[inline]
-    fn pack_as<W>(source: &&T, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &&T, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         AsWrap::<&T, As>::new(source).pack(writer)
     }
@@ -50,9 +50,9 @@ where
     T: ?Sized,
 {
     #[inline]
-    fn pack_as<W>(source: &&mut T, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &&mut T, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         AsWrap::<&T, As>::new(source).pack(writer)
     }
@@ -63,9 +63,9 @@ where
     As: BitPackAs<T>,
 {
     #[inline]
-    fn pack_as<W>(source: &[T], mut writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &[T], writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         for (i, v) in source.iter().enumerate() {
             writer
@@ -81,9 +81,9 @@ where
     As: BitPackAs<T>,
 {
     #[inline]
-    fn pack_as<W>(source: &[T; N], mut writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &[T; N], writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         writer.pack_as::<&[T], &[As]>(source)?;
         Ok(())
@@ -98,9 +98,9 @@ macro_rules! impl_bit_pack_as_for_tuple {
         )+
         {
             #[inline]
-            fn pack_as<W>(source: &($($t,)+), mut writer: W) -> Result<(), W::Error>
+            fn pack_as<W>(source: &($($t,)+), writer: &mut W) -> Result<(), W::Error>
             where
-                W: BitWriter,
+                W: BitWriter+ ?Sized,
             {
                 writer$(
                     .pack_as::<&$t, &$a>(&source.$n)?)+;
@@ -125,9 +125,9 @@ where
     As: BitPackAs<T> + ?Sized,
 {
     #[inline]
-    fn pack_as<W>(source: &Box<T>, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &Box<T>, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         AsWrap::<&T, As>::new(source).pack(writer)
     }
@@ -138,9 +138,9 @@ where
     As: BitPackAs<T> + ?Sized,
 {
     #[inline]
-    fn pack_as<W>(source: &Rc<T>, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &Rc<T>, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         AsWrap::<&T, As>::new(source).pack(writer)
     }
@@ -151,9 +151,9 @@ where
     As: BitPackAs<T> + ?Sized,
 {
     #[inline]
-    fn pack_as<W>(source: &Arc<T>, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &Arc<T>, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         AsWrap::<&T, As>::new(source).pack(writer)
     }
@@ -165,9 +165,9 @@ where
     As: ToOwned + BitPackAs<T> + ?Sized,
 {
     #[inline]
-    fn pack_as<W>(source: &Cow<'a, T>, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &Cow<'a, T>, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         AsWrap::<&T, As>::new(source).pack(writer)
     }
@@ -184,9 +184,9 @@ where
     AsRight: BitPackAs<Right>,
 {
     #[inline]
-    fn pack_as<W>(source: &Either<Left, Right>, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &Either<Left, Right>, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         source
             .as_ref()
@@ -200,9 +200,9 @@ where
     As: BitPackAs<T>,
 {
     #[inline]
-    fn pack_as<W>(source: &Option<T>, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &Option<T>, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         match source.as_ref() {
             None => Either::Left(()),
@@ -222,9 +222,9 @@ where
     As: BitPackAs<T>,
 {
     #[inline]
-    fn pack_as<W>(source: &Option<T>, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &Option<T>, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         source.as_ref().map(AsWrap::<&T, As>::new).pack(writer)
     }

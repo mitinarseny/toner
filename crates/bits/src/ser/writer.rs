@@ -64,7 +64,7 @@ pub trait BitWriterExt: BitWriter {
     where
         T: BitPack,
     {
-        value.pack::<&mut Self>(self)?;
+        value.pack(self)?;
         Ok(self)
     }
 
@@ -74,7 +74,7 @@ pub trait BitWriterExt: BitWriter {
     where
         T: BitPackWithArgs,
     {
-        value.pack_with::<&mut Self>(self, args)?;
+        value.pack_with(self, args)?;
         Ok(self)
     }
 
@@ -120,7 +120,7 @@ pub trait BitWriterExt: BitWriter {
     where
         As: BitPackAs<T> + ?Sized,
     {
-        As::pack_as::<&mut Self>(&value, self)?;
+        As::pack_as(&value, self)?;
         Ok(self)
     }
 
@@ -131,7 +131,7 @@ pub trait BitWriterExt: BitWriter {
     where
         As: BitPackAsWithArgs<T> + ?Sized,
     {
-        As::pack_as_with::<&mut Self>(&value, self, args)?;
+        As::pack_as_with(&value, self, args)?;
         Ok(self)
     }
 
@@ -217,7 +217,7 @@ pub trait BitWriterExt: BitWriter {
         Tee::new(self, writer)
     }
 }
-impl<T> BitWriterExt for T where T: BitWriter {}
+impl<T> BitWriterExt for T where T: BitWriter + ?Sized {}
 
 #[derive(Debug, Clone, Copy)]
 pub struct NoopBitWriter;

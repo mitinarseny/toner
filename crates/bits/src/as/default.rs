@@ -16,9 +16,9 @@ where
     T: Default,
     As: BitPackAs<T>,
 {
-    fn pack_as<W>(source: &Option<T>, mut writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &Option<T>, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         match source {
             Some(v) => writer.pack_as::<_, &As>(v)?,
@@ -34,9 +34,9 @@ where
     As: BitUnpackAs<'de, T>,
 {
     #[inline]
-    fn unpack_as<R>(mut reader: R) -> Result<T, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<T, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         reader
             .unpack_as::<_, Option<As>>()

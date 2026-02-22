@@ -28,9 +28,9 @@ where
     As: BitPack,
 {
     #[inline]
-    fn pack_as<W>(source: &T, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &T, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         source.clone().into().pack(writer)
     }
@@ -44,9 +44,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn pack_as_with<W>(source: &T, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &T, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         source.clone().into().pack_with(writer, args)
     }
@@ -57,9 +57,9 @@ where
     As: Into<T> + BitUnpack<'de>,
 {
     #[inline]
-    fn unpack_as<R>(reader: R) -> Result<T, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<T, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         As::unpack(reader).map(Into::into)
     }
@@ -72,9 +72,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<T, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         As::unpack_with(reader, args).map(Into::into)
     }
@@ -94,9 +94,9 @@ where
     As: BitPack,
 {
     #[inline]
-    fn pack_as<W>(source: &T, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &T, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         source.into().pack(writer)
     }
@@ -110,9 +110,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn pack_as_with<W>(source: &T, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &T, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         source.into().pack_with(writer, args)
     }
@@ -123,9 +123,9 @@ where
     As: Into<T> + BitUnpack<'de>,
 {
     #[inline]
-    fn unpack_as<R>(reader: R) -> Result<T, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<T, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         As::unpack(reader).map(Into::into)
     }
@@ -138,9 +138,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<T, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         As::unpack_with(reader, args).map(Into::into)
     }
@@ -161,9 +161,9 @@ where
     As: BitPack,
 {
     #[inline]
-    fn pack_as<W>(source: &T, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &T, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         source
             .clone()
@@ -182,9 +182,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn pack_as_with<W>(source: &T, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &T, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         source
             .clone()
@@ -200,9 +200,9 @@ where
     <As as TryInto<T>>::Error: Display,
 {
     #[inline]
-    fn unpack_as<R>(reader: R) -> Result<T, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<T, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         As::unpack(reader)?.try_into().map_err(Error::custom)
     }
@@ -216,9 +216,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<T, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         As::unpack_with(reader, args)?
             .try_into()
@@ -241,9 +241,9 @@ where
     As: BitPack,
 {
     #[inline]
-    fn pack_as<W>(source: &T, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &T, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         source.try_into().map_err(Error::custom)?.pack(writer)
     }
@@ -258,9 +258,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn pack_as_with<W>(source: &T, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &T, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         source
             .try_into()
@@ -275,9 +275,9 @@ where
     <As as TryInto<T>>::Error: Display,
 {
     #[inline]
-    fn unpack_as<R>(reader: R) -> Result<T, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<T, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         As::unpack(reader)?.try_into().map_err(Error::custom)
     }
@@ -291,9 +291,9 @@ where
     type Args = As::Args;
 
     #[inline]
-    fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<T, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         As::unpack_with(reader, args)?
             .try_into()

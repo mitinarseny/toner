@@ -119,7 +119,7 @@ impl BagOfCells {
     /// Parse from bytes
     #[inline]
     pub fn deserialize(bytes: impl AsRef<[u8]>) -> Result<Self, StringError> {
-        Self::unpack(bytes.as_bits())
+        Self::unpack(&mut bytes.as_bits())
     }
 
     /// Parse hexadecimal string
@@ -195,9 +195,9 @@ pub struct BagOfCellsArgs {
 impl BitPackWithArgs for BagOfCells {
     type Args = BagOfCellsArgs;
 
-    fn pack_with<W>(&self, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_with<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         let mut all_cells: HashSet<Arc<Cell>> = HashSet::new();
         let mut in_refs: HashMap<Arc<Cell>, HashSet<Arc<Cell>>> = HashMap::new();
@@ -289,9 +289,9 @@ impl BitPackWithArgs for BagOfCells {
 ///   = BagOfCells;
 /// ```
 impl<'de> BitUnpack<'de> for BagOfCells {
-    fn unpack<R>(reader: R) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let raw = RawBagOfCells::unpack(reader)?;
         let num_cells = raw.cells.len();
@@ -384,9 +384,9 @@ impl RawBagOfCells {
 impl BitPackWithArgs for RawBagOfCells {
     type Args = BagOfCellsArgs;
 
-    fn pack_with<W>(&self, mut writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_with<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         if self.roots.len() > 1 {
             return Err(Error::custom("only single root cell supported"));
@@ -454,9 +454,9 @@ impl BitPackWithArgs for RawBagOfCells {
 }
 
 impl<'de> BitUnpack<'de> for RawBagOfCells {
-    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let mut buffered = reader.as_mut().tee(BitVec::<u8, Msb0>::new());
 
@@ -549,9 +549,9 @@ impl<'de> BitUnpackWithArgs<'de> for RawCell {
     /// size_bytes
     type Args = u32;
 
-    fn unpack_with<R>(mut reader: R, size_bytes: Self::Args) -> Result<Self, R::Error>
+    fn unpack_with<R>(reader: &mut R, size_bytes: Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let refs_descriptor: u8 = reader.unpack()?;
         let level: u8 = refs_descriptor >> 5;
@@ -588,9 +588,9 @@ impl BitPackWithArgs for RawCell {
     /// ref_size_bytes
     type Args = u32;
 
-    fn pack_with<W>(&self, mut writer: W, ref_size_bytes: Self::Args) -> Result<(), W::Error>
+    fn pack_with<W>(&self, writer: &mut W, ref_size_bytes: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         let level: u8 = 0;
         let is_exotic: u8 = 0;

@@ -20,9 +20,9 @@ where
     T: ToPrimitive + Unsigned,
 {
     #[inline]
-    fn pack_as<W>(num: &T, mut writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(num: &T, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         writer
             // unary_succ$1 {n:#} x:(Unary ~n) = Unary ~(n + 1);
@@ -42,9 +42,9 @@ where
     T: Unsigned + ConstZero + One,
 {
     #[inline]
-    fn unpack_as<R>(mut reader: R) -> Result<T, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<T, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let mut n = T::ZERO;
         while reader.read_bit()?.ok_or_else(|| Error::custom("EOF"))? {

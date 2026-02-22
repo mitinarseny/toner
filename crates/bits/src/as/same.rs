@@ -20,9 +20,9 @@ where
     T: BitPack,
 {
     #[inline]
-    fn pack_as<W>(source: &T, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &T, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         source.pack(writer)
     }
@@ -35,9 +35,9 @@ where
     type Args = T::Args;
 
     #[inline]
-    fn pack_as_with<W>(source: &T, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &T, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         T::pack_with(source, writer, args)
     }
@@ -48,9 +48,9 @@ where
     T: BitUnpack<'de>,
 {
     #[inline]
-    fn unpack_as<R>(reader: R) -> Result<T, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<T, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         T::unpack(reader)
     }
@@ -63,9 +63,9 @@ where
     type Args = T::Args;
 
     #[inline]
-    fn unpack_as_with<R>(reader: R, args: Self::Args) -> Result<T, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         T::unpack_with(reader, args)
     }

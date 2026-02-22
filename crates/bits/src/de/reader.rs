@@ -221,7 +221,7 @@ pub trait BitReaderExt<'de>: BitReader<'de> {
         Join::new(self, next)
     }
 }
-impl<'de, T> BitReaderExt<'de> for T where T: BitReader<'de> {}
+impl<'de, T> BitReaderExt<'de> for T where T: BitReader<'de> + ?Sized {}
 
 impl<'de> BitReader<'de> for &'de BitSlice<u8, Msb0> {
     type Error = StringError;

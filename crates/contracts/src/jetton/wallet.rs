@@ -147,9 +147,9 @@ impl ForwardPayloadComment {
 
 impl BitPack for ForwardPayloadComment {
     #[inline]
-    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         match self {
             Self::Text(comment) => writer.pack(comment)?,
@@ -161,9 +161,9 @@ impl BitPack for ForwardPayloadComment {
 
 impl<'de> BitUnpack<'de> for ForwardPayloadComment {
     #[inline]
-    fn unpack<R>(reader: R) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let mut r = reader.checkpoint();
         if r.bits_left() >= bits_of::<u8>() && r.unpack::<u8>()? == Self::BINARY_PREFIX {

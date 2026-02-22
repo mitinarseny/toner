@@ -19,9 +19,9 @@ pub trait BitPackWithArgs {
     type Args;
 
     /// Packs the value into given writer with args
-    fn pack_with<W>(&self, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_with<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter;
+        W: BitWriter + ?Sized;
 }
 
 impl<T> BitPackWithArgs for [T]
@@ -32,9 +32,9 @@ where
     type Args = T::Args;
 
     #[inline]
-    fn pack_with<W>(&self, mut writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_with<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         writer.pack_many_with(self, args)?;
         Ok(())
@@ -49,9 +49,9 @@ where
     type Args = T::Args;
 
     #[inline]
-    fn pack_with<W>(&self, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_with<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         self.as_slice().pack_with(writer, args)
     }
@@ -65,9 +65,9 @@ where
     type Args = T::Args;
 
     #[inline]
-    fn pack_with<W>(&self, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_with<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         self.as_slice().pack_with(writer, args)
     }
@@ -83,11 +83,11 @@ macro_rules! impl_bit_pack_with_args_for_tuple {
             type Args = ($($t::Args,)+);
 
             #[inline]
-            fn pack_with<W>(&self, mut writer: W, args: Self::Args) -> Result<(), W::Error>
+            fn pack_with<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
             where
-                W: BitWriter,
+                W: BitWriter + ?Sized,
             {
-                $(self.$n.pack_with(&mut writer, args.$n).context(concat!(".", stringify!($n)))?;)+
+                $(self.$n.pack_with(writer, args.$n).context(concat!(".", stringify!($n)))?;)+
                 Ok(())
             }
         }
@@ -117,9 +117,9 @@ where
     type Args = L::Args;
 
     #[inline]
-    fn pack_with<W>(&self, mut writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_with<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         match self {
             Self::Left(l) => writer
@@ -149,9 +149,9 @@ where
     type Args = T::Args;
 
     #[inline]
-    fn pack_with<W>(&self, mut writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_with<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         writer.pack_as_with::<_, Either<(), Same>>(self.as_ref(), args)?;
         Ok(())

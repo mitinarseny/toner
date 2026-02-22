@@ -20,9 +20,9 @@ pub trait BitUnpackWithArgs<'de>: Sized {
     type Args;
 
     /// Unpacks the value with args
-    fn unpack_with<R>(reader: R, args: Self::Args) -> Result<Self, R::Error>
+    fn unpack_with<R>(reader: &mut R, args: Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>;
+        R: BitReader<'de> + ?Sized;
 }
 
 impl<'de, T, const N: usize> BitUnpackWithArgs<'de> for [T; N]
@@ -33,13 +33,13 @@ where
     type Args = T::Args;
 
     #[inline]
-    fn unpack_with<R>(mut reader: R, args: Self::Args) -> Result<Self, R::Error>
+    fn unpack_with<R>(reader: &mut R, args: Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         // TODO: replace with [`core::array::try_from_fn`](https://github.com/rust-lang/rust/issues/89379) when stabilized
         array_util::try_from_fn(|i| {
-            T::unpack_with(&mut reader, args.clone()).with_context(|| format!("[{i}]"))
+            T::unpack_with(reader, args.clone()).with_context(|| format!("[{i}]"))
         })
     }
 }
@@ -54,12 +54,12 @@ macro_rules! impl_bit_unpack_with_args_for_tuple {
             type Args = ($($t::Args,)+);
 
             #[inline]
-            fn unpack_with<R>(mut reader: R, args: Self::Args) -> Result<Self, R::Error>
+            fn unpack_with<R>(reader: &mut R, args: Self::Args) -> Result<Self, R::Error>
             where
-                R: BitReader<'de>,
+                R: BitReader<'de> + ?Sized,
             {
                 Ok(($(
-                    $t::unpack_with(&mut reader, args.$n).context(concat!(".", stringify!($n)))?,
+                    $t::unpack_with(reader, args.$n).context(concat!(".", stringify!($n)))?,
                 )+))
             }
         }
@@ -85,9 +85,9 @@ where
     type Args = (usize, T::Args);
 
     #[inline]
-    fn unpack_with<R>(mut reader: R, (len, args): Self::Args) -> Result<Self, R::Error>
+    fn unpack_with<R>(reader: &mut R, (len, args): Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         reader.unpack_iter_with(args).take(len).collect()
     }
@@ -100,9 +100,9 @@ where
     type Args = T::Args;
 
     #[inline]
-    fn unpack_with<R>(mut reader: R, args: Self::Args) -> Result<Self, R::Error>
+    fn unpack_with<R>(reader: &mut R, args: Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         reader.unpack_as_with::<_, FromInto<T>>(args)
     }
@@ -115,9 +115,9 @@ where
     type Args = T::Args;
 
     #[inline]
-    fn unpack_with<R>(mut reader: R, args: Self::Args) -> Result<Self, R::Error>
+    fn unpack_with<R>(reader: &mut R, args: Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         reader.unpack_as_with::<_, FromInto<T>>(args)
     }
@@ -130,9 +130,9 @@ where
     type Args = T::Args;
 
     #[inline]
-    fn unpack_with<R>(mut reader: R, args: Self::Args) -> Result<Self, R::Error>
+    fn unpack_with<R>(reader: &mut R, args: Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         reader.unpack_as_with::<_, FromInto<T>>(args)
     }
@@ -147,9 +147,9 @@ where
     type Args = <T::Owned as BitUnpackWithArgs<'de>>::Args;
 
     #[inline]
-    fn unpack_with<R>(mut reader: R, args: Self::Args) -> Result<Self, R::Error>
+    fn unpack_with<R>(reader: &mut R, args: Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         reader.unpack_with::<T::Owned>(args).map(Self::Owned)
     }
@@ -168,9 +168,9 @@ where
     type Args = Left::Args;
 
     #[inline]
-    fn unpack_with<R>(mut reader: R, args: Self::Args) -> Result<Self, R::Error>
+    fn unpack_with<R>(reader: &mut R, args: Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         match reader.unpack().context("tag")? {
             false => reader.unpack_with(args).map(Either::Left).context("left"),
@@ -191,9 +191,9 @@ where
     type Args = T::Args;
 
     #[inline]
-    fn unpack_with<R>(mut reader: R, args: Self::Args) -> Result<Self, R::Error>
+    fn unpack_with<R>(reader: &mut R, args: Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         reader.unpack_as_with::<_, Either<(), Same>>(args)
     }
@@ -204,9 +204,9 @@ impl<'de> BitUnpackWithArgs<'de> for BitVec<u8, Msb0> {
     type Args = usize;
 
     #[inline]
-    fn unpack_with<R>(mut reader: R, len: Self::Args) -> Result<Self, R::Error>
+    fn unpack_with<R>(reader: &mut R, len: Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         reader
             .unpack_as_with::<Cow<BitSlice<u8, Msb0>>, BorrowCow>(len)
@@ -219,9 +219,9 @@ impl<'de> BitUnpackWithArgs<'de> for Vec<u8> {
     type Args = usize;
 
     #[inline]
-    fn unpack_with<R>(mut reader: R, len: Self::Args) -> Result<Self, R::Error>
+    fn unpack_with<R>(reader: &mut R, len: Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         reader
             .unpack_as_with::<Cow<[u8]>, BorrowCow>(len)

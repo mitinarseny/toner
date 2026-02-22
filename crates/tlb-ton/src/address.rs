@@ -271,9 +271,9 @@ impl FromStr for MsgAddress {
 
 impl BitPack for MsgAddress {
     #[inline]
-    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         if self.is_null() {
             writer.pack(MsgAddressTag::Null)?;
@@ -293,9 +293,9 @@ impl BitPack for MsgAddress {
 
 impl<'de> BitUnpack<'de> for MsgAddress {
     #[inline]
-    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         match reader.unpack()? {
             MsgAddressTag::Null => Ok(Self::NULL),
@@ -347,9 +347,9 @@ enum MsgAddressTag {
 
 impl BitPack for MsgAddressTag {
     #[inline]
-    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         writer.pack_as::<_, NBits<2>>(*self as u8)?;
         Ok(())
@@ -358,9 +358,9 @@ impl BitPack for MsgAddressTag {
 
 impl<'de> BitUnpack<'de> for MsgAddressTag {
     #[inline]
-    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         Ok(match reader.unpack_as::<u8, NBits<2>>()? {
             0b00 => Self::Null,
@@ -380,9 +380,9 @@ pub struct Anycast {
 }
 
 impl BitPack for Anycast {
-    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         if self.rewrite_pfx.is_empty() {
             return Err(Error::custom("depth >= 1"));
@@ -393,9 +393,9 @@ impl BitPack for Anycast {
 }
 
 impl<'de> BitUnpack<'de> for Anycast {
-    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let rewrite_pfx: BitVec<u8, Msb0> = reader.unpack_as::<_, VarBits<5>>()?;
         if rewrite_pfx.is_empty() {

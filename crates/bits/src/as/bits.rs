@@ -17,9 +17,9 @@ where
     T: AsRef<BitSlice<u8, Msb0>>,
 {
     #[inline]
-    fn pack_as<W>(source: &T, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &T, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         source.as_ref().pack(writer)
     }
@@ -34,9 +34,9 @@ where
     T: AsRef<[u8]>,
 {
     #[inline]
-    fn pack_as<W>(source: &T, writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &T, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         source.as_bits().pack(writer)
     }
@@ -55,9 +55,9 @@ where
     T: AsRef<BitSlice<u8, Msb0>>,
 {
     #[inline]
-    fn pack_as<W>(source: &T, mut writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &T, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         let source = source.as_ref();
         writer
@@ -71,9 +71,9 @@ impl<'de: 'a, 'a, const BITS_FOR_LEN: usize> BitUnpackAs<'de, Cow<'a, BitSlice<u
     for VarBits<BITS_FOR_LEN>
 {
     #[inline]
-    fn unpack_as<R>(mut reader: R) -> Result<Cow<'a, BitSlice<u8, Msb0>>, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<Cow<'a, BitSlice<u8, Msb0>>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let num_bits = reader.unpack_as::<_, NBits<BITS_FOR_LEN>>()?;
         reader.unpack_as_with::<_, BorrowCow>(num_bits)
@@ -82,9 +82,9 @@ impl<'de: 'a, 'a, const BITS_FOR_LEN: usize> BitUnpackAs<'de, Cow<'a, BitSlice<u
 
 impl<'de, const BITS_FOR_LEN: usize> BitUnpackAs<'de, BitVec<u8, Msb0>> for VarBits<BITS_FOR_LEN> {
     #[inline]
-    fn unpack_as<R>(mut reader: R) -> Result<BitVec<u8, Msb0>, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<BitVec<u8, Msb0>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         reader
             .unpack_as::<Cow<BitSlice<u8, Msb0>>, Self>()
@@ -101,9 +101,9 @@ where
     T: AsRef<[u8]> + ?Sized,
 {
     #[inline]
-    fn pack_as<W>(source: &T, mut writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &T, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         let source = source.as_ref();
         writer
@@ -117,9 +117,9 @@ impl<'de: 'a, 'a, const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<'de, Cow<'a, [u8]
     for VarBytes<BITS_FOR_BYTES_LEN>
 {
     #[inline]
-    fn unpack_as<R>(mut reader: R) -> Result<Cow<'a, [u8]>, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<Cow<'a, [u8]>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let num_bytes = reader.unpack_as::<_, NBits<BITS_FOR_BYTES_LEN>>()?;
         reader.unpack_as_with::<_, BorrowCow>(num_bytes)
@@ -130,9 +130,9 @@ impl<'de, const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<'de, Vec<u8>>
     for VarBytes<BITS_FOR_BYTES_LEN>
 {
     #[inline]
-    fn unpack_as<R>(mut reader: R) -> Result<Vec<u8>, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<Vec<u8>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         reader.unpack_as::<Cow<[u8]>, Self>().map(Cow::into_owned)
     }

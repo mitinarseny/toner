@@ -17,9 +17,9 @@ use super::{NBits, VarBytes};
 
 impl<const BITS: usize> BitPackAs<BigUint> for NBits<BITS> {
     #[inline]
-    fn pack_as<W>(source: &BigUint, mut writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &BigUint, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         let used_bits = source.bits() as usize;
         if BITS < used_bits {
@@ -40,9 +40,9 @@ impl<const BITS: usize> BitPackAs<BigUint> for NBits<BITS> {
 
 impl<'de, const BITS: usize> BitUnpackAs<'de, BigUint> for NBits<BITS> {
     #[inline]
-    fn unpack_as<R>(mut reader: R) -> Result<BigUint, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<BigUint, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let mut bits: BitVec<u8, Msb0> = reader.unpack_with(BITS)?;
         let total_bits = (BITS + 7) & !7;
@@ -54,9 +54,9 @@ impl<'de, const BITS: usize> BitUnpackAs<'de, BigUint> for NBits<BITS> {
 
 impl<const BITS: usize> BitPackAs<BigInt> for NBits<BITS> {
     #[inline]
-    fn pack_as<W>(source: &BigInt, mut writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &BigInt, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         let used_bits = source.bits() as usize;
         if BITS < used_bits {
@@ -77,9 +77,9 @@ impl<const BITS: usize> BitPackAs<BigInt> for NBits<BITS> {
 
 impl<'de, const BITS: usize> BitUnpackAs<'de, BigInt> for NBits<BITS> {
     #[inline]
-    fn unpack_as<R>(mut reader: R) -> Result<BigInt, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<BigInt, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let mut bits: BitVec<u8, Msb0> = reader.unpack_with(BITS)?;
         let total_bits = (BITS + 7) & !7;
@@ -102,9 +102,9 @@ pub struct VarInt<const BITS_FOR_BYTES_LEN: usize>;
 
 impl<const BITS_FOR_BYTES_LEN: usize> BitPackAs<BigUint> for VarInt<BITS_FOR_BYTES_LEN> {
     #[inline]
-    fn pack_as<W>(source: &BigUint, mut writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &BigUint, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         let bytes = if source != &BigUint::ZERO {
             source.to_bytes_be()
@@ -121,9 +121,9 @@ impl<'de, const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<'de, BigUint>
     for VarInt<BITS_FOR_BYTES_LEN>
 {
     #[inline]
-    fn unpack_as<R>(mut reader: R) -> Result<BigUint, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<BigUint, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let mut bits = BitVec::<u8, Msb0>::from_vec(
             reader.unpack_as::<Vec<u8>, VarBytes<BITS_FOR_BYTES_LEN>>()?,
@@ -138,9 +138,9 @@ impl<'de, const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<'de, BigUint>
 
 impl<const BITS_FOR_BYTES_LEN: usize> BitPackAs<BigInt> for VarInt<BITS_FOR_BYTES_LEN> {
     #[inline]
-    fn pack_as<W>(source: &BigInt, mut writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &BigInt, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         writer.pack_as::<_, VarBytes<BITS_FOR_BYTES_LEN>>(source.to_signed_bytes_be())?;
         Ok(())
@@ -149,9 +149,9 @@ impl<const BITS_FOR_BYTES_LEN: usize> BitPackAs<BigInt> for VarInt<BITS_FOR_BYTE
 
 impl<'de, const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<'de, BigInt> for VarInt<BITS_FOR_BYTES_LEN> {
     #[inline]
-    fn unpack_as<R>(mut reader: R) -> Result<BigInt, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<BigInt, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let mut bits = BitVec::<u8, Msb0>::from_vec(
             reader.unpack_as::<Vec<u8>, VarBytes<BITS_FOR_BYTES_LEN>>()?,
@@ -181,9 +181,9 @@ where
     type Args = u32;
 
     #[inline]
-    fn pack_as_with<W>(source: &T, mut writer: W, num_bits: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &T, writer: &mut W, num_bits: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         let size_bits: u32 = bits_of::<T>() as u32;
         let leading_zeroes = source.leading_zeros();
@@ -208,9 +208,9 @@ where
     type Args = u32;
 
     #[inline]
-    fn unpack_as_with<R>(mut reader: R, num_bits: Self::Args) -> Result<T, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, num_bits: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let size_bits: u32 = bits_of::<T>() as u32;
         if num_bits > size_bits {
@@ -242,9 +242,9 @@ where
     type Args = u32;
 
     #[inline]
-    fn pack_as_with<W>(source: &T, mut writer: W, num_bytes: Self::Args) -> Result<(), W::Error>
+    fn pack_as_with<W>(source: &T, writer: &mut W, num_bytes: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         let size_bytes: u32 = size_of::<T>() as u32;
         let leading_zeroes = source.leading_zeros();
@@ -269,9 +269,9 @@ where
     type Args = u32;
 
     #[inline]
-    fn unpack_as_with<R>(mut reader: R, num_bytes: Self::Args) -> Result<T, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, num_bytes: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let size_bytes: u32 = size_of::<T>() as u32;
         if num_bytes > size_bytes {

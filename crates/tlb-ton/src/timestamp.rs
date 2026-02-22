@@ -37,9 +37,9 @@ impl UnixTimestamp {
 
 impl BitPackAs<DateTime<Utc>> for UnixTimestamp {
     #[inline]
-    fn pack_as<W>(source: &DateTime<Utc>, mut writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &DateTime<Utc>, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         let timestamp: u32 = source
             .timestamp()
@@ -52,9 +52,9 @@ impl BitPackAs<DateTime<Utc>> for UnixTimestamp {
 
 impl<'de> BitUnpackAs<'de, DateTime<Utc>> for UnixTimestamp {
     #[inline]
-    fn unpack_as<R>(mut reader: R) -> Result<DateTime<Utc>, R::Error>
+    fn unpack_as<R>(reader: &mut R) -> Result<DateTime<Utc>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let timestamp: u32 = reader.unpack()?;
         DateTime::from_timestamp(timestamp as i64, 0)

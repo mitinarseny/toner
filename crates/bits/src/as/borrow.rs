@@ -16,11 +16,11 @@ impl<'de: 'a, 'a> BitUnpackAsWithArgs<'de, Cow<'a, BitSlice<u8, Msb0>>> for Borr
 
     #[inline]
     fn unpack_as_with<R>(
-        mut reader: R,
+        reader: &mut R,
         len: Self::Args,
     ) -> Result<Cow<'a, BitSlice<u8, Msb0>>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let v = reader.read_bits(len)?;
         if v.len() != len {
@@ -35,9 +35,9 @@ impl<'de: 'a, 'a> BitUnpackAsWithArgs<'de, Cow<'a, [u8]>> for BorrowCow {
     type Args = usize;
 
     #[inline]
-    fn unpack_as_with<R>(mut reader: R, len: Self::Args) -> Result<Cow<'a, [u8]>, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, len: Self::Args) -> Result<Cow<'a, [u8]>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let len_bits = len * bits_of::<u8>();
         let v = reader.read_bits(len_bits)?;
@@ -65,9 +65,9 @@ impl<'de: 'a, 'a> BitUnpackAsWithArgs<'de, Cow<'a, str>> for BorrowCow {
 
     #[rustversion::before(1.87)]
     #[inline]
-    fn unpack_as_with<R>(mut reader: R, len: Self::Args) -> Result<Cow<'a, str>, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, len: Self::Args) -> Result<Cow<'a, str>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let bytes: Vec<u8> = reader.unpack_with(len)?;
         String::from_utf8(bytes)
@@ -77,9 +77,9 @@ impl<'de: 'a, 'a> BitUnpackAsWithArgs<'de, Cow<'a, str>> for BorrowCow {
 
     #[rustversion::since(1.87)]
     #[inline]
-    fn unpack_as_with<R>(mut reader: R, len: Self::Args) -> Result<Cow<'a, str>, R::Error>
+    fn unpack_as_with<R>(reader: &mut R, len: Self::Args) -> Result<Cow<'a, str>, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         match reader.unpack_as_with::<Cow<[u8]>, Self>(len)? {
             Cow::Borrowed(s) =>

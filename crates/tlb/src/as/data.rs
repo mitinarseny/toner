@@ -42,8 +42,8 @@ use super::Same;
 /// }
 ///
 /// impl BitPack for BinaryData {
-///     fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
-///         where W: BitWriter,
+///     fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
+///         where W: BitWriter + ?Sized,
 ///     {
 ///         writer.pack(self.field)?;
 ///         Ok(())
@@ -51,8 +51,8 @@ use super::Same;
 /// }
 ///
 /// impl<'de> BitUnpack<'de> for BinaryData {
-///     fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
-///         where R: BitReader<'de>,
+///     fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
+///         where R: BitReader<'de> + ?Sized,
 ///     {
 ///         Ok(Self {
 ///             field: reader.unpack()?,

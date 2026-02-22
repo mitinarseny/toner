@@ -112,9 +112,9 @@ pub struct TickTock {
 
 impl BitPack for TickTock {
     #[inline]
-    fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         writer.pack(self.tick)?.pack(self.tock)?;
         Ok(())
@@ -123,9 +123,9 @@ impl BitPack for TickTock {
 
 impl<'de> BitUnpack<'de> for TickTock {
     #[inline]
-    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         Ok(Self {
             tick: reader.unpack()?,
