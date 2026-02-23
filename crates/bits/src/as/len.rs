@@ -82,6 +82,23 @@ impl<const BITS: usize> BitPackAs<BitSlice<u8, Msb0>> for VarLen<Same, BITS> {
     }
 }
 
+impl<'a, const BITS: usize> BitPackAs<Cow<'a, BitSlice<u8, Msb0>>> for VarLen<Same, BITS> {
+    type Args = ();
+
+    #[inline]
+    fn pack_as<W>(
+        source: &Cow<'a, BitSlice<u8, Msb0>>,
+        writer: &mut W,
+        _: Self::Args,
+    ) -> Result<(), W::Error>
+    where
+        W: BitWriter + ?Sized,
+    {
+        writer.pack_as::<_, &Self>(source.as_ref(), ())?;
+        Ok(())
+    }
+}
+
 impl<const BITS: usize> BitPackAs<BitVec<u8, Msb0>> for VarLen<Same, BITS> {
     type Args = ();
 
@@ -619,5 +636,79 @@ impl<'de, const BITS: usize> BitUnpackAs<'de, String> for VarLen<Same, BITS> {
         R: BitReader<'de> + ?Sized,
     {
         reader.unpack_as::<Cow<str>, Self>(()).map(Cow::into_owned)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fmt::Debug;
+
+    use bitvec::bitvec;
+    use rstest::rstest;
+
+    use crate::{de::BitUnpack, ser::BitPack, tests::assert_pack_unpack_as_eq};
+
+    use super::*;
+
+    #[rstest]
+    #[case(bitvec![u8, Msb0;])]
+    #[case(bitvec![u8, Msb0; 1, 1, 0, 0, 1])]
+    #[case(Vec::<u8>::new())]
+    #[case(vec![1, 2, 3])]
+    fn roundtrip<T>(#[case] value: T)
+    where
+        VarLen: BitPackAs<T, Args = ()>,
+        for<'de> VarLen: BitUnpackAs<'de, T, Args = ()>,
+        T: PartialEq + Debug,
+    {
+        assert_pack_unpack_as_eq::<_, VarLen>(value, ());
+    }
+
+    #[rstest]
+    #[case(BTreeSet::<u8>::new())]
+    #[case(BTreeSet::from([1, 2, 3]))]
+    fn roundtrip_btreeset<T>(#[case] value: BTreeSet<T>)
+    where
+        T: BitPack<Args = ()> + Ord + Eq + Debug,
+        for<'de> T: BitUnpack<'de, Args = ()>,
+    {
+        assert_pack_unpack_as_eq::<_, VarLen<BTreeSet<Same>>>(value, ());
+    }
+
+    #[rstest]
+    #[case(BTreeMap::<u8, u8>::new())]
+    #[case(BTreeMap::from_iter([(1, 1), (2,2), (3,3)]))]
+    fn roundtrip_btreemap<K, V>(#[case] value: BTreeMap<K, V>)
+    where
+        K: BitPack<Args = ()> + Ord + Eq + Debug,
+        V: BitPack<Args = ()> + PartialEq + Debug,
+        for<'de> K: BitUnpack<'de, Args = ()>,
+        for<'de> V: BitUnpack<'de, Args = ()>,
+    {
+        assert_pack_unpack_as_eq::<_, VarLen<BTreeMap<Same, Same>>>(value, ((), ()));
+    }
+
+    #[rstest]
+    #[case(HashSet::<u8>::new())]
+    #[case(HashSet::from([1, 2, 3]))]
+    fn roundtrip_hashset<T>(#[case] value: HashSet<T>)
+    where
+        T: BitPack<Args = ()> + Hash + Eq + Debug,
+        for<'de> T: BitUnpack<'de, Args = ()>,
+    {
+        assert_pack_unpack_as_eq::<_, VarLen<HashSet<Same>>>(value, ());
+    }
+
+    #[rstest]
+    #[case(HashMap::<u8, u8>::new())]
+    #[case(HashMap::from_iter([(1, 1), (2,2), (3,3)]))]
+    fn roundtrip_hashmap<K, V>(#[case] value: HashMap<K, V>)
+    where
+        K: BitPack<Args = ()> + Hash + Eq + Debug,
+        V: BitPack<Args = ()> + PartialEq + Debug,
+        for<'de> K: BitUnpack<'de, Args = ()>,
+        for<'de> V: BitUnpack<'de, Args = ()>,
+    {
+        assert_pack_unpack_as_eq::<_, VarLen<HashMap<Same, Same>>>(value, ((), ()));
     }
 }

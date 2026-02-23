@@ -12,11 +12,11 @@ categories = ["encoding"]
 license-file = "LICENSE.txt"
 
 [workspace.dependencies]
-tlbits = { path = "./crates/bits", version = "0.5.4" }
-tlb = { path = "./crates/tlb", version = "0.5.4" }
-tlb-ton = { path = "./crates/tlb-ton", version = "0.5.6" }
-ton-contracts = { path = "./crates/contracts", version = "0.5.6" }
-toner = { path = "./crates/toner", version = "0.5.6" }
+tlbits = { path = "./crates/bits", version = "0.6.0" }
+tlb = { path = "./crates/tlb", version = "0.6.0" }
+tlb-ton = { path = "./crates/tlb-ton", version = "0.6.0" }
+ton-contracts = { path = "./crates/contracts", version = "0.6.0" }
+toner = { path = "./crates/toner", version = "0.6.0" }
 
 anyhow = "1"
 arbitrary = "1.4"
@@ -34,6 +34,7 @@ itertools = "0.12"
 lazy_static = "1.4"
 num-bigint = "0.4"
 num-traits = "0.2"
+rstest = "0.26"
 rustversion = "1"
 schemars_0_8 = { package = "schemars", version = "0.8", default-features = false }
 schemars_1 = { package = "schemars", version = "1", default-features = false }
