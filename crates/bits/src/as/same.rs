@@ -24,7 +24,7 @@ where
 
 impl<'de, T> BitUnpackAs<'de, T> for Same
 where
-    T: BitUnpack<'de> + ?Sized,
+    T: BitUnpack<'de>,
 {
     type Args = T::Args;
 

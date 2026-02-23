@@ -27,8 +27,8 @@
 //! ```
 //! # use num_bigint::BigUint;
 //! # use tlb::{
-//! #   r#as::Ref,
-//! #   bits::{r#as::{NBits, VarInt}, ser::BitWriterExt},
+//! #   Ref,
+//! #   bits::{NBits, VarInt, ser::BitWriterExt},
 //! #   Cell,
 //! #   ser::{CellSerialize, CellBuilder, CellBuilderError, CellSerializeExt},
 //! #   StringError,
@@ -40,16 +40,18 @@
 //! #     pub payload: Option<Cell>,
 //! # }
 //! impl CellSerialize for Hello {
-//!     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+//!     type Args = ();
+//!
+//!     fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
 //!         builder
 //!             // tag$10
-//!             .pack_as::<_, NBits<2>>(0b10)?
+//!             .pack_as::<_, NBits<2>>(0b10, ())?
 //!             // query_id:uint64
-//!             .pack(self.query_id)?
+//!             .pack(self.query_id, ())?
 //!             // amount:(VarUInteger 16)
-//!             .pack_as::<_, &VarInt<4>>(&self.amount)?
+//!             .pack_as::<_, &VarInt<4>>(&self.amount, ())?
 //!             // payload:(Maybe ^Cell)
-//!             .store_as::<_, Option<Ref>>(self.payload.as_ref())?;
+//!             .store_as::<_, Option<Ref>>(self.payload.as_ref(), ())?;
 //!         Ok(())
 //!     }
 //! }
@@ -61,7 +63,7 @@
 //!     amount: 1_000u64.into(),
 //!     payload: None,
 //! };
-//! let cell = hello.to_cell()?;
+//! let cell = hello.to_cell(())?;
 //! # Ok(())
 //! # }
 //! ```
@@ -74,8 +76,8 @@
 //! ```rust
 //! # use num_bigint::BigUint;
 //! # use tlb::{
-//! #   r#as::{Ref, ParseFully},
-//! #   bits::{r#as::{NBits, VarInt}, de::BitReaderExt, ser::BitWriterExt},
+//! #   Ref, ParseFully,
+//! #   bits::{NBits, VarInt, de::BitReaderExt, ser::BitWriterExt},
 //! #   Cell,
 //! #   de::{CellDeserialize, CellParser, CellParserError},
 //! #   Error,
@@ -89,33 +91,37 @@
 //! #     pub payload: Option<Cell>,
 //! # }
 //! # impl CellSerialize for Hello {
-//! #     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+//! #     type Args = ();
+//! #
+//! #     fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
 //! #         builder
 //! #             // tag$10
-//! #             .pack_as::<_, NBits<2>>(0b10)?
+//! #             .pack_as::<_, NBits<2>>(0b10, ())?
 //! #             // query_id:uint64
-//! #             .pack(self.query_id)?
+//! #             .pack(self.query_id, ())?
 //! #             // amount:(VarUInteger 16)
-//! #             .pack_as::<_, &VarInt<4>>(&self.amount)?
+//! #             .pack_as::<_, &VarInt<4>>(&self.amount, ())?
 //! #             // payload:(Maybe ^Cell)
-//! #             .store_as::<_, Option<Ref>>(self.payload.as_ref())?;
+//! #             .store_as::<_, Option<Ref>>(self.payload.as_ref(), ())?;
 //! #         Ok(())
 //! #     }
 //! # }
 //! impl<'de> CellDeserialize<'de> for Hello {
-//!     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+//!     type Args = ();
+//!
+//!     fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
 //!         // tag$10
-//!         let tag: u8 = parser.unpack_as::<_, NBits<2>>()?;
+//!         let tag: u8 = parser.unpack_as::<_, NBits<2>>(())?;
 //!         if tag != 0b10 {
 //!             return Err(Error::custom(format!("unknown tag: {tag:#b}")));
 //!         }
 //!         Ok(Self {
 //!             // query_id:uint64
-//!             query_id: parser.unpack()?,
+//!             query_id: parser.unpack(())?,
 //!             // amount:(VarUInteger 16)
-//!             amount: parser.unpack_as::<_, VarInt<4>>()?,
+//!             amount: parser.unpack_as::<_, VarInt<4>>(())?,
 //!             // payload:(Maybe ^Cell)
-//!             payload: parser.parse_as::<_, Option<Ref<ParseFully>>>()?,
+//!             payload: parser.parse_as::<_, Option<Ref<ParseFully>>>(())?,
 //!         })
 //!     }
 //! }
@@ -126,9 +132,9 @@
 //! #     amount: 1_000u64.into(),
 //! #     payload: None,
 //! # };
-//! # let cell = orig.to_cell()?;
+//! # let cell = orig.to_cell(())?;
 //! let mut parser = cell.parser();
-//! let hello: Hello = parser.parse()?;
+//! let hello: Hello = parser.parse(())?;
 //! # assert_eq!(hello, orig);
 //! # Ok(())
 //! # }

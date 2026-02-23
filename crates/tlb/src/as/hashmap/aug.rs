@@ -684,7 +684,9 @@ mod tests {
     fn parse() {
         let cell = given_cell_from_example();
 
-        let hm: HashmapE<u16> = cell.parse_fully_as::<_, HashmapE<Data>>((8, ())).unwrap();
+        let hm: HashmapE<u16> = cell
+            .parse_fully_as::<_, HashmapE<Data, Same>>((8, (), ()))
+            .unwrap();
 
         assert_eq!(hm.len(), 3);
         // 1 -> 777
@@ -696,7 +698,7 @@ mod tests {
 
         let mut builder = Cell::builder();
         builder
-            .store_as::<_, HashmapE<Data>>(hm, (8, (), ()))
+            .store_as::<_, HashmapE<Data, Same>>(hm, (8, (), ()))
             .unwrap();
         let got = builder.into_cell();
         assert_eq!(got, cell);
@@ -754,7 +756,7 @@ mod tests {
             )
                 .wrap_as::<Ref>(),
         )
-            .to_cell()
+            .to_cell(((), ((), ((), (), ()), ())))
             .unwrap()
     }
 }

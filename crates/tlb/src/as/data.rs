@@ -18,7 +18,7 @@ use super::Same;
 ///
 /// ```rust
 /// # use tlb::{
-/// #       r#as::Data,
+/// #       Data,
 /// #       bits::{
 /// #           de::{BitUnpack, BitReader, BitReaderExt},
 /// #           ser::{BitPack, BitWriter, BitWriterExt},
@@ -32,20 +32,24 @@ use super::Same;
 /// }
 ///
 /// impl BitPack for BinaryData {
-///     fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
+///     type Args = ();
+///
+///     fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
 ///         where W: BitWriter + ?Sized,
 ///     {
-///         writer.pack(self.field)?;
+///         writer.pack(self.field, ())?;
 ///         Ok(())
 ///     }
 /// }
 ///
 /// impl<'de> BitUnpack<'de> for BinaryData {
-///     fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
+///     type Args = ();
+///
+///     fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
 ///         where R: BitReader<'de> + ?Sized,
 ///     {
 ///         Ok(Self {
-///             field: reader.unpack()?,
+///             field: reader.unpack(())?,
 ///         })
 ///     }
 /// }
@@ -54,12 +58,12 @@ use super::Same;
 /// let v = BinaryData { field: 123 };
 /// # let mut builder = Cell::builder();
 /// // store as binary data
-/// builder.store_as::<_, Data>(v)?;
+/// builder.store_as::<_, Data>(v, ())?;
 /// # let cell = builder.into_cell();
 /// # let mut parser = cell.parser();
 /// # let got =
 /// // parse as binary data
-/// parser.parse_as::<BinaryData, Data>()?;
+/// parser.parse_as::<BinaryData, Data>(())?;
 /// # assert_eq!(got, v);
 /// # Ok(())
 /// # }

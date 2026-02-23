@@ -2,8 +2,8 @@ use chrono::{DateTime, Utc};
 use tlb::{
     Error,
     bits::{
-        de::{BitReader, BitReaderExt, r#as::BitUnpackAs},
-        ser::{BitWriter, BitWriterExt, r#as::BitPackAs},
+        de::{BitReader, BitReaderExt, BitUnpackAs},
+        ser::{BitPackAs, BitWriter, BitWriterExt},
     },
 };
 
@@ -36,8 +36,10 @@ impl UnixTimestamp {
 }
 
 impl BitPackAs<DateTime<Utc>> for UnixTimestamp {
+    type Args = ();
+
     #[inline]
-    fn pack_as<W>(source: &DateTime<Utc>, writer: &mut W) -> Result<(), W::Error>
+    fn pack_as<W>(source: &DateTime<Utc>, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -45,18 +47,20 @@ impl BitPackAs<DateTime<Utc>> for UnixTimestamp {
             .timestamp()
             .try_into()
             .map_err(|_| Error::custom("timestamp: overflow"))?;
-        writer.pack(timestamp)?;
+        writer.pack(timestamp, ())?;
         Ok(())
     }
 }
 
 impl<'de> BitUnpackAs<'de, DateTime<Utc>> for UnixTimestamp {
+    type Args = ();
+
     #[inline]
-    fn unpack_as<R>(reader: &mut R) -> Result<DateTime<Utc>, R::Error>
+    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<DateTime<Utc>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
-        let timestamp: u32 = reader.unpack()?;
+        let timestamp: u32 = reader.unpack(())?;
         DateTime::from_timestamp(timestamp as i64, 0)
             .ok_or_else(|| Error::custom("timestamp: overflow"))
     }
@@ -64,7 +68,7 @@ impl<'de> BitUnpackAs<'de, DateTime<Utc>> for UnixTimestamp {
 
 #[cfg(test)]
 mod tests {
-    use tlb::bits::{de::r#as::unpack_fully_as, ser::r#as::pack_as};
+    use tlb::bits::{de::unpack_fully_as, ser::pack_as};
 
     use super::*;
 
@@ -72,8 +76,8 @@ mod tests {
     fn unix_timestamp_serde() {
         let ts = DateTime::UNIX_EPOCH;
 
-        let packed = pack_as::<_, UnixTimestamp>(ts).unwrap();
-        let got: DateTime<Utc> = unpack_fully_as::<_, UnixTimestamp>(&packed).unwrap();
+        let packed = pack_as::<_, UnixTimestamp>(ts, ()).unwrap();
+        let got: DateTime<Utc> = unpack_fully_as::<_, UnixTimestamp>(&packed, ()).unwrap();
 
         assert_eq!(got, ts);
     }

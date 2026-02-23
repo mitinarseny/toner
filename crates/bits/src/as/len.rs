@@ -597,7 +597,7 @@ impl<'de: 'a, 'a, const BITS: usize> BitUnpackAs<'de, Cow<'a, str>> for VarLen<S
     }
 }
 
-impl<'a, const BITS: usize> BitPackAs<String> for VarLen<Same, BITS> {
+impl<const BITS: usize> BitPackAs<String> for VarLen<Same, BITS> {
     type Args = ();
 
     #[inline]

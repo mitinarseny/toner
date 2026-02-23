@@ -27,8 +27,8 @@ pub type BoC = BagOfCells;
 ///
 /// ```rust
 /// # use tlb::{
-/// #     r#as::Data,
-/// #     bits::{de::unpack_fully, ser::{BitWriterExt, pack_with}},
+/// #     Data,
+/// #     bits::{de::unpack_fully, ser::{BitWriterExt, pack}},
 /// #     BagOfCells, BagOfCellsArgs, Cell,
 /// #     ser::CellSerializeExt,
 /// #     StringError,
@@ -36,20 +36,20 @@ pub type BoC = BagOfCells;
 /// # fn main() -> Result<(), StringError> {
 /// let data: u32 = 1234;
 /// let mut builder = Cell::builder();
-/// builder.pack(data)?;
+/// builder.pack(data, ())?;
 /// let root = builder.into_cell();
 ///
 /// let boc = BagOfCells::from_root(root);
-/// let packed = pack_with(boc, BagOfCellsArgs {
+/// let packed = pack(boc, BagOfCellsArgs {
 ///     has_idx: false,
 ///     has_crc32c: true,
 /// })?;
 ///
-/// let unpacked: BagOfCells = unpack_fully(&packed)?;
+/// let unpacked: BagOfCells = unpack_fully(&packed, ())?;
 /// let got: u32 = unpacked
 ///     .single_root()
 ///     .unwrap()
-///     .parse_fully_as::<_, Data>()?;
+///     .parse_fully_as::<_, Data>(())?;
 ///
 /// assert_eq!(got, data);
 /// # Ok(())

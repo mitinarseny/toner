@@ -12,7 +12,7 @@ use strum::Display;
 use tlb::{
     Context, Error, StringError,
     bits::{
-        r#as::{NBits, VarBits},
+        NBits, VarLen,
         bitvec::{order::Msb0, vec::BitVec},
         de::{BitReader, BitReaderExt, BitUnpack},
         ser::{BitPack, BitWriter, BitWriterExt},
@@ -72,8 +72,8 @@ impl MsgAddress {
         state_init: StateInit<C, D>,
     ) -> Result<Self, CellBuilderError>
     where
-        C: CellSerialize,
-        D: CellSerialize,
+        C: CellSerialize<Args = ()>,
+        D: CellSerialize<Args = ()>,
     {
         Self::derive_digest::<C, D, sha2::Sha256>(workchain_id, state_init)
     }
@@ -84,14 +84,14 @@ impl MsgAddress {
         state_init: StateInit<C, D>,
     ) -> Result<Self, CellBuilderError>
     where
-        C: CellSerialize,
-        D: CellSerialize,
+        C: CellSerialize<Args = ()>,
+        D: CellSerialize<Args = ()>,
         H: Digest,
         Output<H>: Into<[u8; 32]>,
     {
         Ok(Self {
             workchain_id,
-            address: state_init.to_cell()?.hash_digest::<H>(),
+            address: state_init.to_cell(())?.hash_digest::<H>(),
         })
     }
 
@@ -270,50 +270,54 @@ impl FromStr for MsgAddress {
 }
 
 impl BitPack for MsgAddress {
+    type Args = ();
+
     #[inline]
-    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
         if self.is_null() {
-            writer.pack(MsgAddressTag::Null)?;
+            writer.pack(MsgAddressTag::Null, ())?;
         } else {
             writer
-                .pack(MsgAddressTag::Std)?
+                .pack(MsgAddressTag::Std, ())?
                 // anycast:(Maybe Anycast)
-                .pack::<Option<Anycast>>(None)?
+                .pack::<Option<Anycast>>(None, ())?
                 // workchain_id:int8
-                .pack(self.workchain_id as i8)?
+                .pack(self.workchain_id as i8, ())?
                 // address:bits256
-                .pack(self.address)?;
+                .pack(self.address, ())?;
         }
         Ok(())
     }
 }
 
 impl<'de> BitUnpack<'de> for MsgAddress {
+    type Args = ();
+
     #[inline]
-    fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
-        match reader.unpack()? {
+        match reader.unpack(())? {
             MsgAddressTag::Null => Ok(Self::NULL),
             MsgAddressTag::Std => {
                 // anycast:(Maybe Anycast)
-                let _: Option<Anycast> = reader.unpack()?;
+                let _: Option<Anycast> = reader.unpack(())?;
                 Ok(Self {
                     // workchain_id:int8
-                    workchain_id: reader.unpack::<i8>()? as i32,
+                    workchain_id: reader.unpack::<i8>(())? as i32,
                     // address:bits256
-                    address: reader.unpack()?,
+                    address: reader.unpack(())?,
                 })
             }
             MsgAddressTag::Var => {
                 // anycast:(Maybe Anycast)
-                let _: Option<Anycast> = reader.unpack()?;
+                let _: Option<Anycast> = reader.unpack(())?;
                 // addr_len:(## 9)
-                let addr_len: u16 = reader.unpack_as::<_, NBits<9>>()?;
+                let addr_len: u16 = reader.unpack_as::<_, NBits<9>>(())?;
                 if addr_len != 256 {
                     // TODO
                     return Err(Error::custom(format!(
@@ -322,9 +326,9 @@ impl<'de> BitUnpack<'de> for MsgAddress {
                 }
                 Ok(Self {
                     // workchain_id:int32
-                    workchain_id: reader.unpack()?,
+                    workchain_id: reader.unpack(())?,
                     // address:(bits addr_len)
-                    address: reader.unpack()?,
+                    address: reader.unpack(())?,
                 })
             }
             tag => Err(Error::custom(format!("unsupported address tag: {tag}"))),
@@ -346,23 +350,27 @@ enum MsgAddressTag {
 }
 
 impl BitPack for MsgAddressTag {
+    type Args = ();
+
     #[inline]
-    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
-        writer.pack_as::<_, NBits<2>>(*self as u8)?;
+        writer.pack_as::<_, NBits<2>>(*self as u8, ())?;
         Ok(())
     }
 }
 
 impl<'de> BitUnpack<'de> for MsgAddressTag {
+    type Args = ();
+
     #[inline]
-    fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
-        Ok(match reader.unpack_as::<u8, NBits<2>>()? {
+        Ok(match reader.unpack_as::<u8, NBits<2>>(())? {
             0b00 => Self::Null,
             0b01 => Self::Extern,
             0b10 => Self::Std,
@@ -380,24 +388,28 @@ pub struct Anycast {
 }
 
 impl BitPack for Anycast {
-    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
+    type Args = ();
+
+    fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
         if self.rewrite_pfx.is_empty() {
             return Err(Error::custom("depth >= 1"));
         }
-        writer.pack_as::<_, VarBits<5>>(&self.rewrite_pfx)?;
+        writer.pack_as::<_, &VarLen<_, 5>>(&self.rewrite_pfx, ())?;
         Ok(())
     }
 }
 
 impl<'de> BitUnpack<'de> for Anycast {
-    fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
+    type Args = ();
+
+    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
-        let rewrite_pfx: BitVec<u8, Msb0> = reader.unpack_as::<_, VarBits<5>>()?;
+        let rewrite_pfx: BitVec<u8, Msb0> = reader.unpack_as::<_, VarLen<_, 5>>(())?;
         if rewrite_pfx.is_empty() {
             return Err(Error::custom("depth >= 1"));
         }

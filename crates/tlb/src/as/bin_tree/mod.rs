@@ -128,7 +128,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use bitvec::bitarr;
 
     use super::BinTree;
     use crate::{
@@ -139,7 +138,7 @@ mod tests {
 
     #[test]
     fn bin_tree_leaf() {
-        let data = bitarr![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 1]
+        let data = bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 1]
             .wrap_as::<Data>()
             .to_cell(())
             .unwrap();

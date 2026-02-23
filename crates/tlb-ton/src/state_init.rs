@@ -1,14 +1,14 @@
 //! Collection of types related to [StateInit](https://docs.ton.org/develop/data-formats/msg-tlb#stateinit-tl-b)
 use impl_tools::autoimpl;
 use tlb::{
-    Cell,
-    r#as::{NoArgs, ParseFully, Ref, hashmap::HashmapE},
+    Cell, ParseFully, Ref, Same,
     bits::{
-        r#as::NBits,
+        NBits,
         de::{BitReader, BitReaderExt, BitUnpack},
         ser::{BitPack, BitWriter, BitWriterExt},
     },
     de::{CellDeserialize, CellParser, CellParserError},
+    hashmap::HashmapE,
     ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeExt},
 };
 
@@ -32,24 +32,16 @@ pub struct StateInit<C = Cell, D = Cell> {
 
 impl<IC, ID> StateInit<IC, ID>
 where
-    IC: CellSerialize,
-    ID: CellSerialize,
+    IC: CellSerialize<Args = ()>,
+    ID: CellSerialize<Args = ()>,
 {
     #[inline]
     pub fn normalize(&self) -> Result<StateInit, CellBuilderError> {
         Ok(StateInit {
             split_depth: self.split_depth,
             special: self.special,
-            code: self
-                .code
-                .as_ref()
-                .map(CellSerializeExt::to_cell)
-                .transpose()?,
-            data: self
-                .data
-                .as_ref()
-                .map(CellSerializeExt::to_cell)
-                .transpose()?,
+            code: self.code.as_ref().map(|c| c.to_cell(())).transpose()?,
+            data: self.data.as_ref().map(|d| d.to_cell(())).transpose()?,
             library: self.library.clone(),
         })
     }
@@ -57,44 +49,48 @@ where
 
 impl<C, D> CellSerialize for StateInit<C, D>
 where
-    C: CellSerialize,
-    D: CellSerialize,
+    C: CellSerialize<Args = ()>,
+    D: CellSerialize<Args = ()>,
 {
+    type Args = ();
+
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
         builder
             // split_depth:(Maybe (## 5))
-            .pack_as::<_, Option<NBits<5>>>(self.split_depth)?
+            .pack_as::<_, Option<NBits<5>>>(self.split_depth, ())?
             // special:(Maybe TickTock)
-            .pack(self.special)?
+            .pack(self.special, ())?
             // code:(Maybe ^Cell)
-            .store_as::<_, Option<Ref>>(self.code.as_ref())?
+            .store_as::<_, Option<Ref>>(self.code.as_ref(), ())?
             // data:(Maybe ^Cell)
-            .store_as::<_, Option<Ref>>(self.data.as_ref())?
+            .store_as::<_, Option<Ref>>(self.data.as_ref(), ())?
             // library:(HashmapE 256 SimpleLib)
-            .store_as::<_, &HashmapE<NoArgs<_>, NoArgs<_>>>(&self.library, (256, (), ()))?;
+            .store_as::<_, &HashmapE<Same, Same>>(&self.library, (256, (), ()))?;
         Ok(())
     }
 }
 
 impl<'de, C, D> CellDeserialize<'de> for StateInit<C, D>
 where
-    C: CellDeserialize<'de>,
-    D: CellDeserialize<'de>,
+    C: CellDeserialize<'de, Args = ()>,
+    D: CellDeserialize<'de, Args = ()>,
 {
+    type Args = ();
+
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             // split_depth:(Maybe (## 5))
-            split_depth: parser.unpack_as::<_, Option<NBits<5>>>()?,
+            split_depth: parser.unpack_as::<_, Option<NBits<5>>>(())?,
             // special:(Maybe TickTock)
-            special: parser.unpack()?,
+            special: parser.unpack(())?,
             // code:(Maybe ^Cell)
-            code: parser.parse_as::<_, Option<Ref<ParseFully>>>()?,
+            code: parser.parse_as::<_, Option<Ref<ParseFully>>>(())?,
             // data:(Maybe ^Cell)
-            data: parser.parse_as::<_, Option<Ref<ParseFully>>>()?,
+            data: parser.parse_as::<_, Option<Ref<ParseFully>>>(())?,
             // library:(HashmapE 256 SimpleLib)
-            library: parser.parse_as::<_, HashmapE<NoArgs<_>, NoArgs<_>>>((256, (), ()))?,
+            library: parser.parse_as::<_, HashmapE<Same, Same>>((256, (), ()))?,
         })
     }
 }
@@ -111,25 +107,29 @@ pub struct TickTock {
 }
 
 impl BitPack for TickTock {
+    type Args = ();
+
     #[inline]
-    fn pack<W>(&self, writer: &mut W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
-        writer.pack(self.tick)?.pack(self.tock)?;
+        writer.pack(self.tick, ())?.pack(self.tock, ())?;
         Ok(())
     }
 }
 
 impl<'de> BitUnpack<'de> for TickTock {
+    type Args = ();
+
     #[inline]
-    fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
         Ok(Self {
-            tick: reader.unpack()?,
-            tock: reader.unpack()?,
+            tick: reader.unpack(())?,
+            tock: reader.unpack(())?,
         })
     }
 }
@@ -146,19 +146,25 @@ pub struct SimpleLib {
 }
 
 impl CellSerialize for SimpleLib {
+    type Args = ();
+
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.pack(self.public)?.store_as::<_, Ref>(&self.root)?;
+    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+        builder
+            .pack(self.public, ())?
+            .store_as::<_, Ref>(&self.root, ())?;
         Ok(())
     }
 }
 
 impl<'de> CellDeserialize<'de> for SimpleLib {
+    type Args = ();
+
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(SimpleLib {
-            public: parser.unpack()?,
-            root: parser.parse_as::<_, Ref>()?,
+            public: parser.unpack(())?,
+            root: parser.parse_as::<_, Ref>(())?,
         })
     }
 }
@@ -172,8 +178,8 @@ mod tests {
     #[test]
     fn state_init_serde() {
         let s = StateInit::<(), ()>::default();
-        let cell = s.to_cell().unwrap();
-        let got: StateInit<(), ()> = cell.parse_fully().unwrap();
+        let cell = s.to_cell(()).unwrap();
+        let got: StateInit<(), ()> = cell.parse_fully(()).unwrap();
         assert_eq!(got, s);
     }
 }
