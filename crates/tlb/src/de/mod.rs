@@ -47,7 +47,7 @@ where
     }
 }
 
-macro_rules! impl_cell_deserialize_with_args_for_tuple {
+macro_rules! impl_cell_deserialize_for_tuple {
     ($($n:tt:$t:ident),+) => {
         impl<'de, $($t),+> CellDeserialize<'de> for ($($t,)+)
         where $(
@@ -66,33 +66,16 @@ macro_rules! impl_cell_deserialize_with_args_for_tuple {
         }
     };
 }
-impl_cell_deserialize_with_args_for_tuple!(0:T0);
-impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1);
-impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2);
-impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3);
-impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4);
-impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5);
-impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6);
-impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
-impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
-impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
-
-// TODO
-// impl<'de, T> CellDeserialize<'de> for Vec<T>
-// where
-//     T: CellDeserialize<'de>,
-//     T::Args: Clone + 'de,
-// {
-//     type Args = (usize, T::Args);
-
-//     #[inline]
-//     fn parse(
-//         parser: &mut CellParser<'de>,
-//         (len, args): Self::Args,
-//     ) -> Result<Self, CellParserError<'de>> {
-//         parser.parse_iter(args).take(len).collect()
-//     }
-// }
+impl_cell_deserialize_for_tuple!(0:T0);
+impl_cell_deserialize_for_tuple!(0:T0,1:T1);
+impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2);
+impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3);
+impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4);
+impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5);
+impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6);
+impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
+impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
+impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
 
 impl<'de, T> CellDeserialize<'de> for Box<T>
 where

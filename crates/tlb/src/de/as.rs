@@ -41,24 +41,7 @@ where
     }
 }
 
-// TODO
-// impl<'de, T, As> CellDeserializeAs<'de, Vec<T>> for Vec<As>
-// where
-//     As: CellDeserializeAs<'de, T>,
-//     As::Args: Clone + 'de,
-// {
-//     type Args = (usize, As::Args);
-
-//     #[inline]
-//     fn parse_as_with(
-//         parser: &mut CellParser<'de>,
-//         (len, args): Self::Args,
-//     ) -> Result<Vec<T>, CellParserError<'de>> {
-//         parser.parse_iter_as::<_, As>(args).take(len).collect()
-//     }
-// }
-
-macro_rules! impl_cell_deserialize_as_with_args_for_tuple {
+macro_rules! impl_cell_deserialize_as_for_tuple {
     ($($n:tt:$t:ident as $a:ident),+) => {
         impl<'de, $($t, $a),+> CellDeserializeAs<'de, ($($t,)+)> for ($($a,)+)
         where $(
@@ -78,16 +61,16 @@ macro_rules! impl_cell_deserialize_as_with_args_for_tuple {
         }
     };
 }
-impl_cell_deserialize_as_with_args_for_tuple!(0:T0 as As0);
-impl_cell_deserialize_as_with_args_for_tuple!(0:T0 as As0,1:T1 as As1);
-impl_cell_deserialize_as_with_args_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2);
-impl_cell_deserialize_as_with_args_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3);
-impl_cell_deserialize_as_with_args_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4);
-impl_cell_deserialize_as_with_args_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5);
-impl_cell_deserialize_as_with_args_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5,6:T6 as As6);
-impl_cell_deserialize_as_with_args_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5,6:T6 as As6,7:T7 as As7);
-impl_cell_deserialize_as_with_args_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5,6:T6 as As6,7:T7 as As7,8:T8 as As8);
-impl_cell_deserialize_as_with_args_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5,6:T6 as As6,7:T7 as As7,8:T8 as As8,9:T9 as As9);
+impl_cell_deserialize_as_for_tuple!(0:T0 as As0);
+impl_cell_deserialize_as_for_tuple!(0:T0 as As0,1:T1 as As1);
+impl_cell_deserialize_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2);
+impl_cell_deserialize_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3);
+impl_cell_deserialize_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4);
+impl_cell_deserialize_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5);
+impl_cell_deserialize_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5,6:T6 as As6);
+impl_cell_deserialize_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5,6:T6 as As6,7:T7 as As7);
+impl_cell_deserialize_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5,6:T6 as As6,7:T7 as As7,8:T8 as As8);
+impl_cell_deserialize_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5,6:T6 as As6,7:T7 as As7,8:T8 as As8,9:T9 as As9);
 
 impl<'de, T, As> CellDeserializeAs<'de, Box<T>> for Box<As>
 where

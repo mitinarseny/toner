@@ -33,20 +33,6 @@ impl CellSerialize for () {
     }
 }
 
-impl<T> CellSerialize for [T]
-where
-    T: CellSerialize,
-    T::Args: Clone,
-{
-    type Args = T::Args;
-
-    #[inline]
-    fn store(&self, builder: &mut CellBuilder, args: Self::Args) -> Result<(), CellBuilderError> {
-        builder.store_many(self, args)?;
-        Ok(())
-    }
-}
-
 impl<T, const N: usize> CellSerialize for [T; N]
 where
     T: CellSerialize,
