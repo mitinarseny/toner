@@ -11,11 +11,7 @@ use crate::{
     },
 };
 
-use super::{
-    CellDeserialize,
-    args::{CellDeserializeWithArgs, r#as::CellDeserializeAsWithArgs},
-    r#as::CellDeserializeAs,
-};
+use super::{CellDeserialize, CellDeserializeAs};
 
 /// [`Error`] for [`CellParser`]
 pub type CellParserError<'de> = <CellParser<'de> as BitReader<'de>>::Error;
@@ -33,73 +29,28 @@ impl<'de> CellParser<'de> {
         Self { data, references }
     }
 
-    /// Parse the value using its [`CellDeserialize`] implementation
-    #[inline]
-    pub fn parse<T>(&mut self) -> Result<T, CellParserError<'de>>
-    where
-        T: CellDeserialize<'de>,
-    {
-        T::parse(self)
-    }
-
-    /// Return iterator that parses values using [`CellDeserialize`]
-    /// implementation.
-    #[inline]
-    pub fn parse_iter<T>(&mut self) -> impl Iterator<Item = Result<T, CellParserError<'de>>> + '_
-    where
-        T: CellDeserialize<'de>,
-    {
-        iter::repeat_with(move || self.parse())
-            .enumerate()
-            .map(|(i, v)| v.with_context(|| format!("[{i}]")))
-    }
-
     /// Parse the value with args using its [`CellDeserializeWithArgs`]
     /// implementation.
     #[inline]
-    pub fn parse_with<T>(&mut self, args: T::Args) -> Result<T, CellParserError<'de>>
+    pub fn parse<T>(&mut self, args: T::Args) -> Result<T, CellParserError<'de>>
     where
-        T: CellDeserializeWithArgs<'de>,
+        T: CellDeserialize<'de>,
     {
-        T::parse_with(self, args)
+        T::parse(self, args)
     }
 
     /// Return iterator that parses values with args using
     /// [`CellDeserializeWithArgs`] implementation.
     #[inline]
-    pub fn parse_iter_with<'a: 'de, T>(
+    pub fn parse_iter<'a: 'de, T>(
         &mut self,
         args: T::Args,
     ) -> impl Iterator<Item = Result<T, CellParserError<'de>>> + '_
     where
-        T: CellDeserializeWithArgs<'de>,
+        T: CellDeserialize<'de>,
         T::Args: Clone + 'a,
     {
-        iter::repeat_with(move || self.parse_with(args.clone()))
-            .enumerate()
-            .map(|(i, v)| v.with_context(|| format!("[{i}]")))
-    }
-
-    /// Parse the value using an adapter.  
-    /// See [`as`](crate::as) module-level documentation for more.
-    #[inline]
-    pub fn parse_as<T, As>(&mut self) -> Result<T, CellParserError<'de>>
-    where
-        As: CellDeserializeAs<'de, T> + ?Sized,
-    {
-        As::parse_as(self)
-    }
-
-    /// Returns iterator that parses values using an adapter.  
-    /// See [`as`](crate::as) module-level documentation for more.
-    #[inline]
-    pub fn parse_iter_as<T, As>(
-        &mut self,
-    ) -> impl Iterator<Item = Result<T, CellParserError<'de>>> + '_
-    where
-        As: CellDeserializeAs<'de, T> + ?Sized,
-    {
-        iter::repeat_with(move || self.parse_as::<_, As>())
+        iter::repeat_with(move || self.parse(args.clone()))
             .enumerate()
             .map(|(i, v)| v.with_context(|| format!("[{i}]")))
     }
@@ -107,25 +58,25 @@ impl<'de> CellParser<'de> {
     /// Parse value with args using an adapter.  
     /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
-    pub fn parse_as_with<T, As>(&mut self, args: As::Args) -> Result<T, CellParserError<'de>>
+    pub fn parse_as<T, As>(&mut self, args: As::Args) -> Result<T, CellParserError<'de>>
     where
-        As: CellDeserializeAsWithArgs<'de, T> + ?Sized,
+        As: CellDeserializeAs<'de, T> + ?Sized,
     {
-        As::parse_as_with(self, args)
+        As::parse_as(self, args)
     }
 
     /// Returns iterator that parses values with args using an adapter.  
     /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
-    pub fn parse_iter_as_with<'a: 'de, T, As>(
+    pub fn parse_iter_as<'a: 'de, T, As>(
         &mut self,
         args: As::Args,
     ) -> impl Iterator<Item = Result<T, CellParserError<'de>>> + '_
     where
-        As: CellDeserializeAsWithArgs<'de, T> + ?Sized,
+        As: CellDeserializeAs<'de, T> + ?Sized,
         As::Args: Clone + 'a,
     {
-        iter::repeat_with(move || self.parse_as_with::<_, As>(args.clone()))
+        iter::repeat_with(move || self.parse_as::<_, As>(args.clone()))
             .enumerate()
             .map(|(i, v)| v.with_context(|| format!("[{i}]")))
     }
@@ -141,22 +92,14 @@ impl<'de> CellParser<'de> {
     }
 
     #[inline]
-    pub(crate) fn parse_reference_as<T, As>(&mut self) -> Result<T, CellParserError<'de>>
-    where
-        As: CellDeserializeAs<'de, T> + ?Sized,
-    {
-        self.pop_reference()?.parse_fully_as::<T, As>()
-    }
-
-    #[inline]
-    pub(crate) fn parse_reference_as_with<T, As>(
+    pub(crate) fn parse_reference_as<T, As>(
         &mut self,
         args: As::Args,
     ) -> Result<T, CellParserError<'de>>
     where
-        As: CellDeserializeAsWithArgs<'de, T> + ?Sized,
+        As: CellDeserializeAs<'de, T> + ?Sized,
     {
-        self.pop_reference()?.parse_fully_as_with::<T, As>(args)
+        self.pop_reference()?.parse_fully_as::<T, As>(args)
     }
 
     #[inline]
@@ -229,8 +172,10 @@ impl<'de> BitReader<'de> for CellParser<'de> {
 }
 
 impl<'de> CellDeserialize<'de> for CellParser<'de> {
+    type Args = ();
+
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             data: mem::take(&mut parser.data),
             references: mem::take(&mut parser.references),

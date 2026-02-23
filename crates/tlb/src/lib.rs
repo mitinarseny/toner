@@ -133,13 +133,13 @@
 //! # Ok(())
 //! # }
 //! ```
-pub mod r#as;
+mod r#as;
 mod boc;
 mod cell;
 pub mod de;
 pub mod ser;
 
-pub use self::{boc::*, cell::*};
+pub use self::{r#as::*, boc::*, cell::*};
 
 pub use tlbits::{self as bits, Context, Error, StringError, either};
 

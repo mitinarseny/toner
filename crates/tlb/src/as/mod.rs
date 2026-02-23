@@ -20,46 +20,22 @@ pub use self::{
 };
 
 use crate::{
-    de::{
-        CellDeserialize, CellParser, CellParserError,
-        args::{CellDeserializeWithArgs, r#as::CellDeserializeAsWithArgs},
-        r#as::CellDeserializeAs,
-    },
-    ser::{
-        CellBuilder, CellBuilderError, CellSerialize,
-        args::{CellSerializeWithArgs, r#as::CellSerializeAsWithArgs},
-        r#as::CellSerializeAs,
-    },
+    de::{CellDeserialize, CellDeserializeAs, CellParser, CellParserError},
+    ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeAs},
 };
 
-pub use tlbits::r#as::AsWrap;
+pub use tlbits::AsWrap;
 
 impl<T, As> CellSerialize for AsWrap<&T, As>
 where
     T: ?Sized,
-    As: ?Sized,
-    As: CellSerializeAs<T>,
-{
-    #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        As::store_as(self.into_inner(), builder)
-    }
-}
-
-impl<T, As> CellSerializeWithArgs for AsWrap<&T, As>
-where
-    T: ?Sized,
-    As: CellSerializeAsWithArgs<T> + ?Sized,
+    As: CellSerializeAs<T> + ?Sized,
 {
     type Args = As::Args;
 
     #[inline]
-    fn store_with(
-        &self,
-        builder: &mut CellBuilder,
-        args: Self::Args,
-    ) -> Result<(), CellBuilderError> {
-        As::store_as_with(self.into_inner(), builder, args)
+    fn store(&self, builder: &mut CellBuilder, args: Self::Args) -> Result<(), CellBuilderError> {
+        As::store_as(self.into_inner(), builder, args)
     }
 }
 
@@ -67,22 +43,9 @@ impl<'de, T, As> CellDeserialize<'de> for AsWrap<T, As>
 where
     As: CellDeserializeAs<'de, T> + ?Sized,
 {
-    #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        As::parse_as(parser).map(Self::new)
-    }
-}
-
-impl<'de, T, As> CellDeserializeWithArgs<'de> for AsWrap<T, As>
-where
-    As: CellDeserializeAsWithArgs<'de, T> + ?Sized,
-{
     type Args = As::Args;
 
-    fn parse_with(
-        parser: &mut CellParser<'de>,
-        args: Self::Args,
-    ) -> Result<Self, CellParserError<'de>> {
-        As::parse_as_with(parser, args).map(Self::new)
+    fn parse(parser: &mut CellParser<'de>, args: Self::Args) -> Result<Self, CellParserError<'de>> {
+        As::parse_as(parser, args).map(Self::new)
     }
 }

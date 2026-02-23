@@ -1,33 +1,38 @@
 use crate::{
-    de::{CellParser, CellParserError, r#as::CellDeserializeAs},
-    ser::{CellBuilder, CellBuilderError, r#as::CellSerializeAs},
+    de::{CellDeserializeAs, CellParser, CellParserError},
+    ser::{CellBuilder, CellBuilderError, CellSerializeAs},
 };
 
-pub use crate::bits::r#as::DefaultOnNone;
+pub use crate::bits::DefaultOnNone;
 
-impl<T, As> CellSerializeAs<Option<T>> for DefaultOnNone<As>
+impl<T, As> CellSerializeAs<T> for DefaultOnNone<As>
 where
     As: CellSerializeAs<T>,
-    T: Default,
+    T: Default + PartialEq,
 {
-    fn store_as(source: &Option<T>, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        match source {
-            Some(v) => builder.store_as::<_, &As>(v)?,
-            None => builder.store_as::<_, As>(T::default())?,
-        };
+    type Args = As::Args;
+
+    fn store_as(
+        source: &T,
+        builder: &mut CellBuilder,
+        args: As::Args,
+    ) -> Result<(), CellBuilderError> {
+        builder.store_as::<_, Option<&As>>((source != &T::default()).then_some(source), args)?;
         Ok(())
     }
 }
 
 impl<'de, T, As> CellDeserializeAs<'de, T> for DefaultOnNone<As>
 where
-    T: Default,
     As: CellDeserializeAs<'de, T>,
+    T: Default,
 {
+    type Args = As::Args;
+
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<T, CellParserError<'de>> {
+    fn parse_as(parser: &mut CellParser<'de>, args: As::Args) -> Result<T, CellParserError<'de>> {
         parser
-            .parse_as::<_, Option<As>>()
+            .parse_as::<_, Option<As>>(args)
             .map(Option::unwrap_or_default)
     }
 }

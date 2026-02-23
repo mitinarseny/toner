@@ -4,15 +4,20 @@
 //! This approach is heavily inspired by
 //! [serde_with](https://docs.rs/serde_with/latest/serde_with).
 //! Please, read their docs for more usage examples.
-pub mod args;
-mod len;
+mod args;
 mod borrow;
 mod default;
 mod from_into;
 mod integer;
+mod len;
 mod remainder;
 mod same;
 mod unary;
+
+pub use self::{
+    args::*, borrow::*, default::*, from_into::*, integer::*, len::*, remainder::*, same::*,
+    unary::*,
+};
 
 use std::marker::PhantomData;
 
@@ -21,10 +26,6 @@ use impl_tools::autoimpl;
 use crate::{
     de::{BitReader, BitUnpack, BitUnpackAs},
     ser::{BitPack, BitPackAs, BitWriter},
-};
-
-pub use self::{
-    len::*, borrow::*, default::*, from_into::*, integer::*, remainder::*, same::*, unary::*,
 };
 
 /// Helper to implement **de**/**ser**ialize trait for adapters

@@ -26,7 +26,7 @@
 //! # use bitvec::{vec::BitVec, order::Msb0};
 //! # use num_bigint::BigUint;
 //! # use tlbits::{
-//! #   r#as::{NBits, VarInt},
+//! #   NBits, VarInt,
 //! #   ser::{BitPack, BitWriter, BitWriterExt, pack},
 //! #   StringError,
 //! # };
@@ -37,7 +37,7 @@
 //! # }
 //! impl BitPack for Hello {
 //!     type Args = ();
-//! 
+//!
 //!     fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
 //!         where W: BitWriter + ?Sized,
 //!     {
@@ -71,7 +71,7 @@
 //! # use bitvec::{vec::BitVec, order::Msb0};
 //! # use num_bigint::BigUint;
 //! # use tlbits::{
-//! #   r#as::{NBits, VarInt},
+//! #   NBits, VarInt,
 //! #   de::{BitReaderExt, BitReader, BitUnpack},
 //! #   Error,
 //! #   ser::{BitPack, BitWriter, BitWriterExt, pack},
@@ -100,7 +100,7 @@
 //! # }
 //! impl<'de> BitUnpack<'de> for Hello {
 //!     type Args = ();
-//! 
+//!
 //!     fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
 //!         where R: BitReader<'de> + ?Sized,
 //!     {
@@ -132,13 +132,13 @@
 //! # }
 //! ```
 pub mod adapters;
-pub mod r#as;
+mod r#as;
 pub mod de;
 mod error;
 pub mod integer;
 pub mod ser;
 
-pub use self::error::*;
+pub use self::{r#as::*, error::*};
 
 pub use bitvec;
 pub use either;

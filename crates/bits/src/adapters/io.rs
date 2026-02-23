@@ -16,7 +16,7 @@ type Buffer = BitArray<[u8; 1], Msb0>;
 /// #
 /// # use tlbits::{
 /// #     adapters::Io,
-/// #     r#as::NBits,
+/// #     NBits,
 /// #     de::BitReaderExt,
 /// #     ser::BitWriterExt
 /// # };

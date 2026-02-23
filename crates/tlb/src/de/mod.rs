@@ -1,33 +1,33 @@
 //! **De**serialization for [TL-B](https://docs.ton.org/develop/data-formats/tl-b-language)
-pub mod args;
-pub mod r#as;
+mod r#as;
 mod parser;
 
-pub use self::parser::*;
+pub use self::{r#as::*, parser::*};
 
-use core::mem;
-use std::{borrow::Cow, rc::Rc, sync::Arc};
+use std::{borrow::Cow, mem, rc::Rc, sync::Arc};
 
-use crate::{
-    Cell, Context,
-    r#as::{FromInto, Same},
-    bits::de::BitReaderExt,
-    either::Either,
-};
+use crate::{Cell, Context, FromInto, Same, bits::de::BitReaderExt, either::Either};
 
-/// A type that can be **de**serialized from [`CellParser`].
+/// A type that can be **de**serialized.  
+/// In contrast with [`CellDeserialize`](super::CellDeserialize) it allows to
+/// pass [`Args`](CellDeserializeWithArgs::Args) and these arguments can be
+/// calculated dynamically in runtime.
 pub trait CellDeserialize<'de>: Sized {
-    /// Parse value
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>>;
+    type Args;
+
+    /// Parses the value with args
+    fn parse(parser: &mut CellParser<'de>, args: Self::Args) -> Result<Self, CellParserError<'de>>;
 }
 
-/// Owned version of [`CellDeserialize`]
+/// Owned version of [`CellDeserializeWithArgs`]
 pub trait CellDeserializeOwned: for<'de> CellDeserialize<'de> {}
 impl<T> CellDeserializeOwned for T where T: for<'de> CellDeserialize<'de> {}
 
 impl<'de> CellDeserialize<'de> for () {
+    type Args = ();
+
     #[inline]
-    fn parse(_parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(_parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(())
     }
 }
@@ -35,49 +35,74 @@ impl<'de> CellDeserialize<'de> for () {
 impl<'de, T, const N: usize> CellDeserialize<'de> for [T; N]
 where
     T: CellDeserialize<'de>,
+    T::Args: Clone,
 {
-    #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    type Args = T::Args;
+
+    fn parse(parser: &mut CellParser<'de>, args: Self::Args) -> Result<Self, CellParserError<'de>> {
         // TODO: replace with [`core::array::try_from_fn`](https://github.com/rust-lang/rust/issues/89379) when stabilized
-        array_util::try_from_fn(|i| T::parse(parser).with_context(|| format!("[{i}]")))
+        array_util::try_from_fn(|i| {
+            T::parse(parser, args.clone()).with_context(|| format!("[{i}]"))
+        })
     }
 }
 
-macro_rules! impl_cell_deserialize_for_tuple {
+macro_rules! impl_cell_deserialize_with_args_for_tuple {
     ($($n:tt:$t:ident),+) => {
         impl<'de, $($t),+> CellDeserialize<'de> for ($($t,)+)
         where $(
             $t: CellDeserialize<'de>,
         )+
         {
+            type Args = ($($t::Args,)+);
+
             #[inline]
-            fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>>
+            fn parse(parser: &mut CellParser<'de>, args: Self::Args) -> Result<Self, CellParserError<'de>>
             {
                 Ok(($(
-                    $t::parse(parser).context(concat!(".", stringify!($n)))?,
+                    $t::parse(parser, args.$n).context(concat!(".", stringify!($n)))?,
                 )+))
             }
         }
     };
 }
-impl_cell_deserialize_for_tuple!(0:T0);
-impl_cell_deserialize_for_tuple!(0:T0,1:T1);
-impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2);
-impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3);
-impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4);
-impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5);
-impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6);
-impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
-impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
-impl_cell_deserialize_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
+impl_cell_deserialize_with_args_for_tuple!(0:T0);
+impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1);
+impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2);
+impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3);
+impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4);
+impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5);
+impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6);
+impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
+impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
+impl_cell_deserialize_with_args_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
+
+// TODO
+// impl<'de, T> CellDeserialize<'de> for Vec<T>
+// where
+//     T: CellDeserialize<'de>,
+//     T::Args: Clone + 'de,
+// {
+//     type Args = (usize, T::Args);
+
+//     #[inline]
+//     fn parse(
+//         parser: &mut CellParser<'de>,
+//         (len, args): Self::Args,
+//     ) -> Result<Self, CellParserError<'de>> {
+//         parser.parse_iter(args).take(len).collect()
+//     }
+// }
 
 impl<'de, T> CellDeserialize<'de> for Box<T>
 where
     T: CellDeserialize<'de>,
 {
+    type Args = T::Args;
+
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        parser.parse_as::<_, FromInto<T>>()
+    fn parse(parser: &mut CellParser<'de>, args: Self::Args) -> Result<Self, CellParserError<'de>> {
+        parser.parse_as::<_, FromInto<T>>(args)
     }
 }
 
@@ -85,9 +110,11 @@ impl<'de, T> CellDeserialize<'de> for Rc<T>
 where
     T: CellDeserialize<'de>,
 {
+    type Args = T::Args;
+
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        parser.parse_as::<_, FromInto<T>>()
+    fn parse(parser: &mut CellParser<'de>, args: Self::Args) -> Result<Self, CellParserError<'de>> {
+        parser.parse_as::<_, FromInto<T>>(args)
     }
 }
 
@@ -95,9 +122,11 @@ impl<'de, T> CellDeserialize<'de> for Arc<T>
 where
     T: CellDeserialize<'de>,
 {
+    type Args = T::Args;
+
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        parser.parse_as::<_, FromInto<T>>()
+    fn parse(parser: &mut CellParser<'de>, args: Self::Args) -> Result<Self, CellParserError<'de>> {
+        parser.parse_as::<_, FromInto<T>>(args)
     }
 }
 
@@ -107,9 +136,11 @@ where
     T: ToOwned + ?Sized,
     T::Owned: CellDeserialize<'de>,
 {
+    type Args = <T::Owned as CellDeserialize<'de>>::Args;
+
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        <T::Owned as CellDeserialize>::parse(parser).map(Self::Owned)
+    fn parse(parser: &mut CellParser<'de>, args: Self::Args) -> Result<Self, CellParserError<'de>> {
+        parser.parse::<T::Owned>(args).map(Self::Owned)
     }
 }
 
@@ -123,11 +154,17 @@ where
     Left: CellDeserialize<'de>,
     Right: CellDeserialize<'de>,
 {
+    /// `(left_args, right_args)`
+    type Args = (Left::Args, Right::Args);
+
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        match parser.unpack().context("tag")? {
-            false => parser.parse().map(Either::Left).context("left"),
-            true => parser.parse().map(Either::Right).context("right"),
+    fn parse(
+        parser: &mut CellParser<'de>,
+        (la, ra): Self::Args,
+    ) -> Result<Self, CellParserError<'de>> {
+        match parser.unpack(()).context("tag")? {
+            false => parser.parse(la).map(Either::Left).context("left"),
+            true => parser.parse(ra).map(Either::Right).context("right"),
         }
     }
 }
@@ -141,15 +178,19 @@ impl<'de, T> CellDeserialize<'de> for Option<T>
 where
     T: CellDeserialize<'de>,
 {
+    type Args = T::Args;
+
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        parser.parse_as::<_, Either<(), Same>>()
+    fn parse(parser: &mut CellParser<'de>, args: Self::Args) -> Result<Self, CellParserError<'de>> {
+        parser.parse_as::<_, Either<(), Same>>(args)
     }
 }
 
 impl<'de> CellDeserialize<'de> for Cell {
+    type Args = ();
+
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             data: mem::take(&mut parser.data).to_bitvec(),
             references: mem::take(&mut parser.references).to_vec(),

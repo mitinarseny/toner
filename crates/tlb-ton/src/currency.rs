@@ -69,7 +69,7 @@ pub struct ExtraCurrencyCollection(pub HashmapE<BigUint>);
 impl CellSerialize for ExtraCurrencyCollection {
     #[inline]
     fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.store_as_with::<_, &HashmapE<NoArgs<_, Data<VarInt<32>>>, NoArgs<_>>>(
+        builder.store_as::<_, &HashmapE<NoArgs<_, Data<VarInt<32>>>, NoArgs<_>>>(
             &self.0,
             (32, (), ()),
         )?;
@@ -81,7 +81,7 @@ impl<'de> CellDeserialize<'de> for ExtraCurrencyCollection {
     #[inline]
     fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
         Ok(Self(
-            parser.parse_as_with::<_, HashmapE<NoArgs<_, Data<VarInt<32>>>, NoArgs<_>>>((
+            parser.parse_as::<_, HashmapE<NoArgs<_, Data<VarInt<32>>>, NoArgs<_>>>((
                 32,
                 (),
                 (),

@@ -2,7 +2,7 @@ use core::marker::PhantomData;
 
 use crate::{
     de::{BitReader, BitReaderExt, BitUnpackAs},
-    ser::{BitPackAs, BitWriter},
+    ser::{BitPackAs, BitWriter, BitWriterExt},
 };
 
 use super::Same;
@@ -22,7 +22,8 @@ where
     where
         W: BitWriter + ?Sized,
     {
-        Option::<&As>::pack_as(&(source != &T::default()).then_some(source), writer, args)
+        writer.pack_as::<_, Option<&As>>((source != &T::default()).then_some(source), args)?;
+        Ok(())
     }
 }
 

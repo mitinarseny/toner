@@ -12,10 +12,10 @@ use crc::Crc;
 use crate::{
     Cell, Context, Error, StringError,
     bits::{
-        r#as::{NBits, VarNBytes},
+        NBits, VarNBytes,
         bitvec::{order::Msb0, vec::BitVec, view::AsBits},
-        de::{BitReader, BitReaderExt, BitUnpack, args::BitUnpack},
-        ser::{BitWriter, BitWriterExt, args::BitPack},
+        de::{BitReader, BitReaderExt, BitUnpack},
+        ser::{BitPack, BitWriter, BitWriterExt},
     },
 };
 
@@ -119,7 +119,7 @@ impl BagOfCells {
     /// Parse from bytes
     #[inline]
     pub fn deserialize(bytes: impl AsRef<[u8]>) -> Result<Self, StringError> {
-        Self::unpack(&mut bytes.as_bits())
+        Self::unpack(&mut bytes.as_bits(), ())
     }
 
     /// Parse hexadecimal string
@@ -289,11 +289,13 @@ impl BitPack for BagOfCells {
 ///   = BagOfCells;
 /// ```
 impl<'de> BitUnpack<'de> for BagOfCells {
-    fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
+    type Args = ();
+
+    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
-        let raw = RawBagOfCells::unpack(reader)?;
+        let raw = RawBagOfCells::unpack(reader, ())?;
         let num_cells = raw.cells.len();
         let mut cells: Vec<Arc<Cell>> = Vec::new();
         for (i, raw_cell) in raw.cells.into_iter().enumerate().rev() {
@@ -407,32 +409,32 @@ impl BitPack for RawBagOfCells {
         let mut buffered = writer.as_mut().tee(BitVec::<u8, Msb0>::new());
         buffered
             // serialized_boc#b5ee9c72
-            .pack(Self::GENERIC_BOC_TAG)?
+            .pack(Self::GENERIC_BOC_TAG, ())?
             // has_idx:(## 1)
-            .pack(args.has_idx)?
+            .pack(args.has_idx, ())?
             // has_crc32c:(## 1)
-            .pack(args.has_crc32c)?
+            .pack(args.has_crc32c, ())?
             // has_cache_bits:(## 1)
-            .pack(false)?
+            .pack(false, ())?
             // flags:(## 2) { flags = 0 }
-            .pack_as::<u8, NBits<2>>(0)?
+            .pack_as::<u8, NBits<2>>(0, ())?
             // size:(## 3) { size <= 4 }
-            .pack_as::<_, NBits<3>>(size_bytes)?
+            .pack_as::<_, NBits<3>>(size_bytes, ())?
             // off_bytes:(## 8) { off_bytes <= 8 }
-            .pack_as::<_, NBits<8>>(off_bytes)?
+            .pack_as::<_, NBits<8>>(off_bytes, ())?
             // cells:(##(size * 8))
-            .pack_as_with::<_, VarNBytes>(self.cells.len() as u32, size_bytes)?
+            .pack_as::<_, VarNBytes>(self.cells.len() as u32, size_bytes)?
             // roots:(##(size * 8)) { roots >= 1 }
-            .pack_as_with::<_, VarNBytes>(1u32, size_bytes)? // single root
+            .pack_as::<_, VarNBytes>(1u32, size_bytes)? // single root
             // absent:(##(size * 8)) { roots + absent <= cells }
-            .pack_as_with::<_, VarNBytes>(0u32, size_bytes)? // complete BoCs only
+            .pack_as::<_, VarNBytes>(0u32, size_bytes)? // complete BoCs only
             // tot_cells_size:(##(off_bytes * 8))
-            .pack_as_with::<_, VarNBytes>(tot_cells_size, off_bytes)?
+            .pack_as::<_, VarNBytes>(tot_cells_size, off_bytes)?
             // root_list:(roots * ##(size * 8))
-            .pack_as_with::<_, VarNBytes>(0u32, size_bytes)?; // root should have index 0
+            .pack_as::<_, VarNBytes>(0u32, size_bytes)?; // root should have index 0
         if args.has_idx {
             // index:has_idx?(cells * ##(off_bytes * 8))
-            buffered.pack_many_as_with::<_, VarNBytes>(index, off_bytes)?;
+            buffered.pack_many_as::<_, VarNBytes>(index, off_bytes)?;
         }
         // cell_data:(tot_cells_size * [ uint8 ])
         for (i, cell) in self.cells.iter().enumerate() {
@@ -454,34 +456,36 @@ impl BitPack for RawBagOfCells {
 }
 
 impl<'de> BitUnpack<'de> for RawBagOfCells {
-    fn unpack<R>(reader: &mut R) -> Result<Self, R::Error>
+    type Args = ();
+
+    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
         let mut buffered = reader.as_mut().tee(BitVec::<u8, Msb0>::new());
 
-        let tag = buffered.unpack::<u32>()?;
+        let tag = buffered.unpack::<u32>(())?;
         let (has_idx, has_crc32c) = match tag {
             Self::INDEXED_BOC_TAG => (true, false),
             Self::INDEXED_CRC32_TAG => (true, true),
             Self::GENERIC_BOC_TAG => {
                 // has_idx:(## 1) has_crc32c:(## 1)
-                let (has_idx, has_crc32c) = buffered.unpack()?;
+                let (has_idx, has_crc32c) = buffered.unpack(((), ()))?;
                 // has_cache_bits:(## 1)
-                let _has_cache_bits: bool = buffered.unpack()?;
+                let _has_cache_bits: bool = buffered.unpack(())?;
                 // flags:(## 2) { flags = 0 }
-                let _flags: u8 = buffered.unpack_as::<_, NBits<2>>()?;
+                let _flags: u8 = buffered.unpack_as::<_, NBits<2>>(())?;
                 (has_idx, has_crc32c)
             }
             _ => return Err(Error::custom(format!("invalid BoC tag: {tag:#x}"))),
         };
         // size:(## 3) { size <= 4 }
-        let size_bytes: u32 = buffered.unpack_as::<_, NBits<3>>()?;
+        let size_bytes: u32 = buffered.unpack_as::<_, NBits<3>>(())?;
         if size_bytes > 4 {
             return Err(Error::custom(format!("invalid size: {size_bytes}")));
         }
         // off_bytes:(## 8) { off_bytes <= 8 }
-        let off_bytes: u32 = buffered.unpack_as::<_, NBits<8>>()?;
+        let off_bytes: u32 = buffered.unpack_as::<_, NBits<8>>(())?;
         if size_bytes > 8 {
             return Err(Error::custom(format!("invalid off_bytes: {off_bytes}")));
         }
@@ -525,7 +529,7 @@ impl<'de> BitUnpack<'de> for RawBagOfCells {
         }
         if has_crc32c {
             // crc32c:has_crc32c?uint32
-            let cs = u32::from_le_bytes(reader.unpack()?);
+            let cs = u32::from_le_bytes(reader.unpack(())?);
             if cs != CRC_32_ISCSI.checksum(buf.as_raw_slice()) {
                 return Err(Error::custom("CRC mismatch"));
             }
@@ -549,16 +553,16 @@ impl<'de> BitUnpack<'de> for RawCell {
     /// size_bytes
     type Args = u32;
 
-    fn unpack_with<R>(reader: &mut R, size_bytes: Self::Args) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, size_bytes: Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
-        let refs_descriptor: u8 = reader.unpack()?;
+        let refs_descriptor: u8 = reader.unpack(())?;
         let level: u8 = refs_descriptor >> 5;
         let _is_exotic: bool = (refs_descriptor >> 3) & 0b1 == 1;
         let ref_num: usize = refs_descriptor as usize & 0b111;
 
-        let bits_descriptor: u8 = reader.unpack()?;
+        let bits_descriptor: u8 = reader.unpack(())?;
         let num_bytes: usize = ((bits_descriptor >> 1) + (bits_descriptor & 1)) as usize;
         let full_bytes = (bits_descriptor & 1) == 0;
 
@@ -595,20 +599,20 @@ impl BitPack for RawCell {
         let level: u8 = 0;
         let is_exotic: u8 = 0;
         let refs_descriptor: u8 = self.references.len() as u8 + is_exotic * 8 + level * 32;
-        writer.pack(refs_descriptor)?;
+        writer.pack(refs_descriptor, ())?;
 
         let padding_bits = self.data.len() % 8;
         let full_bytes = padding_bits == 0;
         let bits_descriptor: u8 = self.data.len().div(8) as u8 + self.data.len().div_ceil(8) as u8;
-        writer.pack(bits_descriptor)?;
+        writer.pack(bits_descriptor, ())?;
 
-        writer.pack(self.data.as_bitslice())?;
+        writer.write_bitslice(&self.data)?;
         if !full_bytes {
             writer.write_bit(true)?;
             writer.repeat_bit(8 - padding_bits - 1, false)?;
         }
 
-        writer.pack_many_as_with::<_, &VarNBytes>(&self.references, ref_size_bytes)?;
+        writer.pack_many_as::<_, &VarNBytes>(&self.references, ref_size_bytes)?;
 
         Ok(())
     }

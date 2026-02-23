@@ -1,32 +1,34 @@
 //! **Ser**ialization for [TL-B](https://docs.ton.org/develop/data-formats/tl-b-language)
-pub mod args;
-pub mod r#as;
+mod r#as;
 mod builder;
 
-pub use self::builder::*;
+pub use self::{r#as::*, builder::*};
 
 use std::{borrow::Cow, rc::Rc, sync::Arc};
 
 use impl_tools::autoimpl;
+use tlbits::ser::BitWriter;
 
-use crate::{
-    Cell, Context,
-    r#as::{Ref, Same},
-    bits::ser::BitWriterExt,
-    either::Either,
-};
+use crate::{Cell, Context, Ref, Same, bits::ser::BitWriterExt, either::Either};
 
-/// A type that can be **ser**ilalized into [`CellBuilder`].
+/// A type that can be **ser**ialized.  
+/// In contrast with [`CellSerialize`](super::CellSerialize) it allows to pass
+/// [`Args`](CellSerializeWithArgs::Args) and these arguments can be
+/// calculated dynamically in runtime.
 #[autoimpl(for<T: trait + ToOwned + ?Sized> Cow<'_, T>)]
-#[autoimpl(for<T: trait + ?Sized> &T, &mut T, Box<T>, Rc<T>, Arc<T>)]
+#[autoimpl(for <T: trait + ?Sized> &T, &mut T, Box<T>, Rc<T>, Arc<T>)]
 pub trait CellSerialize {
-    /// Store the value into [`CellBuilder`]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError>;
+    type Args;
+
+    /// Stores the value with args
+    fn store(&self, builder: &mut CellBuilder, args: Self::Args) -> Result<(), CellBuilderError>;
 }
 
 impl CellSerialize for () {
+    type Args = ();
+
     #[inline]
-    fn store(&self, _builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+    fn store(&self, _builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
         Ok(())
     }
 }
@@ -34,10 +36,13 @@ impl CellSerialize for () {
 impl<T> CellSerialize for [T]
 where
     T: CellSerialize,
+    T::Args: Clone,
 {
+    type Args = T::Args;
+
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.store_many(self)?;
+    fn store(&self, builder: &mut CellBuilder, args: Self::Args) -> Result<(), CellBuilderError> {
+        builder.store_many(self, args)?;
         Ok(())
     }
 }
@@ -45,10 +50,14 @@ where
 impl<T, const N: usize> CellSerialize for [T; N]
 where
     T: CellSerialize,
+    T::Args: Clone,
 {
+    type Args = T::Args;
+
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        self.as_slice().store(builder)
+    fn store(&self, builder: &mut CellBuilder, args: Self::Args) -> Result<(), CellBuilderError> {
+        builder.store_many(self, args)?;
+        Ok(())
     }
 }
 
@@ -59,10 +68,12 @@ macro_rules! impl_cell_serialize_for_tuple {
             $t: CellSerialize,
         )+
         {
+            type Args = ($($t::Args,)+);
+
             #[inline]
-            fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError>
+            fn store(&self, builder: &mut CellBuilder, args: Self::Args) -> Result<(), CellBuilderError>
             {
-                $(self.$n.store(builder).context(concat!(".", stringify!($n)))?;)+
+                $(self.$n.store(builder, args.$n).context(concat!(".", stringify!($n)))?;)+
                 Ok(())
             }
         }
@@ -89,18 +100,25 @@ where
     L: CellSerialize,
     R: CellSerialize,
 {
+    /// `(left_args, right_args)`
+    type Args = (L::Args, R::Args);
+
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+    fn store(
+        &self,
+        builder: &mut CellBuilder,
+        (la, ra): Self::Args,
+    ) -> Result<(), CellBuilderError> {
         match self {
             Self::Left(l) => builder
-                .pack(false)
+                .pack(false, ())
                 .context("tag")?
-                .store(l)
+                .store(l, la)
                 .context("left")?,
             Self::Right(r) => builder
-                .pack(true)
+                .pack(true, ())
                 .context("tag")?
-                .store(r)
+                .store(r, ra)
                 .context("right")?,
         };
         Ok(())
@@ -116,19 +134,22 @@ impl<T> CellSerialize for Option<T>
 where
     T: CellSerialize,
 {
+    type Args = T::Args;
+
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.store_as::<_, Either<(), Same>>(self.as_ref())?;
+    fn store(&self, builder: &mut CellBuilder, args: Self::Args) -> Result<(), CellBuilderError> {
+        builder.store_as::<_, Either<(), Same>>(self.as_ref(), args)?;
         Ok(())
     }
 }
 
 impl CellSerialize for Cell {
+    type Args = ();
+
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder
-            .pack(self.data.as_bitslice())?
-            .store_many_as::<_, Ref>(&self.references)?;
+    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+        builder.write_bitslice(&self.data)?;
+        builder.store_many_as::<_, Ref>(&self.references, ())?;
 
         Ok(())
     }
@@ -136,9 +157,9 @@ impl CellSerialize for Cell {
 
 pub trait CellSerializeExt: CellSerialize {
     #[inline]
-    fn to_cell(&self) -> Result<Cell, CellBuilderError> {
+    fn to_cell(&self, args: Self::Args) -> Result<Cell, CellBuilderError> {
         let mut builder = Cell::builder();
-        self.store(&mut builder)?;
+        self.store(&mut builder, args)?;
         Ok(builder.into_cell())
     }
 }

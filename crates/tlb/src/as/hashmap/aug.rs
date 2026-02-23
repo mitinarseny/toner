@@ -8,14 +8,8 @@ use crate::{
         de::BitReaderExt,
         ser::BitWriterExt,
     },
-    de::{
-        CellParser, CellParserError,
-        args::{CellDeserializeWithArgs, r#as::CellDeserializeAsWithArgs},
-    },
-    ser::{
-        CellBuilder, CellBuilderError,
-        args::{CellSerializeWithArgs, r#as::CellSerializeAsWithArgs},
-    },
+    de::{CellDeserialize, CellDeserializeAs, CellParser, CellParserError},
+    ser::{CellBuilder, CellBuilderError, CellSerialize, CellSerializeAs},
 };
 use impl_tools::autoimpl;
 
@@ -37,53 +31,50 @@ pub struct HashmapAugE<T, E = ()> {
     pub extra: E,
 }
 
-impl<T, AsT, E, AsE> CellSerializeAsWithArgs<HashmapAugE<T, E>> for HashmapAugE<AsT, AsE>
+impl<T, AsT, E, AsE> CellSerializeAs<HashmapAugE<T, E>> for HashmapAugE<AsT, AsE>
 where
-    AsT: CellSerializeAsWithArgs<T>,
+    AsT: CellSerializeAs<T>,
     AsT::Args: Clone,
-    AsE: CellSerializeAsWithArgs<E>,
+    AsE: CellSerializeAs<E>,
     AsE::Args: Clone,
 {
     /// (n, AsT::Args, AsE::Args)
     type Args = (u32, AsT::Args, AsE::Args);
 
     #[inline]
-    fn store_as_with(
+    fn store_as(
         source: &HashmapAugE<T, E>,
         builder: &mut CellBuilder,
         (n, node_args, extra_args): Self::Args,
     ) -> Result<(), CellBuilderError> {
         builder
-            .store_as_with::<_, &HashmapE<AsT, AsE>>(&source.m, (n, node_args, extra_args.clone()))?
+            .store_as::<_, &HashmapE<AsT, AsE>>(&source.m, (n, node_args, extra_args.clone()))?
             // extra:Y
-            .store_as_with::<_, &AsE>(&source.extra, extra_args)
+            .store_as::<_, &AsE>(&source.extra, extra_args)
             .context("extra")?;
         Ok(())
     }
 }
 
-impl<'de, T, AsT, E, AsE> CellDeserializeAsWithArgs<'de, HashmapAugE<T, E>>
-    for HashmapAugE<AsT, AsE>
+impl<'de, T, AsT, E, AsE> CellDeserializeAs<'de, HashmapAugE<T, E>> for HashmapAugE<AsT, AsE>
 where
-    AsT: CellDeserializeAsWithArgs<'de, T>,
+    AsT: CellDeserializeAs<'de, T>,
     AsT::Args: Clone,
-    AsE: CellDeserializeAsWithArgs<'de, E>,
+    AsE: CellDeserializeAs<'de, E>,
     AsE::Args: Clone,
 {
     /// (n, AsT::Args, AsE::Args)
     type Args = (u32, AsT::Args, AsE::Args);
 
     #[inline]
-    fn parse_as_with(
+    fn parse_as(
         parser: &mut CellParser<'de>,
         (n, node_args, extra_args): Self::Args,
     ) -> Result<HashmapAugE<T, E>, CellParserError<'de>> {
         Ok(HashmapAugE {
-            m: parser.parse_as_with::<_, HashmapE<AsT, AsE>>((n, node_args, extra_args.clone()))?,
+            m: parser.parse_as::<_, HashmapE<AsT, AsE>>((n, node_args, extra_args.clone()))?,
             // extra:Y
-            extra: parser
-                .parse_as_with::<_, AsE>(extra_args)
-                .context("extra")?,
+            extra: parser.parse_as::<_, AsE>(extra_args).context("extra")?,
         })
     }
 }
@@ -158,18 +149,18 @@ impl<T, E> HashmapE<T, E> {
     }
 }
 
-impl<T, AsT, E, AsE> CellSerializeAsWithArgs<HashmapE<T, E>> for HashmapE<AsT, AsE>
+impl<T, AsT, E, AsE> CellSerializeAs<HashmapE<T, E>> for HashmapE<AsT, AsE>
 where
-    AsT: CellSerializeAsWithArgs<T>,
+    AsT: CellSerializeAs<T>,
     AsT::Args: Clone,
-    AsE: CellSerializeAsWithArgs<E>,
+    AsE: CellSerializeAs<E>,
     AsE::Args: Clone,
 {
     // (n, AsT::Args, AsE::Args)
     type Args = (u32, AsT::Args, AsE::Args);
 
     #[inline]
-    fn store_as_with(
+    fn store_as(
         source: &HashmapE<T, E>,
         builder: &mut CellBuilder,
         args: Self::Args,
@@ -177,103 +168,96 @@ where
         match source {
             HashmapE::Empty => builder
                 // hme_empty$0
-                .pack(false)?,
+                .pack(false, ())?,
             HashmapE::Root(root) => builder
                 // hme_root$1
-                .pack(true)?
+                .pack(true, ())?
                 // root:^(Hashmap n X)
-                .store_as_with::<_, Ref<&Hashmap<AsT, AsE>>>(root, args)?,
+                .store_as::<_, Ref<&Hashmap<AsT, AsE>>>(root, args)?,
         };
         Ok(())
     }
 }
 
-impl<T, E> CellSerializeWithArgs for HashmapE<T, E>
+impl<T, E> CellSerialize for HashmapE<T, E>
 where
-    T: CellSerializeWithArgs,
+    T: CellSerialize,
     T::Args: Clone,
-    E: CellSerializeWithArgs,
+    E: CellSerialize,
     E::Args: Clone,
 {
     // (n, T::Args, E::Args)
     type Args = (u32, T::Args, E::Args);
 
     #[inline]
-    fn store_with(
-        &self,
-        builder: &mut CellBuilder,
-        args: Self::Args,
-    ) -> Result<(), CellBuilderError> {
-        builder.store_as_with::<_, Same>(self, args)?;
+    fn store(&self, builder: &mut CellBuilder, args: Self::Args) -> Result<(), CellBuilderError> {
+        builder.store_as::<_, Same>(self, args)?;
         Ok(())
     }
 }
 
-impl<'de, T, AsT, E, AsE> CellDeserializeAsWithArgs<'de, HashmapE<T, E>> for HashmapE<AsT, AsE>
+impl<'de, T, AsT, E, AsE> CellDeserializeAs<'de, HashmapE<T, E>> for HashmapE<AsT, AsE>
 where
-    AsT: CellDeserializeAsWithArgs<'de, T>,
+    AsT: CellDeserializeAs<'de, T>,
     AsT::Args: Clone,
-    AsE: CellDeserializeAsWithArgs<'de, E>,
+    AsE: CellDeserializeAs<'de, E>,
     AsE::Args: Clone,
 {
     // (n, AsT::Args, AsE::Args)
     type Args = (u32, AsT::Args, AsE::Args);
 
     #[inline]
-    fn parse_as_with(
+    fn parse_as(
         parser: &mut CellParser<'de>,
         (n, node_args, extra_args): Self::Args,
     ) -> Result<HashmapE<T, E>, CellParserError<'de>> {
-        Ok(match parser.unpack()? {
+        Ok(match parser.unpack(())? {
             // hme_empty$0
             false => HashmapE::Empty,
             // hme_root$1
             true => parser
                 // root:^(Hashmap n X)
-                .parse_as_with::<_, Ref<ParseFully<Hashmap<AsT, AsE>>>>((n, node_args, extra_args))
+                .parse_as::<_, Ref<ParseFully<Hashmap<AsT, AsE>>>>((n, node_args, extra_args))
                 .map(HashmapE::Root)?,
         })
     }
 }
 
-impl<'de, T> CellDeserializeWithArgs<'de> for HashmapE<T>
+impl<'de, T> CellDeserialize<'de> for HashmapE<T>
 where
-    T: CellDeserializeWithArgs<'de>,
+    T: CellDeserialize<'de>,
     T::Args: Clone,
 {
     /// (n, T::Args)
     type Args = (u32, T::Args);
 
     #[inline]
-    fn parse_with(
-        parser: &mut CellParser<'de>,
-        args: Self::Args,
-    ) -> Result<Self, CellParserError<'de>> {
-        parser.parse_as_with::<_, Same>(args)
+    fn parse(parser: &mut CellParser<'de>, args: Self::Args) -> Result<Self, CellParserError<'de>> {
+        parser.parse_as::<_, Same>(args)
     }
 }
 
-impl<'de, T, As, C> CellDeserializeAsWithArgs<'de, C> for HashmapE<As>
+impl<'de, T, As, C> CellDeserializeAs<'de, C> for HashmapE<As>
 where
     C: IntoIterator<Item = (Key, T)> + Extend<(Key, T)> + Default, // IntoIterator used as type constraint for T
-    As: CellDeserializeAsWithArgs<'de, T>,
+    As: CellDeserializeAs<'de, T>,
     As::Args: Clone,
 {
     // (n, As::Args)
     type Args = (u32, As::Args);
 
     #[inline]
-    fn parse_as_with(
+    fn parse_as(
         parser: &mut CellParser<'de>,
         (n, node_args): Self::Args,
     ) -> Result<C, CellParserError<'de>> {
-        Ok(match parser.unpack()? {
+        Ok(match parser.unpack(())? {
             // hme_empty$0
             false => C::default(),
             // hme_root$1
             true => parser
                 // root:^(Hashmap n X)
-                .parse_as_with::<_, Ref<ParseFully<Hashmap<As, ()>>>>((n, node_args))?,
+                .parse_as::<_, Ref<ParseFully<Hashmap<As, ()>>>>((n, node_args))?,
         })
     }
 }
@@ -329,27 +313,27 @@ impl<T, E> Hashmap<T, E> {
     }
 }
 
-impl<T, AsT, E, AsE> CellSerializeAsWithArgs<Hashmap<T, E>> for Hashmap<AsT, AsE>
+impl<T, AsT, E, AsE> CellSerializeAs<Hashmap<T, E>> for Hashmap<AsT, AsE>
 where
-    AsT: CellSerializeAsWithArgs<T>,
+    AsT: CellSerializeAs<T>,
     AsT::Args: Clone,
-    AsE: CellSerializeAsWithArgs<E>,
+    AsE: CellSerializeAs<E>,
     AsE::Args: Clone,
 {
     /// (n, AsT::Args, AsE::Args)
     type Args = (u32, AsT::Args, AsE::Args);
 
-    fn store_as_with(
+    fn store_as(
         source: &Hashmap<T, E>,
         builder: &mut CellBuilder,
         (n, node_args, extra_args): Self::Args,
     ) -> Result<(), CellBuilderError> {
         builder
             // label:(HmLabel ~l n)
-            .pack_as_with::<_, &HmLabel>(source.prefix.as_bitslice(), n)
+            .pack_as::<_, &HmLabel>(source.prefix.as_bitslice(), n)
             .context("label")?
             // node:(HashmapNode m X)
-            .store_as_with::<_, &HashmapAugNode<AsT, AsE>>(
+            .store_as::<_, &HashmapAugNode<AsT, AsE>>(
                 &source.node,
                 (
                     // {n = (~m) + l}
@@ -363,18 +347,18 @@ where
     }
 }
 
-impl<'de, T, AsT, E, AsE> CellDeserializeAsWithArgs<'de, Hashmap<T, E>> for Hashmap<AsT, AsE>
+impl<'de, T, AsT, E, AsE> CellDeserializeAs<'de, Hashmap<T, E>> for Hashmap<AsT, AsE>
 where
-    AsT: CellDeserializeAsWithArgs<'de, T>,
+    AsT: CellDeserializeAs<'de, T>,
     AsT::Args: Clone,
-    AsE: CellDeserializeAsWithArgs<'de, E>,
+    AsE: CellDeserializeAs<'de, E>,
     AsE::Args: Clone,
 {
     /// (n, AsT::Args, AsE::Args)
     type Args = (u32, AsT::Args, AsE::Args);
 
     #[inline]
-    fn parse_as_with(
+    fn parse_as(
         parser: &mut CellParser<'de>,
         (n, node_args, extra_args): Self::Args,
     ) -> Result<Hashmap<T, E>, CellParserError<'de>> {
@@ -386,24 +370,24 @@ where
             prefix,
             // node:(HashmapNode m X)
             node: parser
-                .parse_as_with::<_, HashmapAugNode<AsT, AsE>>((m, node_args, extra_args))
+                .parse_as::<_, HashmapAugNode<AsT, AsE>>((m, node_args, extra_args))
                 .context("node")?,
         })
     }
 }
 
 pub type Key = BitVec<u8, Msb0>;
-impl<'de, T, As, C> CellDeserializeAsWithArgs<'de, C> for Hashmap<As, ()>
+impl<'de, T, As, C> CellDeserializeAs<'de, C> for Hashmap<As>
 where
     C: IntoIterator<Item = (Key, T)> + Extend<(Key, T)> + Default, // IntoIterator used as type constraint for T
-    As: CellDeserializeAsWithArgs<'de, T>,
+    As: CellDeserializeAs<'de, T>,
     As::Args: Clone,
 {
     /// (n, As::Args)
     type Args = (u32, As::Args);
 
     #[inline]
-    fn parse_as_with(
+    fn parse_as(
         parser: &mut CellParser<'de>,
         (n, args): Self::Args,
     ) -> Result<C, CellParserError<'de>> {
@@ -421,7 +405,7 @@ where
         ) -> Result<(), CellParserError<'de>>
         where
             C: Extend<(Key, T)>,
-            As: CellDeserializeAsWithArgs<'de, T>,
+            As: CellDeserializeAs<'de, T>,
         {
             // label:(HmLabel ~l n)
             let next_prefix: BitVec<u8, Msb0> =
@@ -433,11 +417,11 @@ where
 
             match m {
                 // bt_leaf$0
-                0 => output.extend(once((prefix, parser.parse_as_with::<_, As>(args)?))),
+                0 => output.extend(once((prefix, parser.parse_as::<_, As>(args)?))),
                 // bt_fork$1
                 1.. => stack.extend(
                     parser
-                        .parse_as::<_, [Ref; 2]>()?
+                        .parse_as::<_, [Ref; 2]>(())?
                         .into_iter()
                         .enumerate()
                         // HashmapNode (n + 1)
@@ -545,17 +529,17 @@ impl<T, E> HashmapNode<T, E> {
     }
 }
 
-impl<T, AsT, E, AsE> CellSerializeAsWithArgs<HashmapNode<T, E>> for HashmapNode<AsT, AsE>
+impl<T, AsT, E, AsE> CellSerializeAs<HashmapNode<T, E>> for HashmapNode<AsT, AsE>
 where
-    AsT: CellSerializeAsWithArgs<T>,
+    AsT: CellSerializeAs<T>,
     AsT::Args: Clone,
-    AsE: CellSerializeAsWithArgs<E>,
+    AsE: CellSerializeAs<E>,
     AsE::Args: Clone,
 {
     // (n, AsT::Args, AsE::Args)
     type Args = (u32, AsT::Args, AsE::Args);
 
-    fn store_as_with(
+    fn store_as(
         source: &HashmapNode<T, E>,
         builder: &mut CellBuilder,
         (n, node_args, extra_args): Self::Args,
@@ -568,7 +552,7 @@ where
                     )));
                 }
                 // hmn_leaf#_ {X:Type} value:X = HashmapNode 0 X;
-                builder.store_as_with::<_, &AsT>(value, node_args)?
+                builder.store_as::<_, &AsT>(value, node_args)?
             }
             HashmapNode::Fork(fork) => {
                 if n == 0 {
@@ -576,7 +560,7 @@ where
                 }
                 // hmn_fork#_ {n:#} {X:Type} left:^(Hashmap n X)
                 // right:^(Hashmap n X) = HashmapNode (n + 1) X;
-                builder.store_as_with::<_, &[Box<Ref<Hashmap<AsT, AsE>>>; 2]>(
+                builder.store_as::<_, &[Box<Ref<Hashmap<AsT, AsE>>>; 2]>(
                     fork,
                     (n - 1, node_args, extra_args),
                 )?
@@ -586,33 +570,30 @@ where
     }
 }
 
-impl<'de, T, AsT, E, AsE> CellDeserializeAsWithArgs<'de, HashmapNode<T, E>>
-    for HashmapNode<AsT, AsE>
+impl<'de, T, AsT, E, AsE> CellDeserializeAs<'de, HashmapNode<T, E>> for HashmapNode<AsT, AsE>
 where
-    AsT: CellDeserializeAsWithArgs<'de, T>,
+    AsT: CellDeserializeAs<'de, T>,
     AsT::Args: Clone,
-    AsE: CellDeserializeAsWithArgs<'de, E>,
+    AsE: CellDeserializeAs<'de, E>,
     AsE::Args: Clone,
 {
     /// (n + 1, AsT::Args, AsE::Args)
     type Args = (u32, AsT::Args, AsE::Args);
 
     #[inline]
-    fn parse_as_with(
+    fn parse_as(
         parser: &mut CellParser<'de>,
         (n, node_args, extra_args): Self::Args,
     ) -> Result<HashmapNode<T, E>, CellParserError<'de>> {
         if n == 0 {
             // hmn_leaf#_ {X:Type} value:X = HashmapNode 0 X;
-            return parser
-                .parse_as_with::<_, AsT>(node_args)
-                .map(HashmapNode::Leaf);
+            return parser.parse_as::<_, AsT>(node_args).map(HashmapNode::Leaf);
         }
 
         Ok(HashmapNode::Fork(
             parser
                 // left:^(Hashmap n X) right:^(Hashmap n X)
-                .parse_as_with::<_, [Box<Ref<ParseFully<Hashmap<AsT, AsE>>>>; 2]>((
+                .parse_as::<_, [Box<Ref<ParseFully<Hashmap<AsT, AsE>>>>; 2]>((
                     n - 1,
                     node_args,
                     extra_args,
@@ -643,48 +624,47 @@ impl<T, E> HashmapAugNode<T, E> {
     }
 }
 
-impl<T, AsT, E, AsE> CellSerializeAsWithArgs<HashmapAugNode<T, E>> for HashmapAugNode<AsT, AsE>
+impl<T, AsT, E, AsE> CellSerializeAs<HashmapAugNode<T, E>> for HashmapAugNode<AsT, AsE>
 where
-    AsT: CellSerializeAsWithArgs<T>,
+    AsT: CellSerializeAs<T>,
     AsT::Args: Clone,
-    AsE: CellSerializeAsWithArgs<E>,
+    AsE: CellSerializeAs<E>,
     AsE::Args: Clone,
 {
     /// (n + 1, AsT::Args, AsE::Args)
     type Args = (u32, AsT::Args, AsE::Args);
 
-    fn store_as_with(
+    fn store_as(
         source: &HashmapAugNode<T, E>,
         builder: &mut CellBuilder,
         (n, node_args, extra_args): Self::Args,
     ) -> Result<(), CellBuilderError> {
         builder
             // extra:Y
-            .store_as_with::<_, &AsE>(&source.extra, extra_args.clone())?
-            .store_as_with::<_, &HashmapNode<AsT, AsE>>(&source.node, (n, node_args, extra_args))?;
+            .store_as::<_, &AsE>(&source.extra, extra_args.clone())?
+            .store_as::<_, &HashmapNode<AsT, AsE>>(&source.node, (n, node_args, extra_args))?;
         Ok(())
     }
 }
 
-impl<'de, T, AsT, E, AsE> CellDeserializeAsWithArgs<'de, HashmapAugNode<T, E>>
-    for HashmapAugNode<AsT, AsE>
+impl<'de, T, AsT, E, AsE> CellDeserializeAs<'de, HashmapAugNode<T, E>> for HashmapAugNode<AsT, AsE>
 where
-    AsT: CellDeserializeAsWithArgs<'de, T>,
+    AsT: CellDeserializeAs<'de, T>,
     AsT::Args: Clone,
-    AsE: CellDeserializeAsWithArgs<'de, E>,
+    AsE: CellDeserializeAs<'de, E>,
     AsE::Args: Clone,
 {
     /// (n + 1, AsT::Args, AsE::Args)
     type Args = (u32, AsT::Args, AsE::Args);
 
-    fn parse_as_with(
+    fn parse_as(
         parser: &mut CellParser<'de>,
         (n, node_args, extra_args): Self::Args,
     ) -> Result<HashmapAugNode<T, E>, CellParserError<'de>> {
         Ok(HashmapAugNode {
             // extra:Y
-            extra: parser.parse_as_with::<_, AsE>(extra_args.clone())?,
-            node: parser.parse_as_with::<_, HashmapNode<AsT, AsE>>((n, node_args, extra_args))?,
+            extra: parser.parse_as::<_, AsE>(extra_args.clone())?,
+            node: parser.parse_as::<_, HashmapNode<AsT, AsE>>((n, node_args, extra_args))?,
         })
     }
 }
@@ -692,10 +672,9 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        Cell,
-        r#as::{Data, NoArgs},
+        Cell, Data,
         bits::bitvec::{bits, order::Msb0, view::AsBits},
-        ser::{CellSerializeExt, r#as::CellSerializeWrapAsExt},
+        ser::{CellSerializeExt, CellSerializeWrapAsExt},
     };
     use std::collections::{BTreeMap, HashMap};
 
@@ -705,9 +684,7 @@ mod tests {
     fn parse() {
         let cell = given_cell_from_example();
 
-        let hm: HashmapE<u16> = cell
-            .parse_fully_as_with::<_, HashmapE<Data<NoArgs<_>>, NoArgs<_>>>((8, (), ()))
-            .unwrap();
+        let hm: HashmapE<u16> = cell.parse_fully_as::<_, HashmapE<Data>>((8, ())).unwrap();
 
         assert_eq!(hm.len(), 3);
         // 1 -> 777
@@ -719,7 +696,7 @@ mod tests {
 
         let mut builder = Cell::builder();
         builder
-            .store_as_with::<_, HashmapE<Data<NoArgs<_>>, NoArgs<_>>>(hm, (8, (), ()))
+            .store_as::<_, HashmapE<Data>>(hm, (8, (), ()))
             .unwrap();
         let got = builder.into_cell();
         assert_eq!(got, cell);
@@ -729,9 +706,7 @@ mod tests {
     fn hashmape_parse_as_std_hashmap() {
         let cell = given_cell_from_example();
 
-        let hm: HashMap<Key, u16> = cell
-            .parse_fully_as_with::<_, HashmapE<Data<NoArgs<_>>>>((8, ()))
-            .unwrap();
+        let hm: HashMap<Key, u16> = cell.parse_fully_as::<_, HashmapE<Data>>((8, ())).unwrap();
 
         assert_eq!(hm.len(), 3);
         // 1 -> 777
@@ -746,9 +721,7 @@ mod tests {
     fn hashmape_parse_as_std_btreemap() {
         let cell = given_cell_from_example();
 
-        let hm: BTreeMap<Key, u16> = cell
-            .parse_fully_as_with::<_, HashmapE<Data<NoArgs<_>>>>((8, ()))
-            .unwrap();
+        let hm: BTreeMap<Key, u16> = cell.parse_fully_as::<_, HashmapE<Data>>((8, ())).unwrap();
 
         assert_eq!(hm.len(), 3);
         // 1 -> 777

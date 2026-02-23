@@ -92,7 +92,7 @@ impl CellSerialize for WalletV5R1Data {
             .pack(self.seqno)?
             .pack(self.wallet_id)?
             .pack(self.pubkey)?
-            .store_as_with::<_, &HashmapE<Data<NoArgs<_>>, NoArgs<_>>>(
+            .store_as::<_, &HashmapE<Data<NoArgs<_>>, NoArgs<_>>>(
                 &self.extensions,
                 (256, (), ()),
             )?;
@@ -108,7 +108,7 @@ impl<'de> CellDeserialize<'de> for WalletV5R1Data {
             seqno: parser.unpack()?,
             wallet_id: parser.unpack()?,
             pubkey: parser.unpack()?,
-            extensions: parser.parse_as_with::<_, HashmapE<Data<NoArgs<_>>, NoArgs<_>>>((
+            extensions: parser.parse_as::<_, HashmapE<Data<NoArgs<_>>, NoArgs<_>>>((
                 256,
                 (),
                 (),

@@ -72,7 +72,7 @@ where
             // data:(Maybe ^Cell)
             .store_as::<_, Option<Ref>>(self.data.as_ref())?
             // library:(HashmapE 256 SimpleLib)
-            .store_as_with::<_, &HashmapE<NoArgs<_>, NoArgs<_>>>(&self.library, (256, (), ()))?;
+            .store_as::<_, &HashmapE<NoArgs<_>, NoArgs<_>>>(&self.library, (256, (), ()))?;
         Ok(())
     }
 }
@@ -94,7 +94,7 @@ where
             // data:(Maybe ^Cell)
             data: parser.parse_as::<_, Option<Ref<ParseFully>>>()?,
             // library:(HashmapE 256 SimpleLib)
-            library: parser.parse_as_with::<_, HashmapE<NoArgs<_>, NoArgs<_>>>((256, (), ()))?,
+            library: parser.parse_as::<_, HashmapE<NoArgs<_>, NoArgs<_>>>((256, (), ()))?,
         })
     }
 }

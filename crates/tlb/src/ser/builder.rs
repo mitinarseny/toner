@@ -11,11 +11,7 @@ use crate::{
     },
 };
 
-use super::{
-    CellSerialize,
-    args::{CellSerializeWithArgs, r#as::CellSerializeAsWithArgs},
-    r#as::CellSerializeAs,
-};
+use super::{CellSerialize, CellSerializeAs};
 
 type CellBitWriter = LimitWriter<BitVec<u8, Msb0>>;
 
@@ -44,119 +40,65 @@ impl CellBuilder {
         }
     }
 
-    /// Store the value using its [`CellSerialize`] implementation
-    #[inline]
-    pub fn store<T>(&mut self, value: T) -> Result<&mut Self, CellBuilderError>
-    where
-        T: CellSerialize,
-    {
-        value.store(self)?;
-        Ok(self)
-    }
-
-    /// Store the value with args using its [`CellSerializeWithArgs`]
+    /// Store the value with args using its [`CellSerialize`]
     /// implementation
     #[inline]
-    pub fn store_with<T>(&mut self, value: T, args: T::Args) -> Result<&mut Self, CellBuilderError>
-    where
-        T: CellSerializeWithArgs,
-    {
-        value.store_with(self, args)?;
-        Ok(self)
-    }
-
-    /// Store all values from given iterator using [`CellSerialize`]
-    /// implementation of its item type.
-    #[inline]
-    pub fn store_many<T>(
-        &mut self,
-        values: impl IntoIterator<Item = T>,
-    ) -> Result<&mut Self, CellBuilderError>
+    pub fn store<T>(&mut self, value: T, args: T::Args) -> Result<&mut Self, CellBuilderError>
     where
         T: CellSerialize,
     {
-        for (i, v) in values.into_iter().enumerate() {
-            self.store(v).with_context(|| format!("[{i}]"))?;
-        }
+        value.store(self, args)?;
         Ok(self)
     }
 
     /// Store all values from given iterator with args using
     /// [`CellSerializeWithArgs`] implementation of its item type.
     #[inline]
-    pub fn store_many_with<T>(
+    pub fn store_many<T>(
         &mut self,
         values: impl IntoIterator<Item = T>,
         args: T::Args,
     ) -> Result<&mut Self, CellBuilderError>
     where
-        T: CellSerializeWithArgs,
+        T: CellSerialize,
         T::Args: Clone,
     {
         for (i, v) in values.into_iter().enumerate() {
-            self.store_with(v, args.clone())
+            self.store(v, args.clone())
                 .with_context(|| format!("[{i}]"))?;
         }
-        Ok(self)
-    }
-
-    /// Store given value using an adapter.  
-    /// See [`as`](crate::as) module-level documentation for more.
-    #[inline]
-    pub fn store_as<T, As>(&mut self, value: T) -> Result<&mut Self, CellBuilderError>
-    where
-        As: CellSerializeAs<T> + ?Sized,
-    {
-        As::store_as(&value, self)?;
         Ok(self)
     }
 
     /// Store given value with args using an adapter.  
     /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
-    pub fn store_as_with<T, As>(
+    pub fn store_as<T, As>(
         &mut self,
         value: T,
         args: As::Args,
     ) -> Result<&mut Self, CellBuilderError>
     where
-        As: CellSerializeAsWithArgs<T> + ?Sized,
-    {
-        As::store_as_with(&value, self, args)?;
-        Ok(self)
-    }
-
-    /// Store all values from iterator using an adapter.  s
-    /// See [`as`](crate::as) module-level documentation for more.
-    #[inline]
-    pub fn store_many_as<T, As>(
-        &mut self,
-        values: impl IntoIterator<Item = T>,
-    ) -> Result<&mut Self, CellBuilderError>
-    where
         As: CellSerializeAs<T> + ?Sized,
     {
-        for (i, v) in values.into_iter().enumerate() {
-            self.store_as::<T, As>(v)
-                .with_context(|| format!("[{i}]"))?;
-        }
+        As::store_as(&value, self, args)?;
         Ok(self)
     }
 
     /// Store all values from iterator with args using an adapter.  
     /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
-    pub fn store_many_as_with<T, As>(
+    pub fn store_many_as<T, As>(
         &mut self,
         values: impl IntoIterator<Item = T>,
         args: As::Args,
     ) -> Result<&mut Self, CellBuilderError>
     where
-        As: CellSerializeAsWithArgs<T> + ?Sized,
+        As: CellSerializeAs<T> + ?Sized,
         As::Args: Clone,
     {
         for (i, v) in values.into_iter().enumerate() {
-            self.store_as_with::<T, As>(v, args.clone())
+            self.store_as::<T, As>(v, args.clone())
                 .with_context(|| format!("[{i}]"))?;
         }
         Ok(self)
@@ -174,29 +116,14 @@ impl CellBuilder {
     pub(crate) fn store_reference_as<T, As>(
         &mut self,
         value: T,
+        args: As::Args,
     ) -> Result<&mut Self, CellBuilderError>
     where
         As: CellSerializeAs<T> + ?Sized,
     {
         self.ensure_reference()?;
         let mut builder = Self::new();
-        builder.store_as::<T, As>(value)?;
-        self.references.push(builder.into_cell().into());
-        Ok(self)
-    }
-
-    #[inline]
-    pub(crate) fn store_reference_as_with<T, As>(
-        &mut self,
-        value: T,
-        args: As::Args,
-    ) -> Result<&mut Self, CellBuilderError>
-    where
-        As: CellSerializeAsWithArgs<T> + ?Sized,
-    {
-        self.ensure_reference()?;
-        let mut builder = Self::new();
-        builder.store_as_with::<T, As>(value, args)?;
+        builder.store_as::<T, As>(value, args)?;
         self.references.push(builder.into_cell().into());
         Ok(self)
     }
@@ -238,9 +165,11 @@ impl BitWriter for CellBuilder {
 }
 
 impl CellSerialize for CellBuilder {
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+    type Args = ();
+
+    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
         builder.write_bitslice(&self.data)?;
-        builder.store_many_as::<_, Ref>(&self.references)?;
+        builder.store_many_as::<_, Ref>(&self.references, ())?;
         Ok(())
     }
 }
