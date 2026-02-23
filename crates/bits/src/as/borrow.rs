@@ -69,7 +69,7 @@ impl<'de: 'a, 'a> BitUnpackAs<'de, Cow<'a, str>> for BorrowCow {
     where
         R: BitReader<'de> + ?Sized,
     {
-        let bytes: Vec<u8> = reader.unpack(len)?;
+        let bytes: Vec<u8> = reader.unpack((len, ()))?;
         String::from_utf8(bytes)
             .map(Cow::Owned)
             .map_err(Error::custom)
