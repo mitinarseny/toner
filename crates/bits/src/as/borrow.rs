@@ -65,11 +65,11 @@ impl<'de: 'a, 'a> BitUnpackAs<'de, Cow<'a, str>> for BorrowCow {
 
     #[rustversion::before(1.87)]
     #[inline]
-    fn unpack_as_with<R>(reader: &mut R, len: Self::Args) -> Result<Cow<'a, str>, R::Error>
+    fn unpack_as<R>(reader: &mut R, len: Self::Args) -> Result<Cow<'a, str>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
-        let bytes: Vec<u8> = reader.unpack_with(len)?;
+        let bytes: Vec<u8> = reader.unpack(len)?;
         String::from_utf8(bytes)
             .map(Cow::Owned)
             .map_err(Error::custom)
