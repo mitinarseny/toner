@@ -1,50 +1,66 @@
-use std::{borrow::Cow, rc::Rc, sync::Arc};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque},
+    hash::Hash,
+    rc::Rc,
+    sync::Arc,
+};
 
 use bitvec::{order::Msb0, slice::BitSlice};
 use either::Either;
 
-use crate::{Context, Error, StringError, r#as::AsWrap};
+use crate::{
+    Context, Error, StringError,
+    r#as::{AsWrap, Same},
+    de::BitUnpack,
+};
 
-use super::{BitReader, BitReaderExt, BitUnpack};
+use super::{BitReader, BitReaderExt};
 
-/// Adapter to **de**serialize `T`.  
+/// Adapter to **de**serialize `T` with args.  
 /// See [`as`](crate::as) module-level documentation for more.
 ///
-/// For dynamic arguments, see
-/// [`BitUnackAsWithArgs`](super::args::as::BitUnpackAsWithArgs).
+/// For version without arguments, see [`BitUnpackAs`](super::super::as::BitUnpackAs).
 pub trait BitUnpackAs<'de, T> {
-    /// Unpacks value using an adapter
-    fn unpack_as<R>(reader: &mut R) -> Result<T, R::Error>
+    type Args;
+
+    /// Unpacks value with args using an adapter
+    fn unpack_as<R>(reader: &mut R, args: Self::Args) -> Result<T, R::Error>
     where
         R: BitReader<'de> + ?Sized;
 }
-
-/// **De**serialize value from [`BitSlice`] using an adapter
+/// **De**serialize value from [`BitSlice`] with args using an adapter
 #[inline]
-pub fn unpack_as<'de, T, As>(mut bits: &'de BitSlice<u8, Msb0>) -> Result<T, StringError>
+pub fn unpack_as<'de, T, As>(
+    mut bits: &'de BitSlice<u8, Msb0>,
+    args: As::Args,
+) -> Result<T, StringError>
 where
     As: BitUnpackAs<'de, T>,
 {
-    bits.unpack_as::<T, As>()
+    bits.unpack_as::<_, As>(args)
 }
 
 /// **De**serialize value from bytes slice using an adapter
 #[inline]
-pub fn unpack_bytes_as<'de, T, As>(bytes: &'de [u8]) -> Result<T, StringError>
+pub fn unpack_bytes_as<'de, T, As>(bytes: &'de [u8], args: As::Args) -> Result<T, StringError>
 where
     As: BitUnpackAs<'de, T>,
 {
-    unpack_as::<_, As>(BitSlice::from_slice(bytes))
+    unpack_as::<_, As>(BitSlice::from_slice(bytes), args)
 }
 
 /// **De**serialize value from [`BitSlice`] using an adapter
 /// and ensure that no more data left.
 #[inline]
-pub fn unpack_fully_as<'de, T, As>(mut bits: &'de BitSlice<u8, Msb0>) -> Result<T, StringError>
+pub fn unpack_fully_as<'de, T, As>(
+    mut bits: &'de BitSlice<u8, Msb0>,
+    args: As::Args,
+) -> Result<T, StringError>
 where
     As: BitUnpackAs<'de, T>,
 {
-    let v = bits.unpack_as::<T, As>()?;
+    let v = bits.unpack_as::<T, As>(args)?;
     if !bits.is_empty() {
         return Err(Error::custom("more data left"));
     }
@@ -54,24 +70,29 @@ where
 /// **De**serialize value from bytes slice using an adapter
 /// and ensure that no more data left.
 #[inline]
-pub fn unpack_bytes_fully_as<'de, T, As>(bytes: &'de [u8]) -> Result<T, StringError>
+pub fn unpack_bytes_fully_as<'de, T, As>(bytes: &'de [u8], args: As::Args) -> Result<T, StringError>
 where
     As: BitUnpackAs<'de, T>,
 {
-    unpack_fully_as::<_, As>(BitSlice::from_slice(bytes))
+    unpack_fully_as::<_, As>(BitSlice::from_slice(bytes), args)
 }
 
 impl<'de, T, As, const N: usize> BitUnpackAs<'de, [T; N]> for [As; N]
 where
     As: BitUnpackAs<'de, T>,
+    As::Args: Clone,
 {
+    type Args = As::Args;
+
     #[inline]
-    fn unpack_as<R>(reader: &mut R) -> Result<[T; N], R::Error>
+    fn unpack_as<R>(reader: &mut R, args: Self::Args) -> Result<[T; N], R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
         // TODO: replace with [`core::array::try_from_fn`](https://github.com/rust-lang/rust/issues/89379) when stabilized
-        array_util::try_from_fn(|i| As::unpack_as(reader).with_context(|| format!("[{i}]")))
+        array_util::try_from_fn(|i| {
+            As::unpack_as(reader, args.clone()).with_context(|| format!("[{i}]"))
+        })
     }
 }
 
@@ -82,13 +103,15 @@ macro_rules! impl_bit_unpack_as_for_tuple {
             $a: BitUnpackAs<'de, $t>,
         )+
         {
+            type Args = ($($a::Args,)+);
+
             #[inline]
-            fn unpack_as<R>(reader: &mut R) -> Result<($($t,)+), R::Error>
+            fn unpack_as<R>(reader: &mut R, args: Self::Args) -> Result<($($t,)+), R::Error>
             where
                 R: BitReader<'de> + ?Sized,
             {
                 Ok(($(
-                    $a::unpack_as(reader)
+                    $a::unpack_as(reader, args.$n)
                         .context(concat!(".", stringify!($n)))?,
                 )+))
             }
@@ -110,14 +133,16 @@ impl<'de, T, As> BitUnpackAs<'de, Box<T>> for Box<As>
 where
     As: BitUnpackAs<'de, T> + ?Sized,
 {
+    type Args = As::Args;
+
     #[inline]
-    fn unpack_as<R>(reader: &mut R) -> Result<Box<T>, R::Error>
+    fn unpack_as<R>(reader: &mut R, args: Self::Args) -> Result<Box<T>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
-        AsWrap::<T, As>::unpack(reader)
+        AsWrap::<T, As>::unpack(reader, args)
             .map(AsWrap::into_inner)
-            .map(Box::new)
+            .map(Into::into)
     }
 }
 
@@ -125,14 +150,16 @@ impl<'de, T, As> BitUnpackAs<'de, Rc<T>> for Rc<As>
 where
     As: BitUnpackAs<'de, T> + ?Sized,
 {
+    type Args = As::Args;
+
     #[inline]
-    fn unpack_as<R>(reader: &mut R) -> Result<Rc<T>, R::Error>
+    fn unpack_as<R>(reader: &mut R, args: Self::Args) -> Result<Rc<T>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
-        AsWrap::<T, As>::unpack(reader)
+        AsWrap::<T, As>::unpack(reader, args)
             .map(AsWrap::into_inner)
-            .map(Rc::new)
+            .map(Into::into)
     }
 }
 
@@ -140,14 +167,16 @@ impl<'de, T, As> BitUnpackAs<'de, Arc<T>> for Arc<As>
 where
     As: BitUnpackAs<'de, T> + ?Sized,
 {
+    type Args = As::Args;
+
     #[inline]
-    fn unpack_as<R>(reader: &mut R) -> Result<Arc<T>, R::Error>
+    fn unpack_as<R>(reader: &mut R, args: Self::Args) -> Result<Arc<T>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
-        AsWrap::<T, As>::unpack(reader)
+        AsWrap::<T, As>::unpack(reader, args)
             .map(AsWrap::into_inner)
-            .map(Arc::new)
+            .map(Into::into)
     }
 }
 
@@ -158,17 +187,18 @@ where
     As: ToOwned + ?Sized,
     As::Owned: BitUnpackAs<'de, T::Owned>,
 {
+    type Args = <As::Owned as BitUnpackAs<'de, T::Owned>>::Args;
+
     #[inline]
-    fn unpack_as<R>(reader: &mut R) -> Result<Cow<'a, T>, R::Error>
+    fn unpack_as<R>(reader: &mut R, args: Self::Args) -> Result<Cow<'a, T>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
-        AsWrap::<T::Owned, As::Owned>::unpack(reader)
+        AsWrap::<T::Owned, As::Owned>::unpack(reader, args)
             .map(AsWrap::into_inner)
             .map(Cow::Owned)
     }
 }
-
 /// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
 /// ```tlb
 /// left$0 {X:Type} {Y:Type} value:X = Either X Y;
@@ -180,13 +210,15 @@ where
     AsLeft: BitUnpackAs<'de, Left>,
     AsRight: BitUnpackAs<'de, Right>,
 {
+    type Args = (AsLeft::Args, AsRight::Args);
+
     #[inline]
-    fn unpack_as<R>(reader: &mut R) -> Result<Either<Left, Right>, R::Error>
+    fn unpack_as<R>(reader: &mut R, args: Self::Args) -> Result<Either<Left, Right>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
         Ok(
-            Either::<AsWrap<Left, AsLeft>, AsWrap<Right, AsRight>>::unpack(reader)?
+            Either::<AsWrap<Left, AsLeft>, AsWrap<Right, AsRight>>::unpack(reader, args)?
                 .map_either(AsWrap::into_inner, AsWrap::into_inner),
         )
     }
@@ -196,13 +228,15 @@ impl<'de, T, As> BitUnpackAs<'de, Option<T>> for Either<(), As>
 where
     As: BitUnpackAs<'de, T>,
 {
+    type Args = As::Args;
+
     #[inline]
-    fn unpack_as<R>(reader: &mut R) -> Result<Option<T>, R::Error>
+    fn unpack_as<R>(reader: &mut R, args: Self::Args) -> Result<Option<T>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
-        Ok(Either::<(), AsWrap<T, As>>::unpack(reader)?
-            .map_right(AsWrap::into_inner)
+        Ok(reader
+            .unpack_as::<Either<(), T>, Either<Same, As>>(((), args))?
             .right())
     }
 }
@@ -216,11 +250,146 @@ impl<'de, T, As> BitUnpackAs<'de, Option<T>> for Option<As>
 where
     As: BitUnpackAs<'de, T>,
 {
+    type Args = As::Args;
+
     #[inline]
-    fn unpack_as<R>(reader: &mut R) -> Result<Option<T>, R::Error>
+    fn unpack_as<R>(reader: &mut R, args: Self::Args) -> Result<Option<T>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
-        Ok(Option::<AsWrap<T, As>>::unpack(reader)?.map(AsWrap::into_inner))
+        Ok(Option::<AsWrap<T, As>>::unpack(reader, args)?.map(AsWrap::into_inner))
+    }
+}
+
+impl<'de, T, As> BitUnpackAs<'de, Vec<T>> for Vec<As>
+where
+    As: BitUnpackAs<'de, T>,
+    As::Args: Clone,
+{
+    /// `(len, item_args)`
+    type Args = (usize, As::Args);
+
+    #[inline]
+    fn unpack_as<R>(reader: &mut R, (len, args): Self::Args) -> Result<Vec<T>, R::Error>
+    where
+        R: BitReader<'de> + ?Sized,
+    {
+        reader.unpack_iter_as::<_, As>(args).take(len).collect()
+    }
+}
+
+impl<'de, T, As> BitUnpackAs<'de, VecDeque<T>> for VecDeque<As>
+where
+    As: BitUnpackAs<'de, T>,
+    As::Args: Clone,
+{
+    /// `(len, item_args)`
+    type Args = (usize, As::Args);
+
+    #[inline]
+    fn unpack_as<R>(reader: &mut R, (len, args): Self::Args) -> Result<VecDeque<T>, R::Error>
+    where
+        R: BitReader<'de> + ?Sized,
+    {
+        reader.unpack_iter_as::<_, As>(args).take(len).collect()
+    }
+}
+
+impl<'de, T, As> BitUnpackAs<'de, LinkedList<T>> for LinkedList<As>
+where
+    As: BitUnpackAs<'de, T>,
+    As::Args: Clone,
+{
+    /// `(len, item_args)`
+    type Args = (usize, As::Args);
+
+    #[inline]
+    fn unpack_as<R>(reader: &mut R, (len, args): Self::Args) -> Result<LinkedList<T>, R::Error>
+    where
+        R: BitReader<'de> + ?Sized,
+    {
+        reader.unpack_iter_as::<_, As>(args).take(len).collect()
+    }
+}
+
+impl<'de, T, As> BitUnpackAs<'de, BTreeSet<T>> for BTreeSet<As>
+where
+    T: Ord + Eq,
+    As: BitUnpackAs<'de, T>,
+    As::Args: Clone,
+{
+    /// `(len, item_args)`
+    type Args = (usize, As::Args);
+
+    #[inline]
+    fn unpack_as<R>(reader: &mut R, (len, args): Self::Args) -> Result<BTreeSet<T>, R::Error>
+    where
+        R: BitReader<'de> + ?Sized,
+    {
+        reader.unpack_iter_as::<_, As>(args).take(len).collect()
+    }
+}
+
+impl<'de, K, V, KAs, VAs> BitUnpackAs<'de, BTreeMap<K, V>> for BTreeMap<KAs, VAs>
+where
+    K: Ord + Eq,
+    KAs: BitUnpackAs<'de, K>,
+    KAs::Args: Clone,
+    VAs: BitUnpackAs<'de, V>,
+    VAs::Args: Clone,
+{
+    /// `(len, (key_args, value_args))`
+    type Args = (usize, (KAs::Args, VAs::Args));
+
+    #[inline]
+    fn unpack_as<R>(reader: &mut R, (len, args): Self::Args) -> Result<BTreeMap<K, V>, R::Error>
+    where
+        R: BitReader<'de> + ?Sized,
+    {
+        reader
+            .unpack_iter_as::<_, (KAs, VAs)>(args)
+            .take(len)
+            .collect()
+    }
+}
+
+impl<'de, T, As> BitUnpackAs<'de, HashSet<T>> for HashSet<As>
+where
+    T: Hash + Eq,
+    As: BitUnpackAs<'de, T>,
+    As::Args: Clone,
+{
+    /// `(len, item_args)`
+    type Args = (usize, As::Args);
+
+    #[inline]
+    fn unpack_as<R>(reader: &mut R, (len, args): Self::Args) -> Result<HashSet<T>, R::Error>
+    where
+        R: BitReader<'de> + ?Sized,
+    {
+        reader.unpack_iter_as::<_, As>(args).take(len).collect()
+    }
+}
+
+impl<'de, K, V, KAs, VAs> BitUnpackAs<'de, HashMap<K, V>> for HashMap<KAs, VAs>
+where
+    K: Hash + Eq,
+    KAs: BitUnpackAs<'de, K>,
+    KAs::Args: Clone,
+    VAs: BitUnpackAs<'de, V>,
+    VAs::Args: Clone,
+{
+    /// `(len, (key_args, value_args))`
+    type Args = (usize, (KAs::Args, VAs::Args));
+
+    #[inline]
+    fn unpack_as<R>(reader: &mut R, (len, args): Self::Args) -> Result<HashMap<K, V>, R::Error>
+    where
+        R: BitReader<'de> + ?Sized,
+    {
+        reader
+            .unpack_iter_as::<_, (KAs, VAs)>(args)
+            .take(len)
+            .collect()
     }
 }

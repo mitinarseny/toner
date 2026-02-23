@@ -3,8 +3,8 @@ use crate::{
     bits::{
         r#as::{NBits, Unary, VarNBits},
         bitvec::{order::Msb0, slice::BitSlice, vec::BitVec},
-        de::{BitReader, BitReaderExt, args::r#as::BitUnpackAsWithArgs},
-        ser::{BitWriter, BitWriterExt, args::r#as::BitPackAsWithArgs},
+        de::{BitReader, BitReaderExt, args::r#as::BitUnpackAs},
+        ser::{BitWriter, BitWriterExt, args::r#as::BitPackAs},
     },
 };
 
@@ -16,7 +16,7 @@ use crate::{
 /// ```
 pub struct HmLabel;
 
-impl BitPackAsWithArgs<BitSlice<u8, Msb0>> for HmLabel {
+impl BitPackAs<BitSlice<u8, Msb0>> for HmLabel {
     /// m
     type Args = u32;
 
@@ -68,11 +68,11 @@ impl BitPackAsWithArgs<BitSlice<u8, Msb0>> for HmLabel {
     }
 }
 
-impl<'de> BitUnpackAsWithArgs<'de, BitVec<u8, Msb0>> for HmLabel {
+impl<'de> BitUnpackAs<'de, BitVec<u8, Msb0>> for HmLabel {
     /// m
     type Args = u32;
 
-    fn unpack_as_with<R>(reader: &mut R, m: Self::Args) -> Result<BitVec<u8, Msb0>, R::Error>
+    fn unpack_as<R>(reader: &mut R, m: Self::Args) -> Result<BitVec<u8, Msb0>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -86,22 +86,22 @@ impl<'de> BitUnpackAsWithArgs<'de, BitVec<u8, Msb0>> for HmLabel {
                     return Err(Error::custom("n > m"));
                 }
                 // s:(n * Bit)
-                reader.unpack_with(n as usize)
+                reader.unpack(n as usize)
             }
             true => match reader.unpack()? {
                 // hml_long$10
                 false => {
                     // n:(#<= m)
-                    let n: u32 = reader.unpack_as_with::<_, VarNBits>(m.ilog2() + 1)?;
+                    let n: u32 = reader.unpack_as::<_, VarNBits>(m.ilog2() + 1)?;
                     // s:(n * Bit)
-                    reader.unpack_with(n as usize)
+                    reader.unpack(n as usize)
                 }
                 // hml_same$11
                 true => {
                     // v:Bit
                     let v: bool = reader.unpack()?;
                     // n:(#<= m)
-                    let n: u32 = reader.unpack_as_with::<_, VarNBits>(m.ilog2() + 1)?;
+                    let n: u32 = reader.unpack_as::<_, VarNBits>(m.ilog2() + 1)?;
                     Ok(BitVec::repeat(v, n as usize))
                 }
             },

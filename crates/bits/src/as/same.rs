@@ -1,14 +1,6 @@
 use crate::{
-    de::{
-        BitReader, BitUnpack,
-        args::{BitUnpackWithArgs, r#as::BitUnpackAsWithArgs},
-        r#as::BitUnpackAs,
-    },
-    ser::{
-        BitPack, BitWriter,
-        args::{BitPackWithArgs, r#as::BitPackAsWithArgs},
-        r#as::BitPackAs,
-    },
+    de::{BitReader, BitUnpack, BitUnpackAs},
+    ser::{BitPack, BitPackAs, BitWriter},
 };
 
 /// Adapter to convert from `*As` to regular **de**/**ser**ialization traits.
@@ -17,56 +9,30 @@ pub struct Same;
 
 impl<T> BitPackAs<T> for Same
 where
-    T: BitPack,
-{
-    #[inline]
-    fn pack_as<W>(source: &T, writer: &mut W) -> Result<(), W::Error>
-    where
-        W: BitWriter + ?Sized,
-    {
-        source.pack(writer)
-    }
-}
-
-impl<T> BitPackAsWithArgs<T> for Same
-where
-    T: BitPackWithArgs,
+    T: BitPack + ?Sized,
 {
     type Args = T::Args;
 
     #[inline]
-    fn pack_as_with<W>(source: &T, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
+    fn pack_as<W>(source: &T, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
-        T::pack_with(source, writer, args)
+        T::pack(source, writer, args)
     }
 }
 
 impl<'de, T> BitUnpackAs<'de, T> for Same
 where
-    T: BitUnpack<'de>,
-{
-    #[inline]
-    fn unpack_as<R>(reader: &mut R) -> Result<T, R::Error>
-    where
-        R: BitReader<'de> + ?Sized,
-    {
-        T::unpack(reader)
-    }
-}
-
-impl<'de, T> BitUnpackAsWithArgs<'de, T> for Same
-where
-    T: BitUnpackWithArgs<'de>,
+    T: BitUnpack<'de> + ?Sized,
 {
     type Args = T::Args;
 
     #[inline]
-    fn unpack_as_with<R>(reader: &mut R, args: Self::Args) -> Result<T, R::Error>
+    fn unpack_as<R>(reader: &mut R, args: Self::Args) -> Result<T, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
-        T::unpack_with(reader, args)
+        T::unpack(reader, args)
     }
 }

@@ -1,8 +1,8 @@
 use core::marker::PhantomData;
 
 use crate::{
-    de::{BitReader, BitReaderExt, r#as::BitUnpackAs},
-    ser::{BitWriter, BitWriterExt, r#as::BitPackAs},
+    de::{BitReader, BitReaderExt, BitUnpackAs},
+    ser::{BitPackAs, BitWriter},
 };
 
 use super::Same;
@@ -11,20 +11,18 @@ use super::Same;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DefaultOnNone<As: ?Sized = Same>(PhantomData<As>);
 
-impl<T, As> BitPackAs<Option<T>> for DefaultOnNone<As>
+impl<T, As> BitPackAs<T> for DefaultOnNone<As>
 where
-    T: Default,
+    T: Default + PartialEq,
     As: BitPackAs<T>,
 {
-    fn pack_as<W>(source: &Option<T>, writer: &mut W) -> Result<(), W::Error>
+    type Args = As::Args;
+
+    fn pack_as<W>(source: &T, writer: &mut W, args: As::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
-        match source {
-            Some(v) => writer.pack_as::<_, &As>(v)?,
-            None => writer.pack_as::<_, As>(T::default())?,
-        };
-        Ok(())
+        Option::<&As>::pack_as(&(source != &T::default()).then_some(source), writer, args)
     }
 }
 
@@ -33,13 +31,15 @@ where
     T: Default,
     As: BitUnpackAs<'de, T>,
 {
+    type Args = As::Args;
+
     #[inline]
-    fn unpack_as<R>(reader: &mut R) -> Result<T, R::Error>
+    fn unpack_as<R>(reader: &mut R, args: As::Args) -> Result<T, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
         reader
-            .unpack_as::<_, Option<As>>()
+            .unpack_as::<_, Option<As>>(args)
             .map(Option::unwrap_or_default)
     }
 }

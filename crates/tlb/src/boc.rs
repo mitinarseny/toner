@@ -14,8 +14,8 @@ use crate::{
     bits::{
         r#as::{NBits, VarNBytes},
         bitvec::{order::Msb0, vec::BitVec, view::AsBits},
-        de::{BitReader, BitReaderExt, BitUnpack, args::BitUnpackWithArgs},
-        ser::{BitWriter, BitWriterExt, args::BitPackWithArgs},
+        de::{BitReader, BitReaderExt, BitUnpack, args::BitUnpack},
+        ser::{BitWriter, BitWriterExt, args::BitPack},
     },
 };
 
@@ -109,7 +109,7 @@ impl BagOfCells {
 
     pub fn serialize(&self, args: BagOfCellsArgs) -> Result<Vec<u8>, StringError> {
         let mut buf = BitVec::new();
-        self.pack_with(&mut buf, args)?;
+        self.pack(&mut buf, args)?;
         if buf.len() % bits_of::<u8>() != 0 {
             return Err(Error::custom("data is not aligned"));
         }
@@ -192,10 +192,10 @@ pub struct BagOfCellsArgs {
 ///   crc32c:has_crc32c?uint32
 ///   = BagOfCells;
 /// ```
-impl BitPackWithArgs for BagOfCells {
+impl BitPack for BagOfCells {
     type Args = BagOfCellsArgs;
 
-    fn pack_with<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -249,7 +249,7 @@ impl BitPackWithArgs for BagOfCells {
                 .map(|c| *indices.get(c).unwrap())
                 .collect(),
         }
-        .pack_with(writer, args)
+        .pack(writer, args)
     }
 }
 
@@ -381,10 +381,10 @@ impl RawBagOfCells {
     const GENERIC_BOC_TAG: u32 = 0xb5ee9c72;
 }
 
-impl BitPackWithArgs for RawBagOfCells {
+impl BitPack for RawBagOfCells {
     type Args = BagOfCellsArgs;
 
-    fn pack_with<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -436,7 +436,7 @@ impl BitPackWithArgs for RawBagOfCells {
         }
         // cell_data:(tot_cells_size * [ uint8 ])
         for (i, cell) in self.cells.iter().enumerate() {
-            cell.pack_with(&mut buffered, size_bytes)
+            cell.pack(&mut buffered, size_bytes)
                 .with_context(|| format!("[{i}]"))?;
         }
 
@@ -486,20 +486,20 @@ impl<'de> BitUnpack<'de> for RawBagOfCells {
             return Err(Error::custom(format!("invalid off_bytes: {off_bytes}")));
         }
         // cells:(##(size * 8))
-        let cells: u32 = buffered.unpack_as_with::<_, VarNBytes>(size_bytes)?;
+        let cells: u32 = buffered.unpack_as::<_, VarNBytes>(size_bytes)?;
         // roots:(##(size * 8)) { roots >= 1 }
-        let roots: u32 = buffered.unpack_as_with::<_, VarNBytes>(size_bytes)?;
+        let roots: u32 = buffered.unpack_as::<_, VarNBytes>(size_bytes)?;
         // absent:(##(size * 8)) { roots + absent <= cells }
-        let absent: u32 = buffered.unpack_as_with::<_, VarNBytes>(size_bytes)?;
+        let absent: u32 = buffered.unpack_as::<_, VarNBytes>(size_bytes)?;
         if roots + absent > cells {
             return Err(Error::custom("roots + absent > cells"));
         }
         // tot_cells_size:(##(off_bytes * 8))
-        let _tot_cells_size: usize = buffered.unpack_as_with::<_, VarNBytes>(off_bytes)?;
+        let _tot_cells_size: usize = buffered.unpack_as::<_, VarNBytes>(off_bytes)?;
         let root_list = if tag == Self::GENERIC_BOC_TAG {
             // root_list:(roots * ##(size * 8))
             buffered
-                .unpack_iter_as_with::<_, VarNBytes>(size_bytes)
+                .unpack_iter_as::<_, VarNBytes>(size_bytes)
                 .take(roots as usize)
                 .collect::<Result<_, _>>()?
         } else {
@@ -508,13 +508,13 @@ impl<'de> BitUnpack<'de> for RawBagOfCells {
         if has_idx {
             // index:has_idx?(cells * ##(off_bytes * 8))
             let _index: Vec<u32> = buffered
-                .unpack_iter_as_with::<_, VarNBytes>(off_bytes)
+                .unpack_iter_as::<_, VarNBytes>(off_bytes)
                 .take(cells as usize)
                 .collect::<Result<_, _>>()?;
         }
         // cell_data:(tot_cells_size * [ uint8 ])
         let cell_data: Vec<RawCell> = buffered
-            .unpack_iter_with(size_bytes)
+            .unpack_iter(size_bytes)
             .take(cells as usize)
             .collect::<Result<_, _>>()
             .context("cell_data")?;
@@ -545,7 +545,7 @@ pub(crate) struct RawCell {
     pub level: u8,
 }
 
-impl<'de> BitUnpackWithArgs<'de> for RawCell {
+impl<'de> BitUnpack<'de> for RawCell {
     /// size_bytes
     type Args = u32;
 
@@ -562,7 +562,7 @@ impl<'de> BitUnpackWithArgs<'de> for RawCell {
         let num_bytes: usize = ((bits_descriptor >> 1) + (bits_descriptor & 1)) as usize;
         let full_bytes = (bits_descriptor & 1) == 0;
 
-        let mut data: BitVec<u8, Msb0> = reader.unpack_with(num_bytes * 8)?;
+        let mut data: BitVec<u8, Msb0> = reader.unpack(num_bytes * 8)?;
         if !data.is_empty() && !full_bytes {
             let trailing_zeros = data.trailing_zeros();
             if trailing_zeros >= 8 {
@@ -572,7 +572,7 @@ impl<'de> BitUnpackWithArgs<'de> for RawCell {
         }
 
         let references: Vec<u32> = reader
-            .unpack_iter_as_with::<_, VarNBytes>(size_bytes)
+            .unpack_iter_as::<_, VarNBytes>(size_bytes)
             .take(ref_num)
             .collect::<Result<_, _>>()?;
 
@@ -584,11 +584,11 @@ impl<'de> BitUnpackWithArgs<'de> for RawCell {
     }
 }
 
-impl BitPackWithArgs for RawCell {
+impl BitPack for RawCell {
     /// ref_size_bytes
     type Args = u32;
 
-    fn pack_with<W>(&self, writer: &mut W, ref_size_bytes: Self::Args) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, ref_size_bytes: Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {

@@ -9,11 +9,7 @@ use crate::{
     adapters::{BitCounter, LimitWriter, MapErr, Tee},
 };
 
-use super::{
-    BitPack,
-    args::{BitPackWithArgs, r#as::BitPackAsWithArgs},
-    r#as::BitPackAs,
-};
+use super::{BitPack, r#as::BitPackAs};
 
 /// Bitwise writer.
 #[autoimpl(for <W: trait + ?Sized> &mut W, Box<W>)]
@@ -58,113 +54,60 @@ pub trait BitWriterExt: BitWriter {
         Ok(self)
     }
 
-    /// Pack given value using its [`BitPack`] implementation
-    #[inline]
-    fn pack<T>(&mut self, value: T) -> Result<&mut Self, Self::Error>
-    where
-        T: BitPack,
-    {
-        value.pack(self)?;
-        Ok(self)
-    }
-
     /// Pack given value with args using its [`BitPackWithArgs`] implementation
     #[inline]
-    fn pack_with<T>(&mut self, value: T, args: T::Args) -> Result<&mut Self, Self::Error>
-    where
-        T: BitPackWithArgs,
-    {
-        value.pack_with(self, args)?;
-        Ok(self)
-    }
-
-    /// Pack all values from given iterator using [`BitPack`] implementation
-    /// of its item type.
-    #[inline]
-    fn pack_many<T>(
-        &mut self,
-        values: impl IntoIterator<Item = T>,
-    ) -> Result<&mut Self, Self::Error>
+    fn pack<T>(&mut self, value: T, args: T::Args) -> Result<&mut Self, Self::Error>
     where
         T: BitPack,
     {
-        for (i, v) in values.into_iter().enumerate() {
-            self.pack(v).with_context(|| format!("[{i}]"))?;
-        }
+        value.pack(self, args)?;
         Ok(self)
     }
 
     /// Pack all values with args from given iterator using [`BitPackWithArgs`]
     /// implementation of its item type.
     #[inline]
-    fn pack_many_with<T>(
+    fn pack_many<T>(
         &mut self,
         values: impl IntoIterator<Item = T>,
         args: T::Args,
     ) -> Result<&mut Self, Self::Error>
     where
-        T: BitPackWithArgs,
+        T: BitPack,
         T::Args: Clone,
     {
         for (i, v) in values.into_iter().enumerate() {
-            self.pack_with(v, args.clone())
+            self.pack(v, args.clone())
                 .with_context(|| format!("[{i}]"))?;
         }
-        Ok(self)
-    }
-
-    /// Pack given value using an adapter.  
-    /// See [`as`](crate::as) module-level documentation for more.
-    #[inline]
-    fn pack_as<T, As>(&mut self, value: T) -> Result<&mut Self, Self::Error>
-    where
-        As: BitPackAs<T> + ?Sized,
-    {
-        As::pack_as(&value, self)?;
         Ok(self)
     }
 
     /// Pack given value with args using an adapter.  
     /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
-    fn pack_as_with<T, As>(&mut self, value: T, args: As::Args) -> Result<&mut Self, Self::Error>
-    where
-        As: BitPackAsWithArgs<T> + ?Sized,
-    {
-        As::pack_as_with(&value, self, args)?;
-        Ok(self)
-    }
-
-    /// Pack all values from iterator using an adapter.  
-    /// See [`as`](crate::as) module-level documentation for more.
-    #[inline]
-    fn pack_many_as<T, As>(
-        &mut self,
-        values: impl IntoIterator<Item = T>,
-    ) -> Result<&mut Self, Self::Error>
+    fn pack_as<T, As>(&mut self, value: T, args: As::Args) -> Result<&mut Self, Self::Error>
     where
         As: BitPackAs<T> + ?Sized,
     {
-        for (i, v) in values.into_iter().enumerate() {
-            self.pack_as::<_, As>(v).with_context(|| format!("[{i}]"))?;
-        }
+        As::pack_as(&value, self, args)?;
         Ok(self)
     }
 
     /// Pack all values from iterator with args using an adapter.  
     /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
-    fn pack_many_as_with<T, As>(
+    fn pack_many_as<T, As>(
         &mut self,
         values: impl IntoIterator<Item = T>,
         args: As::Args,
     ) -> Result<&mut Self, Self::Error>
     where
-        As: BitPackAsWithArgs<T> + ?Sized,
+        As: BitPackAs<T> + ?Sized,
         As::Args: Clone,
     {
         for (i, v) in values.into_iter().enumerate() {
-            self.pack_as_with::<_, As>(v, args.clone())
+            self.pack_as::<_, As>(v, args.clone())
                 .with_context(|| format!("[{i}]"))?;
         }
         Ok(self)

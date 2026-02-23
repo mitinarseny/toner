@@ -1,8 +1,8 @@
 use core::{fmt::Display, marker::PhantomData};
 
 use tlbits::{
-    de::args::r#as::BitUnpackAsWithArgs,
-    ser::{BitWriter, args::r#as::BitPackAsWithArgs},
+    de::args::r#as::BitUnpackAs,
+    ser::{BitWriter, args::r#as::BitPackAs},
 };
 
 use crate::{
@@ -90,7 +90,7 @@ where
 
 impl<T, As> CellSerializeAsWithArgs<T> for Data<As>
 where
-    As: BitPackAsWithArgs<T> + ?Sized,
+    As: BitPackAs<T> + ?Sized,
     T: ?Sized,
 {
     type Args = As::Args;
@@ -117,7 +117,7 @@ where
 
 impl<'de, T, As> CellDeserializeAsWithArgs<'de, T> for Data<As>
 where
-    As: BitUnpackAsWithArgs<'de, T> + ?Sized,
+    As: BitUnpackAs<'de, T> + ?Sized,
 {
     type Args = As::Args;
 
@@ -126,7 +126,7 @@ where
         parser: &mut CellParser<'de>,
         args: Self::Args,
     ) -> Result<T, CellParserError<'de>> {
-        As::unpack_as_with(parser, args)
+        As::unpack_as(parser, args)
     }
 }
 

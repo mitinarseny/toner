@@ -10,11 +10,7 @@ use crate::{
     ser::BitWriter,
 };
 
-use super::{
-    BitUnpack,
-    args::{BitUnpackWithArgs, r#as::BitUnpackAsWithArgs},
-    r#as::BitUnpackAs,
-};
+use super::{BitUnpack, r#as::BitUnpackAs};
 
 /// Bitwise reader.
 #[autoimpl(for <R: trait + ?Sized> &mut R, Box<R>)]
@@ -87,94 +83,52 @@ pub trait BitReaderExt<'de>: BitReader<'de> {
         Ok(arr)
     }
 
-    /// Unpack value using its [`BitUnpack`] implementation
-    #[inline]
-    fn unpack<T>(&mut self) -> Result<T, Self::Error>
-    where
-        T: BitUnpack<'de>,
-    {
-        T::unpack(self)
-    }
-
     /// Unpack value witg args using its [`BitUnpackWithArgs`] implementation
     #[inline]
-    fn unpack_with<T>(&mut self, args: T::Args) -> Result<T, Self::Error>
-    where
-        T: BitUnpackWithArgs<'de>,
-    {
-        T::unpack_with(self, args)
-    }
-
-    /// Return iterator that unpacks values using [`BitUnpack`] implementation
-    #[inline]
-    fn unpack_iter<T>(&mut self) -> impl Iterator<Item = Result<T, Self::Error>> + '_
+    fn unpack<T>(&mut self, args: T::Args) -> Result<T, Self::Error>
     where
         T: BitUnpack<'de>,
     {
-        iter::repeat_with(move || self.unpack::<T>())
-            .enumerate()
-            .map(|(i, v)| v.with_context(|| format!("[{i}]")))
+        T::unpack(self, args)
     }
 
     /// Return iterator that unpacks values with args using [`BitUnpackWithArgs`] implementation
     #[inline]
-    fn unpack_iter_with<'a, T>(
+    fn unpack_iter<'a, T>(
         &'a mut self,
         args: T::Args,
     ) -> impl Iterator<Item = Result<T, Self::Error>> + 'a
     where
-        T: BitUnpackWithArgs<'de>,
+        T: BitUnpack<'de>,
         T::Args: Clone + 'a,
     {
-        iter::repeat_with(move || self.unpack_with::<T>(args.clone()))
+        iter::repeat_with(move || self.unpack::<T>(args.clone()))
             .enumerate()
             .map(|(i, v)| v.with_context(|| format!("[{i}]")))
-    }
-
-    /// Unpack value using an adapter.  
-    /// See [`as`](crate::as) module-level documentation for more.
-    #[inline]
-    fn unpack_as<T, As>(&mut self) -> Result<T, Self::Error>
-    where
-        As: BitUnpackAs<'de, T> + ?Sized,
-    {
-        As::unpack_as(self)
     }
 
     /// Unpack value with args using an adapter.  
     /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
-    fn unpack_as_with<T, As>(&mut self, args: As::Args) -> Result<T, Self::Error>
-    where
-        As: BitUnpackAsWithArgs<'de, T> + ?Sized,
-    {
-        As::unpack_as_with(self, args)
-    }
-
-    /// Returns iterator that unpacks values using an adapter.  
-    /// See [`as`](crate::as) module-level documentation for more.
-    #[inline]
-    fn unpack_iter_as<T, As>(&mut self) -> impl Iterator<Item = Result<T, Self::Error>> + '_
+    fn unpack_as<T, As>(&mut self, args: As::Args) -> Result<T, Self::Error>
     where
         As: BitUnpackAs<'de, T> + ?Sized,
     {
-        iter::repeat_with(|| self.unpack_as::<_, As>())
-            .enumerate()
-            .map(|(i, v)| v.with_context(|| format!("[{i}]")))
+        As::unpack_as(self, args)
     }
 
     /// Returns iterator that unpacks values with args using an adapter.  
     /// See [`as`](crate::as) module-level documentation for more.
     #[inline]
-    fn unpack_iter_as_with<'a, T, As>(
+    fn unpack_iter_as<'a, T, As>(
         &'a mut self,
         args: As::Args,
     ) -> impl Iterator<Item = Result<T, Self::Error>> + 'a
     where
-        As: BitUnpackAsWithArgs<'de, T> + ?Sized,
+        As: BitUnpackAs<'de, T> + ?Sized,
         As::Args: Clone + 'a,
     {
-        iter::repeat_with(move || self.unpack_as_with::<_, As>(args.clone()))
+        iter::repeat_with(move || self.unpack_as::<_, As>(args.clone()))
             .enumerate()
             .map(|(i, v)| v.with_context(|| format!("[{i}]")))
     }

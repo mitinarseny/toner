@@ -4,18 +4,18 @@ use bitvec::{mem::bits_of, order::Msb0, slice::BitSlice};
 
 use crate::{
     Error,
-    de::{BitReader, BitReaderExt, args::r#as::BitUnpackAsWithArgs},
+    de::{BitReader, BitReaderExt, BitUnpackAs},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BorrowCow;
 
-impl<'de: 'a, 'a> BitUnpackAsWithArgs<'de, Cow<'a, BitSlice<u8, Msb0>>> for BorrowCow {
+impl<'de: 'a, 'a> BitUnpackAs<'de, Cow<'a, BitSlice<u8, Msb0>>> for BorrowCow {
     /// length in bits
     type Args = usize;
 
     #[inline]
-    fn unpack_as_with<R>(
+    fn unpack_as<R>(
         reader: &mut R,
         len: Self::Args,
     ) -> Result<Cow<'a, BitSlice<u8, Msb0>>, R::Error>
@@ -30,12 +30,12 @@ impl<'de: 'a, 'a> BitUnpackAsWithArgs<'de, Cow<'a, BitSlice<u8, Msb0>>> for Borr
     }
 }
 
-impl<'de: 'a, 'a> BitUnpackAsWithArgs<'de, Cow<'a, [u8]>> for BorrowCow {
+impl<'de: 'a, 'a> BitUnpackAs<'de, Cow<'a, [u8]>> for BorrowCow {
     /// length in bytes
     type Args = usize;
 
     #[inline]
-    fn unpack_as_with<R>(reader: &mut R, len: Self::Args) -> Result<Cow<'a, [u8]>, R::Error>
+    fn unpack_as<R>(reader: &mut R, len: Self::Args) -> Result<Cow<'a, [u8]>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -59,7 +59,7 @@ impl<'de: 'a, 'a> BitUnpackAsWithArgs<'de, Cow<'a, [u8]>> for BorrowCow {
     }
 }
 
-impl<'de: 'a, 'a> BitUnpackAsWithArgs<'de, Cow<'a, str>> for BorrowCow {
+impl<'de: 'a, 'a> BitUnpackAs<'de, Cow<'a, str>> for BorrowCow {
     /// length in bytes
     type Args = usize;
 
@@ -77,11 +77,11 @@ impl<'de: 'a, 'a> BitUnpackAsWithArgs<'de, Cow<'a, str>> for BorrowCow {
 
     #[rustversion::since(1.87)]
     #[inline]
-    fn unpack_as_with<R>(reader: &mut R, len: Self::Args) -> Result<Cow<'a, str>, R::Error>
+    fn unpack_as<R>(reader: &mut R, len: Self::Args) -> Result<Cow<'a, str>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
-        match reader.unpack_as_with::<Cow<[u8]>, Self>(len)? {
+        match reader.unpack_as::<Cow<[u8]>, Self>(len)? {
             Cow::Borrowed(s) =>
             {
                 #[allow(clippy::incompatible_msrv)]

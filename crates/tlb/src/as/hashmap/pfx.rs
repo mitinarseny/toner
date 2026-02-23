@@ -126,7 +126,7 @@ where
         (n, args): Self::Args,
     ) -> Result<Hashmap<T>, CellParserError<'de>> {
         // label:(HmLabel ~l n)
-        let prefix: BitVec<u8, Msb0> = parser.unpack_as_with::<_, HmLabel>(n).context("label")?;
+        let prefix: BitVec<u8, Msb0> = parser.unpack_as::<_, HmLabel>(n).context("label")?;
         // {n = (~m) + l}
         let m = n - prefix.len() as u32;
         Ok(Hashmap {
