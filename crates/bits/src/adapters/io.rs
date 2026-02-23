@@ -16,21 +16,21 @@ type Buffer = BitArray<[u8; 1], Msb0>;
 /// #
 /// # use tlbits::{
 /// #     adapters::Io,
-/// #     r#as::NBits,
+/// #     NBits,
 /// #     de::BitReaderExt,
 /// #     ser::BitWriterExt
 /// # };
 /// # fn main() -> Result<(), io::Error> {
 /// // pack
 /// let mut writer = Io::new(Vec::<u8>::new());
-/// writer.pack_as::<u8, NBits<7>>(123)?
-///     .pack(true)?;
+/// writer.pack_as::<u8, NBits<7>>(123, ())?
+///     .pack(true, ())?;
 /// let buf = writer.into_inner().unwrap();
 ///
 /// // unpack
 /// let mut reader = Io::new(buf.as_slice());
-/// let value1 = reader.unpack_as::<u8, NBits<7>>()?;
-/// let value2 = reader.unpack::<bool>()?;
+/// let value1 = reader.unpack_as::<u8, NBits<7>>(())?;
+/// let value2 = reader.unpack::<bool>(())?;
 ///
 /// # assert!(reader.buffered().is_empty());
 /// # assert_eq!(value1, 123);

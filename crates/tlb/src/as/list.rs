@@ -1,10 +1,9 @@
 use core::marker::PhantomData;
 
 use crate::{
-    Cell, Context,
-    r#as::{Ref, Same},
-    de::{CellParser, CellParserError, r#as::CellDeserializeAs},
-    ser::{CellBuilder, CellBuilderError, r#as::CellSerializeAs},
+    Cell, Context, Ref, Same,
+    de::{CellDeserializeAs, CellParser, CellParserError},
+    ser::{CellBuilder, CellBuilderError, CellSerializeAs},
 };
 
 /// ```tlb
@@ -14,18 +13,28 @@ use crate::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct List<T = Same>(PhantomData<T>);
 
-impl<T, As> CellSerializeAs<T> for List<As>
+impl<T, As> CellSerializeAs<Vec<T>> for List<As>
 where
-    for<'a> &'a T: IntoIterator,
-    for<'a> As: CellSerializeAs<<&'a T as IntoIterator>::Item>,
+    As: CellSerializeAs<T>,
+    As::Args: Clone,
 {
+    type Args = As::Args;
+
     #[inline]
-    fn store_as(source: &T, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.store(source.into_iter().try_fold(Cell::builder(), |prev, v| {
-            let mut list = Cell::builder();
-            list.store_as::<_, Ref>(prev)?.store_as::<_, As>(v)?;
-            Ok(list)
-        })?)?;
+    fn store_as(
+        source: &Vec<T>,
+        builder: &mut CellBuilder,
+        args: Self::Args,
+    ) -> Result<(), CellBuilderError> {
+        builder.store(
+            source.iter().try_fold(Cell::builder(), |prev, v| {
+                let mut list = Cell::builder();
+                list.store_as::<_, Ref>(prev, ())?
+                    .store_as::<_, &As>(v, args.clone())?;
+                Ok(list)
+            })?,
+            (),
+        )?;
         Ok(())
     }
 }
@@ -33,17 +42,23 @@ where
 impl<'de, T, As> CellDeserializeAs<'de, Vec<T>> for List<As>
 where
     As: CellDeserializeAs<'de, T>,
+    As::Args: Clone,
 {
+    type Args = As::Args;
+
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>) -> Result<Vec<T>, CellParserError<'de>> {
+    fn parse_as(
+        parser: &mut CellParser<'de>,
+        args: Self::Args,
+    ) -> Result<Vec<T>, CellParserError<'de>> {
         let mut v = Vec::new();
-        let mut p: CellParser<'de> = parser.parse()?;
+        let mut p: CellParser<'de> = parser.parse(())?;
         while !p.no_references_left() {
             v.push(
-                p.parse_as::<_, As>()
+                p.parse_as::<_, As>(args.clone())
                     .with_context(|| format!("[{}]", v.len()))?,
             );
-            p = p.parse_as::<_, Ref>()?;
+            p = p.parse_as::<_, Ref>(())?;
         }
         v.reverse();
         Ok(v)

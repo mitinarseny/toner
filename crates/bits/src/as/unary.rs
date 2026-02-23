@@ -2,8 +2,8 @@ use num_traits::{ConstZero, One, ToPrimitive, Unsigned};
 
 use crate::{
     Error,
-    de::{BitReader, r#as::BitUnpackAs},
-    ser::{BitWriter, BitWriterExt, r#as::BitPackAs},
+    de::{BitReader, BitUnpackAs},
+    ser::{BitPackAs, BitWriter, BitWriterExt},
 };
 
 /// [`Unary ~n`](https://docs.ton.org/develop/data-formats/tl-b-types#unary)
@@ -19,10 +19,12 @@ impl<T> BitPackAs<T> for Unary
 where
     T: ToPrimitive + Unsigned,
 {
+    type Args = ();
+
     #[inline]
-    fn pack_as<W>(num: &T, mut writer: W) -> Result<(), W::Error>
+    fn pack_as<W>(num: &T, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
         writer
             // unary_succ$1 {n:#} x:(Unary ~n) = Unary ~(n + 1);
@@ -32,7 +34,7 @@ where
                 true,
             )?
             // unary_zero$0 = Unary ~0;
-            .pack(false)?;
+            .pack(false, ())?;
         Ok(())
     }
 }
@@ -41,10 +43,12 @@ impl<'de, T> BitUnpackAs<'de, T> for Unary
 where
     T: Unsigned + ConstZero + One,
 {
+    type Args = ();
+
     #[inline]
-    fn unpack_as<R>(mut reader: R) -> Result<T, R::Error>
+    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<T, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
         let mut n = T::ZERO;
         while reader.read_bit()?.ok_or_else(|| Error::custom("EOF"))? {

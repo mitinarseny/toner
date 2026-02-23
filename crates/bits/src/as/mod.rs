@@ -4,35 +4,28 @@
 //! This approach is heavily inspired by
 //! [serde_with](https://docs.rs/serde_with/latest/serde_with).
 //! Please, read their docs for more usage examples.
-pub mod args;
-mod bits;
+mod args;
 mod borrow;
 mod default;
 mod from_into;
 mod integer;
+mod len;
 mod remainder;
 mod same;
 mod unary;
+
+pub use self::{
+    args::*, borrow::*, default::*, from_into::*, integer::*, len::*, remainder::*, same::*,
+    unary::*,
+};
 
 use std::marker::PhantomData;
 
 use impl_tools::autoimpl;
 
 use crate::{
-    de::{
-        BitReader, BitUnpack,
-        args::{BitUnpackWithArgs, r#as::BitUnpackAsWithArgs},
-        r#as::BitUnpackAs,
-    },
-    ser::{
-        BitPack, BitWriter,
-        args::{BitPackWithArgs, r#as::BitPackAsWithArgs},
-        r#as::BitPackAs,
-    },
-};
-
-pub use self::{
-    bits::*, borrow::*, default::*, from_into::*, integer::*, remainder::*, same::*, unary::*,
+    de::{BitReader, BitUnpack, BitUnpackAs},
+    ser::{BitPack, BitPackAs, BitWriter},
 };
 
 /// Helper to implement **de**/**ser**ialize trait for adapters
@@ -71,28 +64,14 @@ where
     T: ?Sized,
     As: BitPackAs<T> + ?Sized,
 {
-    #[inline]
-    fn pack<W>(&self, writer: W) -> Result<(), W::Error>
-    where
-        W: BitWriter,
-    {
-        As::pack_as(self.value, writer)
-    }
-}
-
-impl<T, As> BitPackWithArgs for AsWrap<&T, As>
-where
-    T: ?Sized,
-    As: BitPackAsWithArgs<T> + ?Sized,
-{
     type Args = As::Args;
 
     #[inline]
-    fn pack_with<W>(&self, writer: W, args: Self::Args) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
-        As::pack_as_with(self.into_inner(), writer, args)
+        As::pack_as(self.into_inner(), writer, args)
     }
 }
 
@@ -100,29 +79,13 @@ impl<'de, T, As> BitUnpack<'de> for AsWrap<T, As>
 where
     As: BitUnpackAs<'de, T> + ?Sized,
 {
-    #[inline]
-    fn unpack<R>(reader: R) -> Result<Self, R::Error>
-    where
-        R: BitReader<'de>,
-    {
-        As::unpack_as(reader).map(|value| Self {
-            value,
-            _phantom: PhantomData,
-        })
-    }
-}
-
-impl<'de, T, As> BitUnpackWithArgs<'de> for AsWrap<T, As>
-where
-    As: BitUnpackAsWithArgs<'de, T> + ?Sized,
-{
     type Args = As::Args;
 
     #[inline]
-    fn unpack_with<R>(reader: R, args: Self::Args) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, args: Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
-        As::unpack_as_with(reader, args).map(Self::new)
+        As::unpack_as(reader, args).map(Self::new)
     }
 }

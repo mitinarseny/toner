@@ -158,7 +158,7 @@ where
     ///     false, // do not deploy wallet
     ///     ).unwrap();
     /// # let mut b = Cell::builder();
-    /// # b.store(msg).unwrap();
+    /// # b.store(msg, ()).unwrap();
     /// ```
     #[inline]
     pub fn create_external_message(
@@ -179,7 +179,7 @@ where
     /// using this wallet's private key
     #[inline]
     pub fn sign_body(&self, msg: &V::SignBody) -> anyhow::Result<[u8; 64]> {
-        self.sign(msg.to_cell()?.hash())
+        self.sign(msg.to_cell(())?.hash())
     }
 
     /// Wrap signed body from [`.sign_body()`](Wallet::sign_body) in a message

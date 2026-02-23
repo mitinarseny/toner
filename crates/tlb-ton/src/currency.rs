@@ -3,9 +3,10 @@ use lazy_static::lazy_static;
 use num_bigint::BigUint;
 use num_traits::One;
 use tlb::{
-    r#as::{Data, NoArgs, hashmap::HashmapE},
-    bits::{r#as::VarInt, de::BitReaderExt, ser::BitWriterExt},
+    Data, Same,
+    bits::{VarInt, de::BitReaderExt, ser::BitWriterExt},
     de::{CellDeserialize, CellParser, CellParserError},
+    hashmap::HashmapE,
     ser::{CellBuilder, CellBuilderError, CellSerialize},
 };
 
@@ -41,21 +42,25 @@ pub struct CurrencyCollection {
 }
 
 impl CellSerialize for CurrencyCollection {
+    type Args = ();
+
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
         builder
-            .pack_as::<_, &Grams>(&self.grams)?
-            .store(&self.other)?;
+            .pack_as::<_, &Grams>(&self.grams, ())?
+            .store(&self.other, ())?;
         Ok(())
     }
 }
 
 impl<'de> CellDeserialize<'de> for CurrencyCollection {
+    type Args = ();
+
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
-            grams: parser.unpack_as::<_, Grams>()?,
-            other: parser.parse()?,
+            grams: parser.unpack_as::<_, Grams>(())?,
+            other: parser.parse(())?,
         })
     }
 }
@@ -67,25 +72,22 @@ impl<'de> CellDeserialize<'de> for CurrencyCollection {
 pub struct ExtraCurrencyCollection(pub HashmapE<BigUint>);
 
 impl CellSerialize for ExtraCurrencyCollection {
+    type Args = ();
+
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.store_as_with::<_, &HashmapE<NoArgs<_, Data<VarInt<32>>>, NoArgs<_>>>(
-            &self.0,
-            (32, (), ()),
-        )?;
+    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+        builder.store_as::<_, &HashmapE<Data<VarInt<32>>, Same>>(&self.0, (32, (), ()))?;
         Ok(())
     }
 }
 
 impl<'de> CellDeserialize<'de> for ExtraCurrencyCollection {
+    type Args = ();
+
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self(
-            parser.parse_as_with::<_, HashmapE<NoArgs<_, Data<VarInt<32>>>, NoArgs<_>>>((
-                32,
-                (),
-                (),
-            ))?,
+            parser.parse_as::<_, HashmapE<Data<VarInt<32>>, Same>>((32, (), ()))?,
         ))
     }
 }
@@ -100,8 +102,8 @@ mod tests {
     fn currency_collection_serde() {
         let v = CurrencyCollection::default();
 
-        let cell = v.to_cell().unwrap();
-        let got: CurrencyCollection = cell.parse_fully().unwrap();
+        let cell = v.to_cell(()).unwrap();
+        let got: CurrencyCollection = cell.parse_fully(()).unwrap();
 
         assert_eq!(got, v);
     }

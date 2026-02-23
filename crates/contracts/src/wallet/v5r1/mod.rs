@@ -4,11 +4,11 @@ use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use nacl::sign::PUBLIC_KEY_LENGTH;
 use tlb_ton::{
-    BagOfCells, Cell, Context, Error, MsgAddress, UnixTimestamp,
+    BagOfCells, Cell, Context, Data, Error, List, MsgAddress, Same, UnixTimestamp,
     action::{OutAction, SendMsgAction},
-    r#as::{Data, List, NoArgs, hashmap::HashmapE},
     bits::{de::BitReaderExt, ser::BitWriterExt},
     de::{CellDeserialize, CellParser, CellParserError},
+    hashmap::HashmapE,
     ser::{CellBuilder, CellBuilderError, CellSerialize},
 };
 
@@ -85,34 +85,31 @@ pub struct WalletV5R1Data {
 }
 
 impl CellSerialize for WalletV5R1Data {
+    type Args = ();
+
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
         builder
-            .pack(self.is_signature_allowed)?
-            .pack(self.seqno)?
-            .pack(self.wallet_id)?
-            .pack(self.pubkey)?
-            .store_as_with::<_, &HashmapE<Data<NoArgs<_>>, NoArgs<_>>>(
-                &self.extensions,
-                (256, (), ()),
-            )?;
+            .pack(self.is_signature_allowed, ())?
+            .pack(self.seqno, ())?
+            .pack(self.wallet_id, ())?
+            .pack(self.pubkey, ())?
+            .store_as::<_, &HashmapE<Data, Same>>(&self.extensions, (256, (), ()))?;
         Ok(())
     }
 }
 
 impl<'de> CellDeserialize<'de> for WalletV5R1Data {
+    type Args = ();
+
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
-            is_signature_allowed: parser.unpack()?,
-            seqno: parser.unpack()?,
-            wallet_id: parser.unpack()?,
-            pubkey: parser.unpack()?,
-            extensions: parser.parse_as_with::<_, HashmapE<Data<NoArgs<_>>, NoArgs<_>>>((
-                256,
-                (),
-                (),
-            ))?,
+            is_signature_allowed: parser.unpack(())?,
+            seqno: parser.unpack(())?,
+            wallet_id: parser.unpack(())?,
+            pubkey: parser.unpack(())?,
+            extensions: parser.parse_as::<_, HashmapE<Data, Same>>((256, (), ()))?,
         })
     }
 }
@@ -128,25 +125,33 @@ pub struct WalletV5R1InnerRequest {
 }
 
 impl CellSerialize for WalletV5R1InnerRequest {
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+    type Args = ();
+
+    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
         builder
             .store_as::<_, Option<&List>>(
                 Some(&self.out_actions).filter(|actions| !actions.is_empty()),
+                (),
             )?
-            .store_as::<_, Option<&List>>(Some(&self.extended).filter(|other| !other.is_empty()))?;
+            .store_as::<_, Option<&List>>(
+                Some(&self.extended).filter(|other| !other.is_empty()),
+                (),
+            )?;
         Ok(())
     }
 }
 
 impl<'de> CellDeserialize<'de> for WalletV5R1InnerRequest {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    type Args = ();
+
+    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             out_actions: parser
-                .parse_as::<_, Option<List>>()
+                .parse_as::<_, Option<List>>(())
                 .context("out_actions")?
                 .unwrap_or_default(),
             extended: parser
-                .parse_as::<_, Option<List>>()
+                .parse_as::<_, Option<List>>(())
                 .context("extended")?
                 .unwrap_or_default(),
         })
@@ -184,27 +189,33 @@ impl ExtendedAction {
 }
 
 impl CellSerialize for ExtendedAction {
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+    type Args = ();
+
+    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
         match self {
-            Self::AddExtension(addr) => builder.pack(Self::ADD_EXTENSION_PREFIX)?.pack(addr)?,
-            Self::DeleteExtension(addr) => {
-                builder.pack(Self::DELETE_EXTENSION_PREFIX)?.pack(addr)?
-            }
+            Self::AddExtension(addr) => builder
+                .pack(Self::ADD_EXTENSION_PREFIX, ())?
+                .pack(addr, ())?,
+            Self::DeleteExtension(addr) => builder
+                .pack(Self::DELETE_EXTENSION_PREFIX, ())?
+                .pack(addr, ())?,
             Self::SetSignatureAuthAllowed(allowed) => builder
-                .pack(Self::SET_SIGNATURE_AUTH_ALLOWED_PREFIX)?
-                .pack(allowed)?,
+                .pack(Self::SET_SIGNATURE_AUTH_ALLOWED_PREFIX, ())?
+                .pack(allowed, ())?,
         };
         Ok(())
     }
 }
 
 impl<'de> CellDeserialize<'de> for ExtendedAction {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        Ok(match parser.unpack()? {
-            Self::ADD_EXTENSION_PREFIX => Self::AddExtension(parser.unpack()?),
-            Self::DELETE_EXTENSION_PREFIX => Self::DeleteExtension(parser.unpack()?),
+    type Args = ();
+
+    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+        Ok(match parser.unpack(())? {
+            Self::ADD_EXTENSION_PREFIX => Self::AddExtension(parser.unpack(())?),
+            Self::DELETE_EXTENSION_PREFIX => Self::DeleteExtension(parser.unpack(())?),
             Self::SET_SIGNATURE_AUTH_ALLOWED_PREFIX => {
-                Self::SetSignatureAuthAllowed(parser.unpack()?)
+                Self::SetSignatureAuthAllowed(parser.unpack(())?)
             }
             prefix => return Err(Error::custom(format!("unknown prefix: {prefix:#0x}"))),
         })
@@ -234,23 +245,27 @@ pub struct WalletV5RSignBody {
 }
 
 impl CellSerialize for WalletV5RSignBody {
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+    type Args = ();
+
+    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
         builder
-            .pack(self.wallet_id)?
-            .pack_as::<_, UnixTimestamp>(self.valid_until)?
-            .pack(self.msg_seqno)?
-            .store(&self.inner)?;
+            .pack(self.wallet_id, ())?
+            .pack_as::<_, UnixTimestamp>(self.valid_until, ())?
+            .pack(self.msg_seqno, ())?
+            .store(&self.inner, ())?;
         Ok(())
     }
 }
 
 impl<'de> CellDeserialize<'de> for WalletV5RSignBody {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    type Args = ();
+
+    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
-            wallet_id: parser.unpack()?,
-            valid_until: parser.unpack_as::<_, UnixTimestamp>()?,
-            msg_seqno: parser.unpack()?,
-            inner: parser.parse()?,
+            wallet_id: parser.unpack(())?,
+            valid_until: parser.unpack_as::<_, UnixTimestamp>(())?,
+            msg_seqno: parser.unpack(())?,
+            inner: parser.parse(())?,
         })
     }
 }
@@ -272,17 +287,21 @@ pub struct WalletV5R1SignedRequest {
 }
 
 impl CellSerialize for WalletV5R1SignedRequest {
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.store(&self.body)?.pack(self.signature)?;
+    type Args = ();
+
+    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+        builder.store(&self.body, ())?.pack(self.signature, ())?;
         Ok(())
     }
 }
 
 impl<'de> CellDeserialize<'de> for WalletV5R1SignedRequest {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    type Args = ();
+
+    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
-            body: parser.parse()?,
-            signature: parser.unpack()?,
+            body: parser.parse(())?,
+            signature: parser.unpack(())?,
         })
     }
 }
@@ -313,29 +332,37 @@ impl WalletV5R1MsgBody {
 }
 
 impl CellSerialize for WalletV5R1MsgBody {
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
+    type Args = ();
+
+    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
         match self {
-            Self::InternalSigned(msg) => builder.pack(Self::INTERNAL_SIGNED_PREFIX)?.store(msg)?,
-            Self::InternalExtension(msg) => {
-                builder.pack(Self::INTERNAL_EXTENSION_PREFIX)?.store(msg)?
-            }
-            Self::ExternalSigned(msg) => builder.pack(Self::EXTERNAL_SIGNED_PREFIX)?.store(msg)?,
+            Self::InternalSigned(msg) => builder
+                .pack(Self::INTERNAL_SIGNED_PREFIX, ())?
+                .store(msg, ())?,
+            Self::InternalExtension(msg) => builder
+                .pack(Self::INTERNAL_EXTENSION_PREFIX, ())?
+                .store(msg, ())?,
+            Self::ExternalSigned(msg) => builder
+                .pack(Self::EXTERNAL_SIGNED_PREFIX, ())?
+                .store(msg, ())?,
         };
         Ok(())
     }
 }
 
 impl<'de> CellDeserialize<'de> for WalletV5R1MsgBody {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        Ok(match parser.unpack()? {
+    type Args = ();
+
+    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+        Ok(match parser.unpack(())? {
             Self::INTERNAL_SIGNED_PREFIX => {
-                Self::InternalSigned(parser.parse().context("internal_signed")?)
+                Self::InternalSigned(parser.parse(()).context("internal_signed")?)
             }
             Self::INTERNAL_EXTENSION_PREFIX => {
-                Self::InternalExtension(parser.parse().context("internal_extension")?)
+                Self::InternalExtension(parser.parse(()).context("internal_extension")?)
             }
             Self::EXTERNAL_SIGNED_PREFIX => {
-                Self::ExternalSigned(parser.parse().context("external_signed")?)
+                Self::ExternalSigned(parser.parse(()).context("external_signed")?)
             }
             prefix => return Err(Error::custom(format!("unknown prefix: {prefix:#0x}"))),
         })
@@ -350,17 +377,21 @@ pub struct InternalExtensionWalletV5R1MsgBody {
 }
 
 impl CellSerialize for InternalExtensionWalletV5R1MsgBody {
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.pack(self.query_id)?.store(&self.inner)?;
+    type Args = ();
+
+    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+        builder.pack(self.query_id, ())?.store(&self.inner, ())?;
         Ok(())
     }
 }
 
 impl<'de> CellDeserialize<'de> for InternalExtensionWalletV5R1MsgBody {
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
+    type Args = ();
+
+    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
-            query_id: parser.unpack()?,
-            inner: parser.parse()?,
+            query_id: parser.unpack(())?,
+            inner: parser.parse(())?,
         })
     }
 }
@@ -369,14 +400,14 @@ impl<'de> CellDeserialize<'de> for InternalExtensionWalletV5R1MsgBody {
 mod tests {
     use tlb_ton::{
         BagOfCellsArgs, BoC,
-        bits::{de::unpack_fully, ser::pack_with},
+        bits::{de::unpack_fully, ser::pack},
     };
 
     use super::*;
 
     #[test]
     fn check_code() {
-        let packed = pack_with(
+        let packed = pack(
             BoC::from_root(WALLET_V5R1_CODE_CELL.clone()),
             BagOfCellsArgs {
                 has_idx: false,
@@ -385,9 +416,9 @@ mod tests {
         )
         .unwrap();
 
-        let unpacked: BoC = unpack_fully(&packed).unwrap();
+        let unpacked: BoC = unpack_fully(&packed, ()).unwrap();
 
-        let got: Cell = unpacked.single_root().unwrap().parse_fully().unwrap();
+        let got: Cell = unpacked.single_root().unwrap().parse_fully(()).unwrap();
         assert_eq!(&got, WALLET_V5R1_CODE_CELL.as_ref());
     }
 }

@@ -6,7 +6,7 @@ use std::ops::Deref;
 use crate::{
     r#as::Ref,
     bits::de::BitReaderExt,
-    de::{CellParser, CellParserError, args::r#as::CellDeserializeAsWithArgs},
+    de::{CellDeserializeAs, CellParser, CellParserError},
 };
 
 /// [`BinTree X`](https://docs.ton.org/develop/data-formats/tl-b-types#bintree)
@@ -54,36 +54,36 @@ impl<X> BinTree<X> {
     }
 }
 
-impl<'de, T, As> CellDeserializeAsWithArgs<'de, BinTree<T>> for BinTree<As>
+impl<'de, T, As> CellDeserializeAs<'de, BinTree<T>> for BinTree<As>
 where
-    As: CellDeserializeAsWithArgs<'de, T>,
+    As: CellDeserializeAs<'de, T>,
     As::Args: Clone,
 {
     type Args = As::Args;
 
     #[inline]
-    fn parse_as_with(
+    fn parse_as(
         parser: &mut CellParser<'de>,
         args: Self::Args,
     ) -> Result<BinTree<T>, CellParserError<'de>> {
-        Ok(match parser.unpack()? {
+        Ok(match parser.unpack(())? {
             // bt_leaf$0
-            false => BinTree::Leaf(parser.parse_as_with::<T, As>(args)?),
+            false => BinTree::Leaf(parser.parse_as::<T, As>(args)?),
             // bt_fork$1
-            true => BinTree::Fork(parser.parse_as_with::<_, [Box<Ref<BinTree<As>>>; 2]>(args)?),
+            true => BinTree::Fork(parser.parse_as::<_, [Box<Ref<BinTree<As>>>; 2]>(args)?),
         })
     }
 }
 
-impl<'de, T, As> CellDeserializeAsWithArgs<'de, Vec<T>> for BinTree<As>
+impl<'de, T, As> CellDeserializeAs<'de, Vec<T>> for BinTree<As>
 where
-    As: CellDeserializeAsWithArgs<'de, T>,
+    As: CellDeserializeAs<'de, T>,
     As::Args: Clone,
 {
     type Args = As::Args;
 
     #[inline]
-    fn parse_as_with(
+    fn parse_as(
         parser: &mut CellParser<'de>,
         args: Self::Args,
     ) -> Result<Vec<T>, CellParserError<'de>> {
@@ -98,15 +98,15 @@ where
             args: As::Args,
         ) -> Result<(), CellParserError<'de>>
         where
-            As: CellDeserializeAsWithArgs<'de, T>,
+            As: CellDeserializeAs<'de, T>,
         {
-            match parser.unpack()? {
+            match parser.unpack(())? {
                 // bt_leaf$0
-                false => output.push(parser.parse_as_with::<_, As>(args)?),
+                false => output.push(parser.parse_as::<_, As>(args)?),
                 // bt_fork$1
                 true => stack.extend(
                     parser
-                        .parse_as::<_, [Ref; 2]>()?
+                        .parse_as::<_, [Ref; 2]>(())?
                         .into_iter()
                         // inverse ordering
                         .rev(),
@@ -128,23 +128,22 @@ where
 
 #[cfg(test)]
 mod tests {
+
     use super::BinTree;
     use crate::{
-        r#as::{Data, NoArgs, Ref, Same},
+        r#as::{Data, Ref, Same},
         bits::bitvec::{bits, order::Msb0},
-        ser::{CellSerializeExt, r#as::CellSerializeWrapAsExt},
+        ser::{CellSerializeExt, CellSerializeWrapAsExt},
     };
 
     #[test]
     fn bin_tree_leaf() {
         let data = bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 1]
             .wrap_as::<Data>()
-            .to_cell()
+            .to_cell(())
             .unwrap();
 
-        let got: BinTree<u8> = data
-            .parse_fully_as_with::<_, BinTree<Data<NoArgs<_>>>>(())
-            .unwrap();
+        let got: BinTree<u8> = data.parse_fully_as::<_, BinTree<Data>>(()).unwrap();
 
         assert_eq!(got.into_leaf(), Some(5));
     }
@@ -156,11 +155,11 @@ mod tests {
             bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 1].wrap_as::<Ref<Data>>(),
             bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 0, 1, 1].wrap_as::<Ref<Data>>(),
         )
-            .to_cell()
+            .to_cell(((), (), ()))
             .unwrap();
 
         let [left, right] = data
-            .parse_fully_as_with::<BinTree<u8>, BinTree<Data<NoArgs<_>>>>(())
+            .parse_fully_as::<BinTree<u8>, BinTree<Data>>(())
             .unwrap()
             .into_fork()
             .unwrap();
@@ -173,12 +172,10 @@ mod tests {
     fn bin_tree_as_vector_leaf() {
         let data = bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 1]
             .wrap_as::<Data>()
-            .to_cell()
+            .to_cell(())
             .unwrap();
 
-        let got: Vec<u8> = data
-            .parse_fully_as_with::<_, BinTree<Data<NoArgs<_>>>>(())
-            .unwrap();
+        let got: Vec<u8> = data.parse_fully_as::<_, BinTree<Data>>(()).unwrap();
 
         assert_eq!(got, vec![5]);
     }
@@ -190,12 +187,10 @@ mod tests {
             bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 1].wrap_as::<Ref<Data>>(),
             bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 0, 1, 1].wrap_as::<Ref<Data>>(),
         )
-            .to_cell()
+            .to_cell(((), (), ()))
             .unwrap();
 
-        let got: Vec<u8> = data
-            .parse_fully_as_with::<_, BinTree<Data<NoArgs<_>>>>(())
-            .unwrap();
+        let got: Vec<u8> = data.parse_fully_as::<_, BinTree<Data>>(()).unwrap();
 
         assert_eq!(got, vec![5, 3]);
     }
@@ -207,54 +202,52 @@ mod tests {
             bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 0, 0, 0].wrap_as::<Ref<Data>>(),
             bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 0, 0, 1].wrap_as::<Ref<Data>>(),
         )
-            .to_cell()
+            .to_cell(((), (), ()))
             .unwrap();
         let left_right_branch = (
             bits![u8, Msb0; 1].wrap_as::<Data>(),
             bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 0, 1, 0].wrap_as::<Ref<Data>>(),
             bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 0, 1, 1].wrap_as::<Ref<Data>>(),
         )
-            .to_cell()
+            .to_cell(((), (), ()))
             .unwrap();
         let right_left_branch = (
             bits![u8, Msb0; 1].wrap_as::<Data>(),
             bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 0].wrap_as::<Ref<Data>>(),
             bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 0, 1].wrap_as::<Ref<Data>>(),
         )
-            .to_cell()
+            .to_cell(((), (), ()))
             .unwrap();
         let rigth_right_branch = (
             bits![u8, Msb0; 1].wrap_as::<Data>(),
             bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 1, 0].wrap_as::<Ref<Data>>(),
             bits![u8, Msb0; 0, 0, 0, 0, 0, 0, 1, 1, 1].wrap_as::<Ref<Data>>(),
         )
-            .to_cell()
+            .to_cell(((), (), ()))
             .unwrap();
         let left_branch = (
             bits![u8, Msb0; 1].wrap_as::<Data>(),
             left_left_branch.wrap_as::<Ref<Same>>(),
             left_right_branch.wrap_as::<Ref<Same>>(),
         )
-            .to_cell()
+            .to_cell(((), (), ()))
             .unwrap();
         let right_branch = (
             bits![u8, Msb0; 1].wrap_as::<Data>(),
             right_left_branch.wrap_as::<Ref<Same>>(),
             rigth_right_branch.wrap_as::<Ref<Same>>(),
         )
-            .to_cell()
+            .to_cell(((), (), ()))
             .unwrap();
         let root = (
             bits![u8, Msb0; 1].wrap_as::<Data>(),
             left_branch.wrap_as::<Ref<Same>>(),
             right_branch.wrap_as::<Ref<Same>>(),
         )
-            .to_cell()
+            .to_cell(((), (), ()))
             .unwrap();
 
-        let got: Vec<u8> = root
-            .parse_fully_as_with::<_, BinTree<Data<NoArgs<_>>>>(())
-            .unwrap();
+        let got: Vec<u8> = root.parse_fully_as::<_, BinTree<Data>>(()).unwrap();
 
         assert_eq!(got, vec![0, 1, 2, 3, 4, 5, 6, 7]);
     }

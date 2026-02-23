@@ -9,9 +9,9 @@ use bitvec::{
 
 use crate::{
     Error,
-    r#as::{AsBytes, NBits},
-    de::{BitReader, BitReaderExt, BitUnpack, r#as::BitUnpackAs},
-    ser::{BitPack, BitWriter, BitWriterExt, r#as::BitPackAs},
+    r#as::NBits,
+    de::{BitReader, BitReaderExt, BitUnpack, BitUnpackAs},
+    ser::{BitPack, BitPackAs, BitWriter, BitWriterExt},
 };
 
 /// Constant version of `bool`
@@ -31,9 +31,9 @@ use crate::{
 /// # };
 /// # fn main() -> Result<(), StringError> {
 /// # let mut reader = bits![u8, Msb0; 1, 1];
-/// reader.unpack::<ConstBit<true>>()?;
+/// reader.unpack::<ConstBit<true>>(())?;
 /// // is equivalent of:
-/// if !reader.unpack::<bool>()? {
+/// if !reader.unpack::<bool>(())? {
 ///     return Err(Error::custom("expected 1, got 0"));
 /// }
 /// # Ok(())
@@ -53,9 +53,9 @@ use crate::{
 /// # };
 /// # fn main() -> Result<(), StringError> {
 /// # let mut writer = BitVec::<u8, Msb0>::new();
-/// writer.pack(ConstBit::<true>)?;
+/// writer.pack(ConstBit::<true>, ())?;
 /// // is equivalent of:
-/// writer.pack(true)?;
+/// writer.pack(true, ())?;
 /// # assert_eq!(writer, bits![u8, Msb0; 1, 1]);
 /// # Ok(())
 /// # }
@@ -64,22 +64,26 @@ use crate::{
 pub struct ConstBit<const VALUE: bool>;
 
 impl<const VALUE: bool> BitPack for ConstBit<VALUE> {
+    type Args = ();
+
     #[inline]
-    fn pack<W>(&self, writer: W) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
     where
-        W: BitWriter,
+        W: BitWriter + ?Sized,
     {
-        VALUE.pack(writer)
+        VALUE.pack(writer, ())
     }
 }
 
 impl<'de, const VALUE: bool> BitUnpack<'de> for ConstBit<VALUE> {
+    type Args = ();
+
     #[inline]
-    fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
     where
-        R: BitReader<'de>,
+        R: BitReader<'de> + ?Sized,
     {
-        if VALUE != reader.unpack::<bool>()? {
+        if VALUE != reader.unpack::<bool>(())? {
             Err(Error::custom(format!(
                 "expected {:#b}, got {:#b}",
                 VALUE as u8, !VALUE as u8
@@ -93,31 +97,37 @@ impl<'de, const VALUE: bool> BitUnpack<'de> for ConstBit<VALUE> {
 macro_rules! impl_bit_serde_for_integers {
     ($($t:tt)+) => {$(
         impl BitPack for $t {
+            type Args = ();
+
             #[inline]
-            fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+            fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
             where
-                W: BitWriter,
+                W: BitWriter + ?Sized,
             {
-                writer.pack_as::<_, AsBytes>(self.to_be_bytes())?;
+                writer.write_bitslice(self.to_be_bytes().as_bits())?;
                 Ok(())
             }
         }
 
         impl<'de> BitUnpack<'de> for $t {
+            type Args = ();
+
             #[inline]
-            fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+            fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
             where
-                R: BitReader<'de>,
+                R: BitReader<'de> + ?Sized,
             {
                 reader.read_bytes_array().map(Self::from_be_bytes)
             }
         }
 
         impl<const BITS: usize> BitPackAs<$t> for NBits<BITS> {
+            type Args = ();
+
             #[inline]
-            fn pack_as<W>(source: &$t, mut writer: W) -> Result<(), W::Error>
+            fn pack_as<W>(source: &$t, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
             where
-                W: BitWriter,
+                W: BitWriter + ?Sized,
             {
                 const BITS_SIZE: usize = bits_of::<$t>();
                 assert!(BITS <= BITS_SIZE, "excessive bits for type");
@@ -134,10 +144,12 @@ macro_rules! impl_bit_serde_for_integers {
         }
 
         impl<'de, const BITS: usize> BitUnpackAs<'de, $t> for NBits<BITS> {
+            type Args = ();
+
             #[inline]
-            fn unpack_as<R>(mut reader: R) -> Result<$t, R::Error>
+            fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<$t, R::Error>
             where
-                R: BitReader<'de>,
+                R: BitReader<'de> + ?Sized,
             {
                 const BITS_SIZE: usize = bits_of::<$t>();
                 assert!(BITS <= BITS_SIZE, "excessive bits for type");
@@ -176,11 +188,11 @@ macro_rules! const_uint {
         /// # };
         /// # fn main() -> Result<(), StringError> {
         /// # let mut buff = BitVec::<u8, Msb0>::new();
-        #[doc = concat!("# buff.pack::<[", stringify!($typ), "; 2]>([123; 2])?;")]
+        #[doc = concat!("# buff.pack::<[", stringify!($typ), "; 2]>([123; 2], ())?;")]
         /// # let mut reader = buff.as_bitslice();
-        #[doc = concat!("reader.unpack::<", stringify!($name), "<123>>()?;")]
+        #[doc = concat!("reader.unpack::<", stringify!($name), "<123>>(())?;")]
         /// // is equivalent of:
-        #[doc = concat!("let got: ", stringify!($typ), " = reader.unpack()?;")]
+        #[doc = concat!("let got: ", stringify!($typ), " = reader.unpack(())?;")]
         /// if got != 123 {
         ///     return Err(Error::custom(format!("expected 123, got {got}")));
         /// }
@@ -204,12 +216,12 @@ macro_rules! const_uint {
         /// # };
         /// # fn main() -> Result<(), StringError> {
         /// # let mut writer = BitVec::<u8, Msb0>::new();
-        #[doc = concat!("writer.pack(", stringify!($name), "::<123>)?;")]
+        #[doc = concat!("writer.pack(", stringify!($name), "::<123>, ())?;")]
         /// // is equivalent of:
-        #[doc = concat!("writer.pack::<", stringify!($typ), ">(123)?;")]
+        #[doc = concat!("writer.pack::<", stringify!($typ), ">(123, ())?;")]
         /// # let mut reader = writer.as_bitslice();
         #[doc = concat!(
-            "# assert_eq!(reader.unpack::<[", stringify!($typ), "; 2]>()?, [123; 2]);"
+            "# assert_eq!(reader.unpack::<[", stringify!($typ), "; 2]>(())?, [123; 2]);"
         )]
         /// # Ok(())
         /// # }
@@ -218,23 +230,27 @@ macro_rules! const_uint {
         $vis struct $name<const VALUE: $typ, const BITS: usize = { bits_of::<$typ>() }>;
 
         impl<const VALUE: $typ, const BITS: usize> BitPack for $name<VALUE, BITS> {
+            type Args = ();
+
             #[inline]
-            fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
+            fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
             where
-                W: BitWriter,
+                W: BitWriter + ?Sized,
             {
-                writer.pack_as::<_, NBits<BITS>>(VALUE)?;
+                writer.pack_as::<_, NBits<BITS>>(VALUE, ())?;
                 Ok(())
             }
         }
 
         impl<'de, const VALUE: $typ, const BITS: usize> BitUnpack<'de> for $name<VALUE, BITS> {
+            type Args = ();
+
             #[inline]
-            fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
+            fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
             where
-                R: BitReader<'de>,
+                R: BitReader<'de> + ?Sized,
             {
-                let v = reader.unpack_as::<$typ, NBits<BITS>>()?;
+                let v = reader.unpack_as::<$typ, NBits<BITS>>(())?;
                 if v != VALUE {
                     return Err(Error::custom(format!(
                         "expected {VALUE:#b}, got: {v:#b}"
@@ -265,7 +281,7 @@ mod tests {
     use num_bigint::BigUint;
 
     use crate::{
-        ser::{r#as::pack_as, pack},
+        ser::{pack, pack_as},
         tests::{assert_pack_unpack_as_eq, assert_pack_unpack_eq},
     };
 
@@ -274,42 +290,45 @@ mod tests {
     #[test]
     fn store_uint() {
         assert_eq!(
-            pack(0xFD_FE_u16).unwrap(),
+            pack(0xFD_FE_u16, ()).unwrap(),
             bits![u8, Msb0; 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
         )
     }
 
     #[test]
     fn serde_uint() {
-        assert_pack_unpack_eq(12345_u32);
+        assert_pack_unpack_eq(12345_u32, ());
     }
 
     #[test]
     fn store_nbits_uint() {
         assert_eq!(
-            pack_as::<_, NBits<7>>(0x7E).unwrap(),
+            pack_as::<_, NBits<7>>(0x7E, ()).unwrap(),
             bits![u8, Msb0; 1, 1, 1, 1, 1, 1, 0],
         )
     }
 
     #[test]
     fn nbits_one_bit() {
-        assert_eq!(pack_as::<_, NBits<1>>(0b1).unwrap(), pack(true).unwrap())
+        assert_eq!(
+            pack_as::<_, NBits<1>>(0b1, ()).unwrap(),
+            pack(true, ()).unwrap()
+        )
     }
 
     #[test]
     fn store_nbits_same_uint() {
         const N: u8 = 231;
-        assert_eq!(pack(N).unwrap(), pack_as::<_, NBits<8>>(N).unwrap())
+        assert_eq!(pack(N, ()).unwrap(), pack_as::<_, NBits<8>>(N, ()).unwrap())
     }
 
     #[test]
     fn serde_nbits_uint() {
-        assert_pack_unpack_as_eq::<u8, NBits<7>>(0x7E);
+        assert_pack_unpack_as_eq::<u8, NBits<7>>(0x7E, ());
     }
 
     #[test]
     fn serde_big_nbits() {
-        assert_pack_unpack_as_eq::<BigUint, NBits<100>>(12345_u64.into());
+        assert_pack_unpack_as_eq::<BigUint, NBits<100>>(12345_u64.into(), ());
     }
 }

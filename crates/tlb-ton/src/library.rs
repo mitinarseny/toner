@@ -1,6 +1,5 @@
 use tlb::{
-    Cell,
-    r#as::{Data, Ref},
+    Cell, Data, Ref,
     de::{CellDeserialize, CellParser, CellParserError},
     either::Either,
     ser::{CellBuilder, CellBuilderError, CellSerialize},
@@ -19,25 +18,32 @@ pub enum LibRef<R = Cell> {
 
 impl<R> CellSerialize for LibRef<R>
 where
-    R: CellSerialize,
+    R: CellSerialize<Args = ()>,
 {
+    type Args = ();
+
     #[inline]
-    fn store(&self, builder: &mut CellBuilder) -> Result<(), CellBuilderError> {
-        builder.store_as::<_, Either<Data, Ref>>(match self {
-            Self::Hash(hash) => Either::Left(hash),
-            Self::Ref(library) => Either::Right(library),
-        })?;
+    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+        builder.store_as::<_, Either<Data, Ref>>(
+            match self {
+                Self::Hash(hash) => Either::Left(hash),
+                Self::Ref(library) => Either::Right(library),
+            },
+            ((), ()),
+        )?;
         Ok(())
     }
 }
 
 impl<'de, R> CellDeserialize<'de> for LibRef<R>
 where
-    R: CellDeserialize<'de>,
+    R: CellDeserialize<'de, Args = ()>,
 {
+    type Args = ();
+
     #[inline]
-    fn parse(parser: &mut CellParser<'de>) -> Result<Self, CellParserError<'de>> {
-        Ok(match parser.parse_as::<_, Either<Data, Ref>>()? {
+    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+        Ok(match parser.parse_as::<_, Either<Data, Ref>>(((), ()))? {
             Either::Left(hash) => Self::Hash(hash),
             Either::Right(library) => Self::Ref(library),
         })

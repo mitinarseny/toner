@@ -7,8 +7,8 @@ use super::PUBLIC_KEY_LENGTH;
 
 /// Version of [`Wallet`](super::Wallet)
 pub trait WalletVersion {
-    type Data: CellSerialize;
-    type SignBody: CellSerialize;
+    type Data: CellSerialize<Args = ()>;
+    type SignBody: CellSerialize<Args = ()>;
     type ExternalMsgBody: CellSerialize;
 
     const DEFAULT_WALLET_ID: u32;

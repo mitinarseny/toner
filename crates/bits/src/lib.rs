@@ -26,7 +26,7 @@
 //! # use bitvec::{vec::BitVec, order::Msb0};
 //! # use num_bigint::BigUint;
 //! # use tlbits::{
-//! #   r#as::{NBits, VarInt},
+//! #   NBits, VarInt,
 //! #   ser::{BitPack, BitWriter, BitWriterExt, pack},
 //! #   StringError,
 //! # };
@@ -36,16 +36,18 @@
 //! #     pub amount: BigUint,
 //! # }
 //! impl BitPack for Hello {
-//!     fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
-//!         where W: BitWriter,
+//!     type Args = ();
+//!
+//!     fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+//!         where W: BitWriter + ?Sized,
 //!     {
 //!         writer
 //!             // tag$10
-//!             .pack_as::<_, NBits<2>>(0b10)?
+//!             .pack_as::<_, NBits<2>>(0b10, ())?
 //!             // query_id:uint64
-//!             .pack(self.query_id)?
+//!             .pack(self.query_id, ())?
 //!             // amount:(VarUInteger 16)
-//!             .pack_as::<_, &VarInt<4>>(&self.amount)?;
+//!             .pack_as::<_, &VarInt<4>>(&self.amount, ())?;
 //!         Ok(())
 //!     }
 //! }
@@ -55,7 +57,7 @@
 //! writer.pack(Hello {
 //!     query_id: 0,
 //!     amount: 1_000u64.into(),
-//! })?;
+//! }, ())?;
 //! # Ok(())
 //! # }
 //! ```
@@ -69,7 +71,7 @@
 //! # use bitvec::{vec::BitVec, order::Msb0};
 //! # use num_bigint::BigUint;
 //! # use tlbits::{
-//! #   r#as::{NBits, VarInt},
+//! #   NBits, VarInt,
 //! #   de::{BitReaderExt, BitReader, BitUnpack},
 //! #   Error,
 //! #   ser::{BitPack, BitWriter, BitWriterExt, pack},
@@ -81,33 +83,37 @@
 //! #     pub amount: BigUint,
 //! # }
 //! # impl BitPack for Hello {
-//! #     fn pack<W>(&self, mut writer: W) -> Result<(), W::Error>
-//! #         where W: BitWriter,
+//! #     type Args = ();
+//! #
+//! #     fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+//! #         where W: BitWriter + ?Sized,
 //! #     {
 //! #         writer
 //! #             // tag$10
-//! #             .pack_as::<_, NBits<2>>(0b10)?
+//! #             .pack_as::<_, NBits<2>>(0b10, ())?
 //! #             // query_id:uint64
-//! #             .pack(self.query_id)?
+//! #             .pack(self.query_id, ())?
 //! #             // amount:(VarUInteger 16)
-//! #             .pack_as::<_, &VarInt<4>>(&self.amount)?;
+//! #             .pack_as::<_, &VarInt<4>>(&self.amount, ())?;
 //! #         Ok(())
 //! #     }
 //! # }
 //! impl<'de> BitUnpack<'de> for Hello {
-//!     fn unpack<R>(mut reader: R) -> Result<Self, R::Error>
-//!         where R: BitReader<'de>,
+//!     type Args = ();
+//!
+//!     fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
+//!         where R: BitReader<'de> + ?Sized,
 //!     {
 //!         // tag$10
-//!         let tag: u8 = reader.unpack_as::<_, NBits<2>>()?;
+//!         let tag: u8 = reader.unpack_as::<_, NBits<2>>(())?;
 //!         if tag != 0b10 {
 //!             return Err(Error::custom(format!("unknown tag: {tag:#b}")));
 //!         }
 //!         Ok(Self {
 //!             // query_id:uint64
-//!             query_id: reader.unpack()?,
+//!             query_id: reader.unpack(())?,
 //!             // amount:(VarUInteger 16)
-//!             amount: reader.unpack_as::<_, VarInt<4>>()?,
+//!             amount: reader.unpack_as::<_, VarInt<4>>(())?,
 //!         })
 //!     }
 //! }
@@ -118,21 +124,21 @@
 //! #     amount: 1_000u64.into(),
 //! # };
 //! # let mut writer = BitVec::<u8, Msb0>::new().counted();
-//! # writer.pack(&orig)?;
+//! # writer.pack(&orig, ())?;
 //! # let mut parser = writer.as_bitslice();
-//! let hello: Hello = parser.unpack()?;
+//! let hello: Hello = parser.unpack(())?;
 //! # assert_eq!(hello, orig);
 //! # Ok(())
 //! # }
 //! ```
 pub mod adapters;
-pub mod r#as;
+mod r#as;
 pub mod de;
 mod error;
 pub mod integer;
 pub mod ser;
 
-pub use self::error::*;
+pub use self::{r#as::*, error::*};
 
 pub use bitvec;
 pub use either;

@@ -9,11 +9,7 @@ use bitvec::{order::Msb0, vec::BitVec};
 use digest::{Digest, Output};
 
 use crate::{
-    de::{
-        CellDeserialize, CellParser, CellParserError,
-        args::{CellDeserializeWithArgs, r#as::CellDeserializeAsWithArgs},
-        r#as::CellDeserializeAs,
-    },
+    de::{CellDeserialize, CellDeserializeAs, CellParser, CellParserError},
     ser::CellBuilder,
 };
 
@@ -51,51 +47,24 @@ impl Cell {
 
     /// Shortcut for [`.parser()`](Cell::parser)[`.parse()`](CellParser::parse)[`.ensure_empty()`](CellParser::ensure_empty).
     #[inline]
-    pub fn parse_fully<'de, T>(&'de self) -> Result<T, CellParserError<'de>>
+    pub fn parse_fully<'de, T>(&'de self, args: T::Args) -> Result<T, CellParserError<'de>>
     where
         T: CellDeserialize<'de>,
     {
         let mut parser = self.parser();
-        let v = parser.parse()?;
-        parser.ensure_empty()?;
-        Ok(v)
-    }
-
-    /// Shortcut for [`.parser()`](Cell::parser)[`.parse_with()`](CellParser::parse_with)[`.ensure_empty()`](CellParser::ensure_empty).
-    #[inline]
-    pub fn parse_fully_with<'de, T>(&'de self, args: T::Args) -> Result<T, CellParserError<'de>>
-    where
-        T: CellDeserializeWithArgs<'de>,
-    {
-        let mut parser = self.parser();
-        let v = parser.parse_with(args)?;
+        let v = parser.parse(args)?;
         parser.ensure_empty()?;
         Ok(v)
     }
 
     /// Shortcut for [`.parser()`](Cell::parser)[`.parse_as()`](CellParser::parse_as)[`.ensure_empty()`](CellParser::ensure_empty).
     #[inline]
-    pub fn parse_fully_as<'de, T, As>(&'de self) -> Result<T, CellParserError<'de>>
+    pub fn parse_fully_as<'de, T, As>(&'de self, args: As::Args) -> Result<T, CellParserError<'de>>
     where
         As: CellDeserializeAs<'de, T> + ?Sized,
     {
         let mut parser = self.parser();
-        let v = parser.parse_as::<T, As>()?;
-        parser.ensure_empty()?;
-        Ok(v)
-    }
-
-    /// Shortcut for [`.parser()`](Cell::parser)[`.parse_as_with()`](CellParser::parse_as_with)[`.ensure_empty()`](CellParser::ensure_empty).
-    #[inline]
-    pub fn parse_fully_as_with<'de, T, As>(
-        &'de self,
-        args: As::Args,
-    ) -> Result<T, CellParserError<'de>>
-    where
-        As: CellDeserializeAsWithArgs<'de, T> + ?Sized,
-    {
-        let mut parser = self.parser();
-        let v = parser.parse_as_with::<T, As>(args)?;
+        let v = parser.parse_as::<T, As>(args)?;
         parser.ensure_empty()?;
         Ok(v)
     }
@@ -277,8 +246,8 @@ mod tests {
 
     use crate::{
         r#as::{Data, Ref},
-        bits::{r#as::NBits, ser::BitWriterExt},
-        ser::{CellSerializeExt, r#as::CellSerializeWrapAsExt},
+        bits::{NBits, ser::BitWriterExt},
+        ser::{CellSerializeExt, CellSerializeWrapAsExt},
         tests::assert_store_parse_as_eq,
     };
 
@@ -286,7 +255,7 @@ mod tests {
 
     #[test]
     fn zero_depth() {
-        assert_eq!(().to_cell().unwrap().max_depth(), 0)
+        assert_eq!(().to_cell(()).unwrap().max_depth(), 0)
     }
 
     #[test]
@@ -298,7 +267,7 @@ mod tests {
                 .wrap_as::<Ref>(),
             ((), ()),
         )
-            .to_cell()
+            .to_cell(((), ((), ()), ((), ())))
             .unwrap();
         assert_eq!(cell.max_depth(), 4)
     }
@@ -312,13 +281,13 @@ mod tests {
                 Ref<Data<NBits<24>>>,
                 Ref<(Data<NBits<7>>, Ref<Data<NBits<24>>>)>,
             ),
-        >((0b1, 0x0AAAAA, (0x7F, 0x0AAAAA)));
+        >((0b1, 0x0AAAAA, (0x7F, 0x0AAAAA)), ((), (), ((), ())));
     }
 
     #[test]
     fn hash_no_refs() {
         let mut builder = Cell::builder();
-        builder.pack_as::<_, NBits<32>>(0x0000000F).unwrap();
+        builder.pack_as::<_, NBits<32>>(0x0000000F, ()).unwrap();
         let cell = builder.into_cell();
 
         assert_eq!(
@@ -331,11 +300,11 @@ mod tests {
     fn hash_with_refs() {
         let mut builder = Cell::builder();
         builder
-            .store_as::<_, Data<NBits<24>>>(0x00000B)
+            .store_as::<_, Data<NBits<24>>>(0x00000B, ())
             .unwrap()
-            .store_reference_as::<_, Data>(0x0000000F_u32)
+            .store_reference_as::<_, Data>(0x0000000F_u32, ())
             .unwrap()
-            .store_reference_as::<_, Data>(0x0000000F_u32)
+            .store_reference_as::<_, Data>(0x0000000F_u32, ())
             .unwrap();
         let cell = builder.into_cell();
 
