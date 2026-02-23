@@ -149,7 +149,7 @@ impl Debug for BagOfCells {
     }
 }
 
-/// [`BitPackWithArgs::Args`] for [`BagOfCells`]
+/// [`BitPack::Args`] for [`BagOfCells`]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BagOfCellsArgs {

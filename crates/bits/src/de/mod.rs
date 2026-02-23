@@ -21,10 +21,8 @@ use crate::{
 };
 
 /// A type that can be bitwise-**de**serialized from any [`BitReader`].  
-/// In contrast with [`BitUnpack`](super::BitUnpack) it allows to pass
-/// [`Args`](BitUnpackWithArgs::Args) and these arguments can be
-/// calculated dynamically in runtime.
 pub trait BitUnpack<'de>: Sized {
+    /// Arguments to be passed in runtime
     type Args;
 
     /// Unpack the value with args

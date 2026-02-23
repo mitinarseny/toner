@@ -11,11 +11,12 @@ use crate::{
 use super::{BitPack, BitWriter, BitWriterExt};
 
 /// Adapter to **ser**ialize `T`.  
-/// See [`as`](crate::as) module-level documentation for more.
 ///
-/// For dynamic arguments, see
-/// [`BitPackAsWithArgs`](super::args::as::BitPackAsWithArgs).
+/// This approach is heavily inspired by
+/// [serde_with](https://docs.rs/serde_with/latest/serde_with).
+/// Please, read their docs for more usage examples.
 pub trait BitPackAs<T: ?Sized> {
+    /// Arguments to be passed in runtime
     type Args;
 
     /// Packs the value with args using an adapter

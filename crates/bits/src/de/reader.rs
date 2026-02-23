@@ -83,7 +83,7 @@ pub trait BitReaderExt<'de>: BitReader<'de> {
         Ok(arr)
     }
 
-    /// Unpack value witg args using its [`BitUnpackWithArgs`] implementation
+    /// Unpack value witg args using its [`BitUnpack`] implementation
     #[inline]
     fn unpack<T>(&mut self, args: T::Args) -> Result<T, Self::Error>
     where
@@ -92,7 +92,7 @@ pub trait BitReaderExt<'de>: BitReader<'de> {
         T::unpack(self, args)
     }
 
-    /// Return iterator that unpacks values with args using [`BitUnpackWithArgs`] implementation
+    /// Return iterator that unpacks values with args using [`BitUnpack`] implementation
     #[inline]
     fn unpack_iter<'a, T>(
         &'a mut self,
@@ -108,7 +108,10 @@ pub trait BitReaderExt<'de>: BitReader<'de> {
     }
 
     /// Unpack value with args using an adapter.  
-    /// See [`as`](crate::as) module-level documentation for more.
+    ///
+    /// This approach is heavily inspired by
+    /// [serde_with](https://docs.rs/serde_with/latest/serde_with).
+    /// Please, read their docs for more usage examples.
     #[inline]
     fn unpack_as<T, As>(&mut self, args: As::Args) -> Result<T, Self::Error>
     where
@@ -118,7 +121,10 @@ pub trait BitReaderExt<'de>: BitReader<'de> {
     }
 
     /// Returns iterator that unpacks values with args using an adapter.  
-    /// See [`as`](crate::as) module-level documentation for more.
+    ///
+    /// This approach is heavily inspired by
+    /// [serde_with](https://docs.rs/serde_with/latest/serde_with).
+    /// Please, read their docs for more usage examples.
     #[inline]
     fn unpack_iter_as<'a, T, As>(
         &'a mut self,

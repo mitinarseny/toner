@@ -7,10 +7,10 @@ use crate::{AsWrap, Context, de::CellDeserialize, either::Either};
 use super::{CellParser, CellParserError};
 
 /// Adaper to **de**serialize `T` with args.  
-/// See [`as`](crate::as) module-level documentation for more.
 ///
-/// For version without arguments, see
-/// [`CellDeserializeAs`](super::super::as::CellDeserializeAs).
+/// This approach is heavily inspired by
+/// [serde_with](https://docs.rs/serde_with/latest/serde_with).
+/// Please, read their docs for more usage examples.
 pub trait CellDeserializeAs<'de, T> {
     type Args;
 
@@ -18,7 +18,7 @@ pub trait CellDeserializeAs<'de, T> {
     fn parse_as(parser: &mut CellParser<'de>, args: Self::Args) -> Result<T, CellParserError<'de>>;
 }
 
-/// Owned version of [`CellDeserializeAsWithArgs`]
+/// Owned version of [`CellDeserializeAs`]
 pub trait CellDeserializeAsOwned<T>: for<'de> CellDeserializeAs<'de, T> {}
 impl<T, As> CellDeserializeAsOwned<As> for T where T: for<'de> CellDeserializeAs<'de, As> + ?Sized {}
 

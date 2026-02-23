@@ -4,10 +4,11 @@ use crate::{AsWrap, either::Either};
 
 use super::{CellBuilder, CellBuilderError, CellSerialize};
 
-/// Adapter to **ser**ialize `T` with args.  
-/// See [`as`](crate::as) module-level documentation for more.
+/// Adapter to **ser**ialize `T` with args.
 ///
-/// For version without arguments, see [`CellSerializeAs`](super::super::as::CellSerializeAs).
+/// This approach is heavily inspired by
+/// [serde_with](https://docs.rs/serde_with/latest/serde_with).
+/// Please, read their docs for more usage examples.
 pub trait CellSerializeAs<T: ?Sized> {
     type Args;
 

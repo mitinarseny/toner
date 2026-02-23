@@ -12,12 +12,10 @@ use tlbits::ser::BitWriter;
 use crate::{Cell, Context, Ref, Same, bits::ser::BitWriterExt, either::Either};
 
 /// A type that can be **ser**ialized.  
-/// In contrast with [`CellSerialize`](super::CellSerialize) it allows to pass
-/// [`Args`](CellSerializeWithArgs::Args) and these arguments can be
-/// calculated dynamically in runtime.
 #[autoimpl(for<T: trait + ToOwned + ?Sized> Cow<'_, T>)]
 #[autoimpl(for <T: trait + ?Sized> &T, &mut T, Box<T>, Rc<T>, Arc<T>)]
 pub trait CellSerialize {
+    /// Arguments to be passed in runtime
     type Args;
 
     /// Stores the value with args

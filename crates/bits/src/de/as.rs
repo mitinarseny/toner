@@ -17,10 +17,11 @@ use crate::{
 
 use super::{BitReader, BitReaderExt};
 
-/// Adapter to **de**serialize `T` with args.  
-/// See [`as`](crate::as) module-level documentation for more.
+/// Adapter to **de**serialize `T` with args.
 ///
-/// For version without arguments, see [`BitUnpackAs`](super::super::as::BitUnpackAs).
+/// This approach is heavily inspired by
+/// [serde_with](https://docs.rs/serde_with/latest/serde_with).
+/// Please, read their docs for more usage examples.
 pub trait BitUnpackAs<'de, T> {
     type Args;
 

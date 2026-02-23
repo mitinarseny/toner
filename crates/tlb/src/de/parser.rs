@@ -29,7 +29,7 @@ impl<'de> CellParser<'de> {
         Self { data, references }
     }
 
-    /// Parse the value with args using its [`CellDeserializeWithArgs`]
+    /// Parse the value with args using its [`CellDeserialize`]
     /// implementation.
     #[inline]
     pub fn parse<T>(&mut self, args: T::Args) -> Result<T, CellParserError<'de>>
@@ -40,7 +40,7 @@ impl<'de> CellParser<'de> {
     }
 
     /// Return iterator that parses values with args using
-    /// [`CellDeserializeWithArgs`] implementation.
+    /// [`CellDeserialize`] implementation.
     #[inline]
     pub fn parse_iter<'a: 'de, T>(
         &mut self,
@@ -56,7 +56,10 @@ impl<'de> CellParser<'de> {
     }
 
     /// Parse value with args using an adapter.  
-    /// See [`as`](crate::as) module-level documentation for more.
+    ///
+    /// This approach is heavily inspired by
+    /// [serde_with](https://docs.rs/serde_with/latest/serde_with).
+    /// Please, read their docs for more usage examples.
     #[inline]
     pub fn parse_as<T, As>(&mut self, args: As::Args) -> Result<T, CellParserError<'de>>
     where
@@ -66,7 +69,10 @@ impl<'de> CellParser<'de> {
     }
 
     /// Returns iterator that parses values with args using an adapter.  
-    /// See [`as`](crate::as) module-level documentation for more.
+    ///
+    /// This approach is heavily inspired by
+    /// [serde_with](https://docs.rs/serde_with/latest/serde_with).
+    /// Please, read their docs for more usage examples.
     #[inline]
     pub fn parse_iter_as<'a: 'de, T, As>(
         &mut self,

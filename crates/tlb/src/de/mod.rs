@@ -9,17 +9,15 @@ use std::{borrow::Cow, mem, rc::Rc, sync::Arc};
 use crate::{Cell, Context, FromInto, Same, bits::de::BitReaderExt, either::Either};
 
 /// A type that can be **de**serialized.  
-/// In contrast with [`CellDeserialize`](super::CellDeserialize) it allows to
-/// pass [`Args`](CellDeserializeWithArgs::Args) and these arguments can be
-/// calculated dynamically in runtime.
 pub trait CellDeserialize<'de>: Sized {
+    /// Arguments to be passed in runtime
     type Args;
 
     /// Parses the value with args
     fn parse(parser: &mut CellParser<'de>, args: Self::Args) -> Result<Self, CellParserError<'de>>;
 }
 
-/// Owned version of [`CellDeserializeWithArgs`]
+/// Owned version of [`CellDeserialize`]
 pub trait CellDeserializeOwned: for<'de> CellDeserialize<'de> {}
 impl<T> CellDeserializeOwned for T where T: for<'de> CellDeserialize<'de> {}
 

@@ -52,7 +52,7 @@ impl CellBuilder {
     }
 
     /// Store all values from given iterator with args using
-    /// [`CellSerializeWithArgs`] implementation of its item type.
+    /// [`CellSerialize`] implementation of its item type.
     #[inline]
     pub fn store_many<T>(
         &mut self,
@@ -71,7 +71,10 @@ impl CellBuilder {
     }
 
     /// Store given value with args using an adapter.  
-    /// See [`as`](crate::as) module-level documentation for more.
+    ///
+    /// This approach is heavily inspired by
+    /// [serde_with](https://docs.rs/serde_with/latest/serde_with).
+    /// Please, read their docs for more usage examples.
     #[inline]
     pub fn store_as<T, As>(
         &mut self,
@@ -86,7 +89,10 @@ impl CellBuilder {
     }
 
     /// Store all values from iterator with args using an adapter.  
-    /// See [`as`](crate::as) module-level documentation for more.
+    ///
+    /// This approach is heavily inspired by
+    /// [serde_with](https://docs.rs/serde_with/latest/serde_with).
+    /// Please, read their docs for more usage examples.
     #[inline]
     pub fn store_many_as<T, As>(
         &mut self,

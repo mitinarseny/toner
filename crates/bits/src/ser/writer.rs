@@ -54,7 +54,7 @@ pub trait BitWriterExt: BitWriter {
         Ok(self)
     }
 
-    /// Pack given value with args using its [`BitPackWithArgs`] implementation
+    /// Pack given value with args using its [`BitPack`] implementation
     #[inline]
     fn pack<T>(&mut self, value: T, args: T::Args) -> Result<&mut Self, Self::Error>
     where
@@ -64,7 +64,7 @@ pub trait BitWriterExt: BitWriter {
         Ok(self)
     }
 
-    /// Pack all values with args from given iterator using [`BitPackWithArgs`]
+    /// Pack all values with args from given iterator using [`BitPack`]
     /// implementation of its item type.
     #[inline]
     fn pack_many<T>(
@@ -84,7 +84,10 @@ pub trait BitWriterExt: BitWriter {
     }
 
     /// Pack given value with args using an adapter.  
-    /// See [`as`](crate::as) module-level documentation for more.
+    ///
+    /// This approach is heavily inspired by
+    /// [serde_with](https://docs.rs/serde_with/latest/serde_with).
+    /// Please, read their docs for more usage examples.
     #[inline]
     fn pack_as<T, As>(&mut self, value: T, args: As::Args) -> Result<&mut Self, Self::Error>
     where
@@ -95,7 +98,10 @@ pub trait BitWriterExt: BitWriter {
     }
 
     /// Pack all values from iterator with args using an adapter.  
-    /// See [`as`](crate::as) module-level documentation for more.
+    ///
+    /// This approach is heavily inspired by
+    /// [serde_with](https://docs.rs/serde_with/latest/serde_with).
+    /// Please, read their docs for more usage examples.
     #[inline]
     fn pack_many_as<T, As>(
         &mut self,

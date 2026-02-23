@@ -45,7 +45,7 @@ impl Cell {
         CellParser::new(&self.data, &self.references)
     }
 
-    /// Shortcut for [`.parser()`](Cell::parser)[`.parse_with()`](CellParser::parse_with)[`.ensure_empty()`](CellParser::ensure_empty).
+    /// Shortcut for [`.parser()`](Cell::parser)[`.parse()`](CellParser::parse)[`.ensure_empty()`](CellParser::ensure_empty).
     #[inline]
     pub fn parse_fully<'de, T>(&'de self, args: T::Args) -> Result<T, CellParserError<'de>>
     where
@@ -57,7 +57,7 @@ impl Cell {
         Ok(v)
     }
 
-    /// Shortcut for [`.parser()`](Cell::parser)[`.parse_as_with()`](CellParser::parse_as_with)[`.ensure_empty()`](CellParser::ensure_empty).
+    /// Shortcut for [`.parser()`](Cell::parser)[`.parse_as()`](CellParser::parse_as)[`.ensure_empty()`](CellParser::ensure_empty).
     #[inline]
     pub fn parse_fully_as<'de, T, As>(&'de self, args: As::Args) -> Result<T, CellParserError<'de>>
     where
