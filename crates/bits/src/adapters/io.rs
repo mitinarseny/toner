@@ -1,6 +1,6 @@
 use std::{
     fmt::Display,
-    io::{self, Read, Write},
+    io::{self, ErrorKind, Read, Write},
     mem,
 };
 
@@ -23,16 +23,17 @@ type Buffer = BitArray<[u8; 1], Msb0>;
 /// # fn main() -> Result<(), io::Error> {
 /// // pack
 /// let mut writer = Io::new(Vec::<u8>::new());
-/// writer.pack_as::<u8, NBits<7>>(123, ())?
+/// writer
+///     .pack_as::<u8, NBits<7>>(123, ())?
 ///     .pack(true, ())?;
-/// let buf = writer.into_inner().unwrap();
+/// let buf = writer.stop_and_flush().unwrap();
 ///
 /// // unpack
 /// let mut reader = Io::new(buf.as_slice());
 /// let value1 = reader.unpack_as::<u8, NBits<7>>(())?;
 /// let value2 = reader.unpack::<bool>(())?;
-///
-/// # assert!(reader.buffered().is_empty());
+/// let buf = reader.checked_discard().unwrap();
+/// assert!(buf.is_empty());
 /// # assert_eq!(value1, 123);
 /// # assert_eq!(value2, true);
 /// # Ok(())
@@ -109,21 +110,42 @@ impl<T> Io<T> {
     }
 }
 
+impl<R> Io<R>
+where
+    R: Read,
+{
+    /// Safely discards the underlying reader: if any buffered and not-yet-consumed
+    /// bits left, then checks that it was a stop-bit followed by zeros. Otherwise,
+    /// returns an error.
+    ///
+    /// Returns total number of buffered bits discarded.
+    pub fn checked_discard(self) -> Result<R, io::Error> {
+        // check if some not yet comsumed bits left
+        if let Some((stop, rest)) = self.buffered().split_first() {
+            // check that it's only a stop-bit followed by zeros
+            if !*stop || rest.any() {
+                return Err(io::Error::new(ErrorKind::InvalidData, "not all bits read"));
+            }
+        }
+        Ok(self.into_inner_unchecked())
+    }
+}
+
 impl<W> Io<W>
 where
     W: Write,
 {
-    pub fn fill_up_buffer_and_flush(
-        &mut self,
-        fill_bit: bool,
-    ) -> Result<usize, <Self as BitWriter>::Error> {
-        Ok(if !self.buffered().is_empty() {
+    /// Finalizes the writer: if any buffered and not-yet-flushed bits left,
+    /// then writes a stop-bit, fills up the rest by zeros and flushes the buffer.
+    ///
+    /// Returns total number of additional bits written.
+    pub fn stop_and_flush(mut self) -> Result<W, io::Error> {
+        if !self.buffered().is_empty() {
+            self.write_bit(true)?; // put stop-bit
             let n = self.buffer_capacity_left();
-            self.repeat_bit(n, fill_bit)?;
-            n
-        } else {
-            0
-        })
+            self.repeat_bit(n, false)?; // fill the rest with zeros
+        }
+        Ok(self.into_inner_unchecked())
     }
 }
 
@@ -266,6 +288,26 @@ where
                 self.io.write_all(&buf)?;
             }
         }
+        Ok(())
+    }
+
+    fn repeat_bit(&mut self, mut n: usize, bit: bool) -> Result<(), Self::Error> {
+        while n > 0 && !self.buffered().is_empty() {
+            self.write_bit(bit)?;
+            n -= 1;
+        }
+
+        n -= io::copy(
+            &mut io::repeat(if bit { !0 } else { 0 }).take((n / bits_of::<u8>()) as u64),
+            &mut self.io,
+        )? as usize
+            * bits_of::<u8>();
+
+        while n > 0 {
+            self.write_bit(bit)?;
+            n -= 1;
+        }
+
         Ok(())
     }
 }
