@@ -1,14 +1,16 @@
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use tlb_ton::{Cell, action::SendMsgAction, ser::CellSerialize, state_init::StateInit};
+use tlb_ton::{
+    Cell, action::SendMsgAction, bits::NoArgs, ser::CellSerialize, state_init::StateInit,
+};
 
 use super::PUBLIC_KEY_LENGTH;
 
 /// Version of [`Wallet`](super::Wallet)
 pub trait WalletVersion {
-    type Data: CellSerialize<Args = ()>;
-    type SignBody: CellSerialize<Args = ()>;
+    type Data: CellSerialize<Args: NoArgs>;
+    type SignBody: CellSerialize<Args: NoArgs>;
     type ExternalMsgBody: CellSerialize;
 
     const DEFAULT_WALLET_ID: u32;

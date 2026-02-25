@@ -8,7 +8,7 @@ use num_bigint::BigUint;
 use tlb_ton::{
     BagOfCells, Cell, Error, MsgAddress, Ref, Same, UnixTimestamp,
     action::SendMsgAction,
-    bits::{de::BitReaderExt, ser::BitWriterExt},
+    bits::{NoArgs, de::BitReaderExt, ser::BitWriterExt},
     currency::Grams,
     de::{CellDeserialize, CellParser, CellParserError},
     hashmap::HashmapE,
@@ -206,9 +206,9 @@ pub struct WalletV4R2OpDeployAndInstallPlugin<T = Cell, IC = Cell, ID = Cell> {
 
 impl<T, IC, ID> CellSerialize for WalletV4R2OpDeployAndInstallPlugin<T, IC, ID>
 where
-    T: CellSerialize<Args = ()>,
-    IC: CellSerialize<Args = ()>,
-    ID: CellSerialize<Args = ()>,
+    T: CellSerialize<Args: NoArgs>,
+    IC: CellSerialize<Args: NoArgs>,
+    ID: CellSerialize<Args: NoArgs>,
 {
     type Args = ();
 
@@ -217,16 +217,16 @@ where
             .pack(self.plugin_workchain, ())?
             .pack_as::<_, &Grams>(&self.plugin_balance, ())?
             .store_as::<_, Ref>(&self.state_init, ())?
-            .store_as::<_, Ref>(&self.body, ())?;
+            .store_as::<_, Ref>(&self.body, NoArgs::EMPTY)?;
         Ok(())
     }
 }
 
 impl<'de, T, IC, ID> CellDeserialize<'de> for WalletV4R2OpDeployAndInstallPlugin<T, IC, ID>
 where
-    T: CellDeserialize<'de, Args = ()>,
-    IC: CellDeserialize<'de, Args = ()>,
-    ID: CellDeserialize<'de, Args = ()>,
+    T: CellDeserialize<'de, Args: NoArgs>,
+    IC: CellDeserialize<'de, Args: NoArgs>,
+    ID: CellDeserialize<'de, Args: NoArgs>,
 {
     type Args = ();
 
@@ -235,7 +235,7 @@ where
             plugin_workchain: parser.unpack(())?,
             plugin_balance: parser.unpack_as::<_, Grams>(())?,
             state_init: parser.parse_as::<_, Ref>(())?,
-            body: parser.parse_as::<_, Ref>(())?,
+            body: parser.parse_as::<_, Ref>(NoArgs::EMPTY)?,
         })
     }
 }

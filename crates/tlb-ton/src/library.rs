@@ -1,5 +1,6 @@
 use tlb::{
     Cell, Data, Ref,
+    bits::NoArgs,
     de::{CellDeserialize, CellParser, CellParserError},
     either::Either,
     ser::{CellBuilder, CellBuilderError, CellSerialize},
@@ -18,7 +19,7 @@ pub enum LibRef<R = Cell> {
 
 impl<R> CellSerialize for LibRef<R>
 where
-    R: CellSerialize<Args = ()>,
+    R: CellSerialize<Args: NoArgs>,
 {
     type Args = ();
 
@@ -29,7 +30,7 @@ where
                 Self::Hash(hash) => Either::Left(hash),
                 Self::Ref(library) => Either::Right(library),
             },
-            ((), ()),
+            NoArgs::EMPTY,
         )?;
         Ok(())
     }
@@ -37,15 +38,17 @@ where
 
 impl<'de, R> CellDeserialize<'de> for LibRef<R>
 where
-    R: CellDeserialize<'de, Args = ()>,
+    R: CellDeserialize<'de, Args: NoArgs>,
 {
     type Args = ();
 
     #[inline]
     fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
-        Ok(match parser.parse_as::<_, Either<Data, Ref>>(((), ()))? {
-            Either::Left(hash) => Self::Hash(hash),
-            Either::Right(library) => Self::Ref(library),
-        })
+        Ok(
+            match parser.parse_as::<_, Either<Data, Ref>>(NoArgs::EMPTY)? {
+                Either::Left(hash) => Self::Hash(hash),
+                Either::Right(library) => Self::Ref(library),
+            },
+        )
     }
 }

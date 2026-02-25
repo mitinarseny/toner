@@ -1,6 +1,6 @@
 use tlb::{
     Cell, Context, Error, Ref,
-    bits::{NBits, de::BitReaderExt, ser::BitWriterExt},
+    bits::{NBits, NoArgs, de::BitReaderExt, ser::BitWriterExt},
     de::{CellDeserialize, CellParser, CellParserError},
     ser::{CellBuilder, CellBuilderError, CellSerialize},
 };
@@ -96,9 +96,9 @@ pub struct SendMsgAction<T = Cell, IC = Cell, ID = Cell> {
 
 impl<T, IC, ID> CellSerialize for SendMsgAction<T, IC, ID>
 where
-    T: CellSerialize<Args = ()>,
-    IC: CellSerialize<Args = ()>,
-    ID: CellSerialize<Args = ()>,
+    T: CellSerialize<Args: NoArgs>,
+    IC: CellSerialize<Args: NoArgs>,
+    ID: CellSerialize<Args: NoArgs>,
 {
     type Args = ();
 
@@ -113,9 +113,9 @@ where
 
 impl<'de, T, IC, ID> CellDeserialize<'de> for SendMsgAction<T, IC, ID>
 where
-    T: CellDeserialize<'de, Args = ()>,
-    IC: CellDeserialize<'de, Args = ()>,
-    ID: CellDeserialize<'de, Args = ()>,
+    T: CellDeserialize<'de, Args: NoArgs>,
+    IC: CellDeserialize<'de, Args: NoArgs>,
+    ID: CellDeserialize<'de, Args: NoArgs>,
 {
     type Args = ();
 
@@ -172,7 +172,7 @@ pub struct ChangeLibraryAction<R = Cell> {
 
 impl<R> CellSerialize for ChangeLibraryAction<R>
 where
-    R: CellSerialize<Args = ()>,
+    R: CellSerialize<Args: NoArgs>,
 {
     type Args = ();
 
@@ -187,7 +187,7 @@ where
 
 impl<'de, R> CellDeserialize<'de> for ChangeLibraryAction<R>
 where
-    R: CellDeserialize<'de, Args = ()>,
+    R: CellDeserialize<'de, Args: NoArgs>,
 {
     type Args = ();
 

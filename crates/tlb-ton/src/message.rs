@@ -4,7 +4,7 @@ use num_bigint::BigUint;
 use tlb::{
     Cell, Context, EitherInlineOrRef,
     bits::{
-        NBits,
+        NBits, NoArgs,
         de::{BitReader, BitReaderExt, BitUnpack},
         ser::{BitPack, BitWriter, BitWriterExt},
     },
@@ -35,9 +35,9 @@ pub struct Message<T = Cell, IC = Cell, ID = Cell> {
 
 impl<T, IC, ID> Message<T, IC, ID>
 where
-    T: CellSerialize<Args = ()>,
-    IC: CellSerialize<Args = ()>,
-    ID: CellSerialize<Args = ()>,
+    T: CellSerialize<Args: NoArgs>,
+    IC: CellSerialize<Args: NoArgs>,
+    ID: CellSerialize<Args: NoArgs>,
 {
     #[inline]
     pub fn with_state_init(mut self, state_init: impl Into<Option<StateInit<IC, ID>>>) -> Self {
@@ -50,7 +50,7 @@ where
         Ok(Message {
             info: self.info.clone(),
             init: self.init.as_ref().map(StateInit::normalize).transpose()?,
-            body: self.body.to_cell(())?,
+            body: self.body.to_cell(NoArgs::EMPTY)?,
         })
     }
 }
@@ -69,9 +69,9 @@ impl Message<()> {
 
 impl<T, IC, ID> CellSerialize for Message<T, IC, ID>
 where
-    T: CellSerialize<Args = ()>,
-    IC: CellSerialize<Args = ()>,
-    ID: CellSerialize<Args = ()>,
+    T: CellSerialize<Args: NoArgs>,
+    IC: CellSerialize<Args: NoArgs>,
+    ID: CellSerialize<Args: NoArgs>,
 {
     type Args = ();
 
@@ -82,16 +82,16 @@ where
             // init:(Maybe (Either StateInit ^StateInit))
             .store_as::<_, &Option<EitherInlineOrRef>>(&self.init, ())?
             // body:(Either X ^X)
-            .store_as::<_, EitherInlineOrRef>(&self.body, ())?;
+            .store_as::<_, EitherInlineOrRef>(&self.body, NoArgs::EMPTY)?;
         Ok(())
     }
 }
 
 impl<'de, T, IC, ID> CellDeserialize<'de> for Message<T, IC, ID>
 where
-    T: CellDeserialize<'de, Args = ()>,
-    IC: CellDeserialize<'de, Args = ()>,
-    ID: CellDeserialize<'de, Args = ()>,
+    T: CellDeserialize<'de, Args: NoArgs>,
+    IC: CellDeserialize<'de, Args: NoArgs>,
+    ID: CellDeserialize<'de, Args: NoArgs>,
 {
     type Args = ();
 
@@ -105,7 +105,7 @@ where
                 .context("init")?,
             // body:(Either X ^X)
             body: parser
-                .parse_as::<_, EitherInlineOrRef>(())
+                .parse_as::<_, EitherInlineOrRef>(NoArgs::EMPTY)
                 .context("body")?,
         })
     }

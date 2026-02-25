@@ -17,6 +17,7 @@ use num_bigint::BigUint;
 use tlb_ton::{
     Cell, MsgAddress,
     action::SendMsgAction,
+    bits::NoArgs,
     message::{CommonMsgInfo, ExternalInMsgInfo, Message},
     ser::{CellBuilderError, CellSerializeExt},
     state_init::StateInit,
@@ -179,7 +180,7 @@ where
     /// using this wallet's private key
     #[inline]
     pub fn sign_body(&self, msg: &V::SignBody) -> anyhow::Result<[u8; 64]> {
-        self.sign(msg.to_cell(())?.hash())
+        self.sign(msg.to_cell(NoArgs::EMPTY)?.hash())
     }
 
     /// Wrap signed body from [`.sign_body()`](Wallet::sign_body) in a message

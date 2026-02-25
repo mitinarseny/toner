@@ -74,17 +74,39 @@ where
     unpack_fully(BitSlice::from_slice(bytes), args)
 }
 
-impl<'de> BitUnpack<'de> for () {
-    type Args = ();
+macro_rules! impl_bit_unpack_for_tuple {
+    ($($t:ident:$n:tt),*) => {
+        impl<'de, $($t),*> BitUnpack<'de> for ($($t,)*)
+        where $(
+            $t: BitUnpack<'de>,
+        )*
+        {
+            type Args = ($($t::Args,)*);
 
-    #[inline]
-    fn unpack<R>(_reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
-    where
-        R: BitReader<'de> + ?Sized,
-    {
-        Ok(())
-    }
+            #[inline]
+            #[allow(unused_variables)]
+            fn unpack<R>(reader: &mut R, args: Self::Args) -> Result<Self, R::Error>
+            where
+                R: BitReader<'de> + ?Sized,
+            {
+                Ok(($(
+                    $t::unpack(reader, args.$n).context(concat!(".", stringify!($n)))?,
+                )*))
+            }
+        }
+    };
 }
+impl_bit_unpack_for_tuple!();
+impl_bit_unpack_for_tuple!(T0:0);
+impl_bit_unpack_for_tuple!(T0:0,T1:1);
+impl_bit_unpack_for_tuple!(T0:0,T1:1,T2:2);
+impl_bit_unpack_for_tuple!(T0:0,T1:1,T2:2,T3:3);
+impl_bit_unpack_for_tuple!(T0:0,T1:1,T2:2,T3:3,T4:4);
+impl_bit_unpack_for_tuple!(T0:0,T1:1,T2:2,T3:3,T4:4,T5:5);
+impl_bit_unpack_for_tuple!(T0:0,T1:1,T2:2,T3:3,T4:4,T5:5,T6:6);
+impl_bit_unpack_for_tuple!(T0:0,T1:1,T2:2,T3:3,T4:4,T5:5,T6:6,T7:7);
+impl_bit_unpack_for_tuple!(T0:0,T1:1,T2:2,T3:3,T4:4,T5:5,T6:6,T7:7,T8:8);
+impl_bit_unpack_for_tuple!(T0:0,T1:1,T2:2,T3:3,T4:4,T5:5,T6:6,T7:7,T8:8,T9:9);
 
 impl<'de> BitUnpack<'de> for bool {
     type Args = ();
@@ -116,38 +138,6 @@ where
         })
     }
 }
-
-macro_rules! impl_bit_unpack_for_tuple {
-    ($($n:tt:$t:ident),+) => {
-        impl<'de, $($t),+> BitUnpack<'de> for ($($t,)+)
-        where $(
-            $t: BitUnpack<'de>,
-        )+
-        {
-            type Args = ($($t::Args,)+);
-
-            #[inline]
-            fn unpack<R>(reader: &mut R, args: Self::Args) -> Result<Self, R::Error>
-            where
-                R: BitReader<'de> + ?Sized,
-            {
-                Ok(($(
-                    $t::unpack(reader, args.$n).context(concat!(".", stringify!($n)))?,
-                )+))
-            }
-        }
-    };
-}
-impl_bit_unpack_for_tuple!(0:T0);
-impl_bit_unpack_for_tuple!(0:T0,1:T1);
-impl_bit_unpack_for_tuple!(0:T0,1:T1,2:T2);
-impl_bit_unpack_for_tuple!(0:T0,1:T1,2:T2,3:T3);
-impl_bit_unpack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4);
-impl_bit_unpack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5);
-impl_bit_unpack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6);
-impl_bit_unpack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
-impl_bit_unpack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
-impl_bit_unpack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
 
 impl<'de, T> BitUnpack<'de> for Box<T>
 where

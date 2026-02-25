@@ -3,7 +3,7 @@ use num_bigint::BigUint;
 use tlb_ton::{
     Cell, EitherInlineOrRef, Error, MsgAddress, ParseFully, Ref, Same,
     bits::{
-        Remainder, VarInt,
+        NoArgs, Remainder, VarInt,
         de::{BitReader, BitReaderExt, BitUnpack},
         integer::ConstU32,
         ser::{BitPack, BitWriter, BitWriterExt},
@@ -36,8 +36,8 @@ const JETTON_TRANSFER_TAG: u32 = 0x0f8a7ea5;
 
 impl<P, F> CellSerialize for JettonTransfer<P, F>
 where
-    P: CellSerialize<Args = ()>,
-    F: CellSerialize<Args = ()>,
+    P: CellSerialize<Args: NoArgs>,
+    F: CellSerialize<Args: NoArgs>,
 {
     type Args = ();
 
@@ -54,11 +54,11 @@ where
             // response_destination:MsgAddress
             .pack(self.response_dst, ())?
             // custom_payload:(Maybe ^Cell)
-            .store_as::<_, Option<Ref>>(self.custom_payload.as_ref(), ())?
+            .store_as::<_, Option<Ref>>(self.custom_payload.as_ref(), NoArgs::EMPTY)?
             // forward_ton_amount:(VarUInteger 16)
             .pack_as::<_, &VarInt<4>>(&self.forward_ton_amount, ())?
             // forward_payload:(Either Cell ^Cell)
-            .store_as::<_, EitherInlineOrRef>(&self.forward_payload, ())?;
+            .store_as::<_, EitherInlineOrRef>(&self.forward_payload, NoArgs::EMPTY)?;
 
         Ok(())
     }
@@ -66,8 +66,8 @@ where
 
 impl<'de, P, F> CellDeserialize<'de> for JettonTransfer<P, F>
 where
-    P: CellDeserialize<'de, Args = ()>,
-    F: CellDeserialize<'de, Args = ()>,
+    P: CellDeserialize<'de, Args: NoArgs>,
+    F: CellDeserialize<'de, Args: NoArgs>,
 {
     type Args = ();
 
@@ -84,12 +84,12 @@ where
             // response_destination:MsgAddress
             response_dst: parser.unpack(())?,
             // custom_payload:(Maybe ^Cell)
-            custom_payload: parser.parse_as::<_, Option<Ref<ParseFully>>>(())?,
+            custom_payload: parser.parse_as::<_, Option<Ref<ParseFully>>>(P::Args::EMPTY)?,
             // forward_ton_amount:(VarUInteger 16)
             forward_ton_amount: parser.unpack_as::<_, VarInt<4>>(())?,
             // forward_payload:(Either Cell ^Cell)
             forward_payload: parser
-                .parse_as::<Either<ForwardPayload<F>, ForwardPayload<F>>, Either<ParseFully, Ref<ParseFully>>>(((), ()))?
+                .parse_as::<Either<ForwardPayload<F>, ForwardPayload<F>>, Either<ParseFully, Ref<ParseFully>>>(NoArgs::EMPTY)?
                 .into_inner(),
         })
     }
@@ -108,14 +108,14 @@ impl<T> ForwardPayload<T> {
 
 impl<T> CellSerialize for ForwardPayload<T>
 where
-    T: CellSerialize<Args = ()>,
+    T: CellSerialize<Args: NoArgs>,
 {
     type Args = ();
 
     #[inline]
     fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
         match self {
-            Self::Data(data) => builder.store(data, ())?,
+            Self::Data(data) => builder.store(data, NoArgs::EMPTY)?,
             Self::Comment(comment) => builder.pack(Self::COMMENT_PREFIX, ())?.pack(comment, ())?,
         };
         Ok(())
@@ -124,7 +124,7 @@ where
 
 impl<'de, F> CellDeserialize<'de> for ForwardPayload<F>
 where
-    F: CellDeserialize<'de, Args = ()>,
+    F: CellDeserialize<'de, Args: NoArgs>,
 {
     type Args = ();
 
@@ -137,7 +137,7 @@ where
             let _ = parser.unpack::<u32>(())?;
             return parser.unpack(()).map(Self::Comment);
         }
-        parser.parse(()).map(Self::Data)
+        parser.parse(NoArgs::EMPTY).map(Self::Data)
     }
 }
 
@@ -208,7 +208,7 @@ const JETTON_TRANSFER_NOTIFICATION_TAG: u32 = 0x7362d09c;
 
 impl<P> CellSerialize for JettonTransferNotification<P>
 where
-    P: CellSerialize<Args = ()>,
+    P: CellSerialize<Args: NoArgs>,
 {
     type Args = ();
 
@@ -220,7 +220,7 @@ where
             .pack(self.sender, ())?
             .store_as::<Either<(), _>, Either<Same, Ref>>(
                 Either::Right(&self.forward_payload),
-                ((), ()),
+                NoArgs::EMPTY,
             )?;
         Ok(())
     }
@@ -228,7 +228,7 @@ where
 
 impl<'de, P> CellDeserialize<'de> for JettonTransferNotification<P>
 where
-    P: CellDeserialize<'de, Args = ()>,
+    P: CellDeserialize<'de, Args: NoArgs>,
 {
     type Args = ();
 
@@ -239,7 +239,7 @@ where
             amount: parser.unpack_as::<_, VarInt<4>>(())?,
             sender: parser.unpack(())?,
             forward_payload: parser
-                .parse_as::<Either<ForwardPayload<P>, ForwardPayload<P>>, Either<Same, Ref<ParseFully>>>(((), ()))?
+                .parse_as::<Either<ForwardPayload<P>, ForwardPayload<P>>, Either<Same, Ref<ParseFully>>>(NoArgs::EMPTY)?
                 .into_inner(),
         })
     }
@@ -264,7 +264,7 @@ const JETTON_BURN_TAG: u32 = 0x595f07bc;
 
 impl<P> CellSerialize for JettonBurn<P>
 where
-    P: CellSerialize<Args = ()>,
+    P: CellSerialize<Args: NoArgs>,
 {
     type Args = ();
 
@@ -273,14 +273,14 @@ where
             .pack(JETTON_BURN_TAG, ())?
             .pack_as::<_, &VarInt<4>>(&self.amount, ())?
             .pack(self.response_dst, ())?
-            .store_as::<_, Option<Ref>>(self.custom_payload.as_ref(), ())?;
+            .store_as::<_, Option<Ref>>(self.custom_payload.as_ref(), NoArgs::EMPTY)?;
         Ok(())
     }
 }
 
 impl<'de, P> CellDeserialize<'de> for JettonBurn<P>
 where
-    P: CellDeserialize<'de, Args = ()>,
+    P: CellDeserialize<'de, Args: NoArgs>,
 {
     type Args = ();
 
@@ -290,7 +290,7 @@ where
             query_id: parser.unpack(())?,
             amount: parser.unpack_as::<_, VarInt<4>>(())?,
             response_dst: parser.unpack(())?,
-            custom_payload: parser.parse_as::<_, Option<Ref<ParseFully>>>(())?,
+            custom_payload: parser.parse_as::<_, Option<Ref<ParseFully>>>(NoArgs::EMPTY)?,
         })
     }
 }

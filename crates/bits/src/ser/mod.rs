@@ -53,17 +53,38 @@ where
     Ok(writer.bit_count())
 }
 
-impl BitPack for () {
-    type Args = ();
+macro_rules! impl_bit_pack_for_tuple {
+    ($($t:ident:$n:tt),*) => {
+        impl<$($t),*> BitPack for ($($t,)*)
+        where $(
+            $t: BitPack,
+        )*
+        {
+            type Args = ($($t::Args,)*);
 
-    #[inline]
-    fn pack<W>(&self, _writer: &mut W, _: Self::Args) -> Result<(), W::Error>
-    where
-        W: BitWriter + ?Sized,
-    {
-        Ok(())
-    }
+            #[inline]
+            #[allow(unused_variables)]
+            fn pack<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
+            where
+                W: BitWriter + ?Sized,
+            {
+                $(self.$n.pack(writer, args.$n).context(concat!(".", stringify!($n)))?;)*
+                Ok(())
+            }
+        }
+    };
 }
+impl_bit_pack_for_tuple!();
+impl_bit_pack_for_tuple!(T0:0);
+impl_bit_pack_for_tuple!(T0:0,T1:1);
+impl_bit_pack_for_tuple!(T0:0,T1:1,T2:2);
+impl_bit_pack_for_tuple!(T0:0,T1:1,T2:2,T3:3);
+impl_bit_pack_for_tuple!(T0:0,T1:1,T2:2,T3:3,T4:4);
+impl_bit_pack_for_tuple!(T0:0,T1:1,T2:2,T3:3,T4:4,T5:5);
+impl_bit_pack_for_tuple!(T0:0,T1:1,T2:2,T3:3,T4:4,T5:5,T6:6);
+impl_bit_pack_for_tuple!(T0:0,T1:1,T2:2,T3:3,T4:4,T5:5,T6:6,T7:7);
+impl_bit_pack_for_tuple!(T0:0,T1:1,T2:2,T3:3,T4:4,T5:5,T6:6,T7:7,T8:8);
+impl_bit_pack_for_tuple!(T0:0,T1:1,T2:2,T3:3,T4:4,T5:5,T6:6,T7:7,T8:8,T9:9);
 
 impl BitPack for bool {
     type Args = ();
@@ -93,37 +114,6 @@ where
         Ok(())
     }
 }
-
-macro_rules! impl_bit_pack_for_tuple {
-    ($($n:tt:$t:ident),+) => {
-        impl<$($t),+> BitPack for ($($t,)+)
-        where $(
-            $t: BitPack,
-        )+
-        {
-            type Args = ($($t::Args,)+);
-
-            #[inline]
-            fn pack<W>(&self, writer: &mut W, args: Self::Args) -> Result<(), W::Error>
-            where
-                W: BitWriter + ?Sized,
-            {
-                $(self.$n.pack(writer, args.$n).context(concat!(".", stringify!($n)))?;)+
-                Ok(())
-            }
-        }
-    };
-}
-impl_bit_pack_for_tuple!(0:T0);
-impl_bit_pack_for_tuple!(0:T0,1:T1);
-impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2);
-impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3);
-impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4);
-impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5);
-impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6);
-impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7);
-impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8);
-impl_bit_pack_for_tuple!(0:T0,1:T1,2:T2,3:T3,4:T4,5:T5,6:T6,7:T7,8:T8,9:T9);
 
 /// Implementation of [`Either X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#either):
 /// ```tlb

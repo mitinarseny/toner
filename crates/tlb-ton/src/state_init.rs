@@ -3,7 +3,7 @@ use impl_tools::autoimpl;
 use tlb::{
     Cell, ParseFully, Ref, Same,
     bits::{
-        NBits,
+        NBits, NoArgs,
         de::{BitReader, BitReaderExt, BitUnpack},
         ser::{BitPack, BitWriter, BitWriterExt},
     },
@@ -32,16 +32,24 @@ pub struct StateInit<C = Cell, D = Cell> {
 
 impl<IC, ID> StateInit<IC, ID>
 where
-    IC: CellSerialize<Args = ()>,
-    ID: CellSerialize<Args = ()>,
+    IC: CellSerialize<Args: NoArgs>,
+    ID: CellSerialize<Args: NoArgs>,
 {
     #[inline]
     pub fn normalize(&self) -> Result<StateInit, CellBuilderError> {
         Ok(StateInit {
             split_depth: self.split_depth,
             special: self.special,
-            code: self.code.as_ref().map(|c| c.to_cell(())).transpose()?,
-            data: self.data.as_ref().map(|d| d.to_cell(())).transpose()?,
+            code: self
+                .code
+                .as_ref()
+                .map(|c| c.to_cell(NoArgs::EMPTY))
+                .transpose()?,
+            data: self
+                .data
+                .as_ref()
+                .map(|d| d.to_cell(NoArgs::EMPTY))
+                .transpose()?,
             library: self.library.clone(),
         })
     }
@@ -49,8 +57,8 @@ where
 
 impl<C, D> CellSerialize for StateInit<C, D>
 where
-    C: CellSerialize<Args = ()>,
-    D: CellSerialize<Args = ()>,
+    C: CellSerialize<Args: NoArgs>,
+    D: CellSerialize<Args: NoArgs>,
 {
     type Args = ();
 
@@ -62,9 +70,9 @@ where
             // special:(Maybe TickTock)
             .pack(self.special, ())?
             // code:(Maybe ^Cell)
-            .store_as::<_, Option<Ref>>(self.code.as_ref(), ())?
+            .store_as::<_, Option<Ref>>(self.code.as_ref(), NoArgs::EMPTY)?
             // data:(Maybe ^Cell)
-            .store_as::<_, Option<Ref>>(self.data.as_ref(), ())?
+            .store_as::<_, Option<Ref>>(self.data.as_ref(), NoArgs::EMPTY)?
             // library:(HashmapE 256 SimpleLib)
             .store_as::<_, &HashmapE<Same, Same>>(&self.library, (256, (), ()))?;
         Ok(())
@@ -73,8 +81,8 @@ where
 
 impl<'de, C, D> CellDeserialize<'de> for StateInit<C, D>
 where
-    C: CellDeserialize<'de, Args = ()>,
-    D: CellDeserialize<'de, Args = ()>,
+    C: CellDeserialize<'de, Args: NoArgs>,
+    D: CellDeserialize<'de, Args: NoArgs>,
 {
     type Args = ();
 
@@ -86,9 +94,9 @@ where
             // special:(Maybe TickTock)
             special: parser.unpack(())?,
             // code:(Maybe ^Cell)
-            code: parser.parse_as::<_, Option<Ref<ParseFully>>>(())?,
+            code: parser.parse_as::<_, Option<Ref<ParseFully>>>(NoArgs::EMPTY)?,
             // data:(Maybe ^Cell)
-            data: parser.parse_as::<_, Option<Ref<ParseFully>>>(())?,
+            data: parser.parse_as::<_, Option<Ref<ParseFully>>>(NoArgs::EMPTY)?,
             // library:(HashmapE 256 SimpleLib)
             library: parser.parse_as::<_, HashmapE<Same, Same>>((256, (), ()))?,
         })

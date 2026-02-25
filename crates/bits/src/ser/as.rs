@@ -102,36 +102,37 @@ where
 }
 
 macro_rules! impl_bit_pack_as_for_tuple {
-    ($($n:tt:$t:ident as $a:ident),+) => {
-        impl<$($t, $a),+> BitPackAs<($($t,)+)> for ($($a,)+)
+    ($($t:ident as $a:ident:$n:tt),*) => {
+        impl<$($t, $a),*> BitPackAs<($($t,)*)> for ($($a,)*)
         where $(
             $a: BitPackAs<$t>,
-        )+
+        )*
         {
-            type Args = ($($a::Args,)+);
+            type Args = ($($a::Args,)*);
 
             #[inline]
-            fn pack_as<W>(source: &($($t,)+), writer: &mut W, args: Self::Args) -> Result<(), W::Error>
+            #[allow(unused_variables)]
+            fn pack_as<W>(source: &($($t,)*), writer: &mut W, args: Self::Args) -> Result<(), W::Error>
             where
                 W: BitWriter + ?Sized,
-            {
-                writer$(
-                    .pack_as::<&$t, &$a>(&source.$n, args.$n)?)+;
+            {$(
+                $a::pack_as(&source.$n, writer, args.$n)?;)*
                 Ok(())
             }
         }
     };
 }
-impl_bit_pack_as_for_tuple!(0:T0 as As0);
-impl_bit_pack_as_for_tuple!(0:T0 as As0,1:T1 as As1);
-impl_bit_pack_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2);
-impl_bit_pack_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3);
-impl_bit_pack_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4);
-impl_bit_pack_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5);
-impl_bit_pack_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5,6:T6 as As6);
-impl_bit_pack_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5,6:T6 as As6,7:T7 as As7);
-impl_bit_pack_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5,6:T6 as As6,7:T7 as As7,8:T8 as As8);
-impl_bit_pack_as_for_tuple!(0:T0 as As0,1:T1 as As1,2:T2 as As2,3:T3 as As3,4:T4 as As4,5:T5 as As5,6:T6 as As6,7:T7 as As7,8:T8 as As8,9:T9 as As9);
+impl_bit_pack_as_for_tuple!();
+impl_bit_pack_as_for_tuple!(T0 as As0:0);
+impl_bit_pack_as_for_tuple!(T0 as As0:0,T1 as As1:1);
+impl_bit_pack_as_for_tuple!(T0 as As0:0,T1 as As1:1,T2 as As2:2);
+impl_bit_pack_as_for_tuple!(T0 as As0:0,T1 as As1:1,T2 as As2:2,T3 as As3:3);
+impl_bit_pack_as_for_tuple!(T0 as As0:0,T1 as As1:1,T2 as As2:2,T3 as As3:3,T4 as As4:4);
+impl_bit_pack_as_for_tuple!(T0 as As0:0,T1 as As1:1,T2 as As2:2,T3 as As3:3,T4 as As4:4,T5 as As5:5);
+impl_bit_pack_as_for_tuple!(T0 as As0:0,T1 as As1:1,T2 as As2:2,T3 as As3:3,T4 as As4:4,T5 as As5:5,T6 as As6:6);
+impl_bit_pack_as_for_tuple!(T0 as As0:0,T1 as As1:1,T2 as As2:2,T3 as As3:3,T4 as As4:4,T5 as As5:5,T6 as As6:6,T7 as As7:7);
+impl_bit_pack_as_for_tuple!(T0 as As0:0,T1 as As1:1,T2 as As2:2,T3 as As3:3,T4 as As4:4,T5 as As5:5,T6 as As6:6,T7 as As7:7,T8 as As8:8);
+impl_bit_pack_as_for_tuple!(T0 as As0:0,T1 as As1:1,T2 as As2:2,T3 as As3:3,T4 as As4:4,T5 as As5:5,T6 as As6:6,T7 as As7:7,T8 as As8:8,T9 as As9:9);
 
 impl<T, As> BitPackAs<Rc<T>> for Box<As>
 where

@@ -12,7 +12,7 @@ use strum::Display;
 use tlb::{
     Context, Error, StringError,
     bits::{
-        NBits, VarLen,
+        NBits, NoArgs, VarLen,
         bitvec::{order::Msb0, vec::BitVec},
         de::{BitReader, BitReaderExt, BitUnpack},
         ser::{BitPack, BitWriter, BitWriterExt},
@@ -72,8 +72,8 @@ impl MsgAddress {
         state_init: StateInit<C, D>,
     ) -> Result<Self, CellBuilderError>
     where
-        C: CellSerialize<Args = ()>,
-        D: CellSerialize<Args = ()>,
+        C: CellSerialize<Args: NoArgs>,
+        D: CellSerialize<Args: NoArgs>,
     {
         Self::derive_digest::<C, D, sha2::Sha256>(workchain_id, state_init)
     }
@@ -84,8 +84,8 @@ impl MsgAddress {
         state_init: StateInit<C, D>,
     ) -> Result<Self, CellBuilderError>
     where
-        C: CellSerialize<Args = ()>,
-        D: CellSerialize<Args = ()>,
+        C: CellSerialize<Args: NoArgs>,
+        D: CellSerialize<Args: NoArgs>,
         H: Digest,
         Output<H>: Into<[u8; 32]>,
     {
