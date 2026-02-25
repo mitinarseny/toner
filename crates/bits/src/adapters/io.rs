@@ -142,8 +142,10 @@ where
     pub fn stop_and_flush(mut self) -> Result<W, io::Error> {
         if !self.buffered().is_empty() {
             self.write_bit(true)?; // put stop-bit
-            let n = self.buffer_capacity_left();
-            self.repeat_bit(n, false)?; // fill the rest with zeros
+            if !self.buffered().is_empty() {
+                let n = self.buffer_capacity_left();
+                self.repeat_bit(n, false)?; // fill the rest with zeros
+            }
         }
         Ok(self.into_inner_unchecked())
     }
