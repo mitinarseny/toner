@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use tlbits::{either::Either, ser::BitWriter};
+use tlbits::{NoArgs, either::Either, ser::BitWriter};
 
 use crate::{
     Cell, Context,
@@ -70,7 +70,7 @@ where
             } else {
                 Either::Right
             }(cell),
-            ((), ()),
+            NoArgs::EMPTY,
         )?;
         Ok(())
     }

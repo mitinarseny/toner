@@ -12,7 +12,7 @@ use crc::Crc;
 use crate::{
     Cell, Context, Error, StringError,
     bits::{
-        NBits, VarNBytes,
+        NBits, NoArgs, VarNBytes,
         bitvec::{order::Msb0, vec::BitVec, view::AsBits},
         de::{BitReader, BitReaderExt, BitUnpack},
         ser::{BitPack, BitWriter, BitWriterExt},
@@ -470,7 +470,7 @@ impl<'de> BitUnpack<'de> for RawBagOfCells {
             Self::INDEXED_CRC32_TAG => (true, true),
             Self::GENERIC_BOC_TAG => {
                 // has_idx:(## 1) has_crc32c:(## 1)
-                let (has_idx, has_crc32c) = buffered.unpack(((), ()))?;
+                let (has_idx, has_crc32c) = buffered.unpack(NoArgs::EMPTY)?;
                 // has_cache_bits:(## 1)
                 let _has_cache_bits: bool = buffered.unpack(())?;
                 // flags:(## 2) { flags = 0 }

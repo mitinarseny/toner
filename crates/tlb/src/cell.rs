@@ -246,7 +246,7 @@ mod tests {
 
     use crate::{
         r#as::{Data, Ref},
-        bits::{NBits, ser::BitWriterExt},
+        bits::{NBits, NoArgs, ser::BitWriterExt},
         ser::{CellSerializeExt, CellSerializeWrapAsExt},
         tests::assert_store_parse_as_eq,
     };
@@ -267,7 +267,7 @@ mod tests {
                 .wrap_as::<Ref>(),
             ((), ()),
         )
-            .to_cell(((), ((), ()), ((), ())))
+            .to_cell(NoArgs::EMPTY)
             .unwrap();
         assert_eq!(cell.max_depth(), 4)
     }
@@ -281,7 +281,7 @@ mod tests {
                 Ref<Data<NBits<24>>>,
                 Ref<(Data<NBits<7>>, Ref<Data<NBits<24>>>)>,
             ),
-        >((0b1, 0x0AAAAA, (0x7F, 0x0AAAAA)), ((), (), ((), ())));
+        >((0b1, 0x0AAAAA, (0x7F, 0x0AAAAA)), NoArgs::EMPTY);
     }
 
     #[test]

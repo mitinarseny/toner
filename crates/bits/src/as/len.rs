@@ -646,7 +646,7 @@ mod tests {
     use bitvec::bitvec;
     use rstest::rstest;
 
-    use crate::{de::BitUnpack, ser::BitPack, tests::assert_pack_unpack_as_eq};
+    use crate::{NoArgs, de::BitUnpack, ser::BitPack, tests::assert_pack_unpack_as_eq};
 
     use super::*;
 
@@ -685,7 +685,7 @@ mod tests {
         for<'de> K: BitUnpack<'de, Args = ()>,
         for<'de> V: BitUnpack<'de, Args = ()>,
     {
-        assert_pack_unpack_as_eq::<_, VarLen<BTreeMap<Same, Same>>>(value, ((), ()));
+        assert_pack_unpack_as_eq::<_, VarLen<BTreeMap<Same, Same>>>(value, NoArgs::EMPTY);
     }
 
     #[rstest]
@@ -709,6 +709,6 @@ mod tests {
         for<'de> K: BitUnpack<'de, Args = ()>,
         for<'de> V: BitUnpack<'de, Args = ()>,
     {
-        assert_pack_unpack_as_eq::<_, VarLen<HashMap<Same, Same>>>(value, ((), ()));
+        assert_pack_unpack_as_eq::<_, VarLen<HashMap<Same, Same>>>(value, NoArgs::EMPTY);
     }
 }
