@@ -94,6 +94,12 @@ impl<'de, const VALUE: bool> BitUnpack<'de> for ConstBit<VALUE> {
     }
 }
 
+trait CheckAs<T> {
+    const OK: ();
+}
+impl<T, const N: usize> CheckAs<T> for NBits<N> {
+    const OK: () = assert!(N <= bits_of::<T>(), "excessive bits for type");
+}
 macro_rules! impl_bit_serde_for_integers {
     ($($t:tt)+) => {$(
         impl BitPack for $t {
@@ -121,7 +127,10 @@ macro_rules! impl_bit_serde_for_integers {
             }
         }
 
-        impl<const BITS: usize> BitPackAs<$t> for NBits<BITS> {
+        impl<const BITS: usize> BitPackAs<$t> for NBits<BITS>
+        where
+            Self: CheckAs<$t>,
+        {
             type Args = ();
 
             #[inline]
@@ -129,8 +138,10 @@ macro_rules! impl_bit_serde_for_integers {
             where
                 W: BitWriter + ?Sized,
             {
+                #[allow(path_statements)]
+                Self::OK;
+
                 const BITS_SIZE: usize = bits_of::<$t>();
-                assert!(BITS <= BITS_SIZE, "excessive bits for type");
                 if BITS < BITS_SIZE - source.leading_zeros() as usize {
                     return Err(Error::custom(
                         format!("{source:#b} cannot be packed into {BITS} bits"),
@@ -143,7 +154,10 @@ macro_rules! impl_bit_serde_for_integers {
             }
         }
 
-        impl<'de, const BITS: usize> BitUnpackAs<'de, $t> for NBits<BITS> {
+        impl<'de, const BITS: usize> BitUnpackAs<'de, $t> for NBits<BITS>
+        where
+            Self: CheckAs<$t>,
+        {
             type Args = ();
 
             #[inline]
@@ -151,8 +165,10 @@ macro_rules! impl_bit_serde_for_integers {
             where
                 R: BitReader<'de> + ?Sized,
             {
+                #[allow(path_statements)]
+                Self::OK;
+
                 const BITS_SIZE: usize = bits_of::<$t>();
-                assert!(BITS <= BITS_SIZE, "excessive bits for type");
                 let mut arr = [0u8; mem::size_of::<$t>()];
                 let arr_bits = &mut arr.as_mut_bits()[BITS_SIZE - BITS..];
                 if reader.read_bits_into(arr_bits)? != arr_bits.len() {
