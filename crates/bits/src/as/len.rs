@@ -8,6 +8,7 @@ use std::{
 use bitvec::{boxed::BitBox, order::Msb0, slice::BitSlice, vec::BitVec, view::AsBits};
 
 use crate::{
+    Context,
     r#as::{BorrowCow, Same},
     de::{BitReader, BitReaderExt, BitUnpackAs},
     ser::{BitPackAs, BitWriter, BitWriterExt},
@@ -39,7 +40,8 @@ impl<As: ?Sized, const BITS: usize> VarLen<As, BITS> {
     {
         let iter = source.into_iter();
         writer
-            .pack_as::<_, NBits<BITS>>(iter.len(), ())?
+            .pack_as::<_, NBits<BITS>>(iter.len(), ())
+            .context("length")?
             .pack_many_as::<_, <&'a As as IntoIterator>::Item>(iter, args)?;
         Ok(())
     }
@@ -56,7 +58,7 @@ impl<As: ?Sized, const BITS: usize> VarLen<As, BITS> {
         As::Item: BitUnpackAs<'de, <T as IntoIterator>::Item>,
         <As::Item as BitUnpackAs<'de, <T as IntoIterator>::Item>>::Args: Clone,
     {
-        let len: usize = reader.unpack_as::<_, NBits<BITS>>(())?;
+        let len: usize = reader.unpack_as::<_, NBits<BITS>>(()).context("length")?;
         reader
             .unpack_iter_as::<_, As::Item>(args)
             .take(len)
@@ -77,7 +79,8 @@ impl<const BITS: usize> BitPackAs<BitSlice<u8, Msb0>> for VarLen<Same, BITS> {
         W: BitWriter + ?Sized,
     {
         writer
-            .pack_as::<_, NBits<BITS>>(source.len(), ())?
+            .pack_as::<_, NBits<BITS>>(source.len(), ())
+            .context("length")?
             .write_bitslice(source)
     }
 }
@@ -133,7 +136,7 @@ impl<'de: 'a, 'a, const BITS: usize> BitUnpackAs<'de, Cow<'a, BitSlice<u8, Msb0>
     where
         R: BitReader<'de> + ?Sized,
     {
-        let len = reader.unpack_as::<_, NBits<BITS>>(())?;
+        let len = reader.unpack_as::<_, NBits<BITS>>(()).context("length")?;
         reader.unpack_as::<_, BorrowCow>(len)
     }
 }
@@ -175,7 +178,8 @@ impl<const BITS: usize> BitPackAs<[u8]> for VarLen<Same, BITS> {
         W: BitWriter + ?Sized,
     {
         writer
-            .pack_as::<_, NBits<BITS>>(source.len(), ())?
+            .pack_as::<_, NBits<BITS>>(source.len(), ())
+            .context("length")?
             .write_bitslice(source.as_bits())
     }
 }
@@ -201,7 +205,7 @@ impl<'de: 'a, 'a, const BITS: usize> BitUnpackAs<'de, Cow<'a, [u8]>> for VarLen<
     where
         R: BitReader<'de> + ?Sized,
     {
-        let len: usize = reader.unpack_as::<_, NBits<BITS>>(())?;
+        let len: usize = reader.unpack_as::<_, NBits<BITS>>(()).context("length")?;
         reader.unpack_as::<_, BorrowCow>(len)
     }
 }
@@ -609,7 +613,7 @@ impl<'de: 'a, 'a, const BITS: usize> BitUnpackAs<'de, Cow<'a, str>> for VarLen<S
     where
         R: BitReader<'de> + ?Sized,
     {
-        let len: usize = reader.unpack_as::<_, NBits<BITS>>(())?;
+        let len: usize = reader.unpack_as::<_, NBits<BITS>>(()).context("length")?;
         reader.unpack_as::<_, BorrowCow>(len)
     }
 }
