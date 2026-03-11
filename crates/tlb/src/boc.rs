@@ -486,7 +486,7 @@ impl<'de> BitUnpack<'de> for RawBagOfCells {
         }
         // off_bytes:(## 8) { off_bytes <= 8 }
         let off_bytes: u32 = buffered.unpack_as::<_, NBits<8>>(())?;
-        if size_bytes > 8 {
+        if off_bytes > 8 {
             return Err(Error::custom(format!("invalid off_bytes: {off_bytes}")));
         }
         // cells:(##(size * 8))
