@@ -240,6 +240,7 @@ impl BitPack for BagOfCells {
                         .iter()
                         .map(|c| *indices.get(c).unwrap())
                         .collect(),
+                    is_exotic: cell.is_exotic,
                     level: cell.level(),
                 })
                 .collect(),
@@ -301,6 +302,7 @@ impl<'de> BitUnpack<'de> for BagOfCells {
         for (i, raw_cell) in raw.cells.into_iter().enumerate().rev() {
             cells.push(
                 Cell {
+                    is_exotic: raw_cell.is_exotic,
                     data: raw_cell.data,
                     references: raw_cell
                         .references
@@ -546,6 +548,7 @@ impl<'de> BitUnpack<'de> for RawBagOfCells {
 pub(crate) struct RawCell {
     pub data: BitVec<u8, Msb0>,
     pub references: Vec<u32>,
+    pub is_exotic: bool,
     pub level: u8,
 }
 
@@ -559,7 +562,7 @@ impl<'de> BitUnpack<'de> for RawCell {
     {
         let refs_descriptor: u8 = reader.unpack(())?;
         let level: u8 = refs_descriptor >> 5;
-        let _is_exotic: bool = (refs_descriptor >> 3) & 0b1 == 1;
+        let is_exotic: bool = (refs_descriptor >> 3) & 0b1 == 1;
         let has_hashes: bool = (refs_descriptor >> 4) & 0b1 == 1;
         let ref_num: usize = refs_descriptor as usize & 0b111;
 
@@ -589,6 +592,7 @@ impl<'de> BitUnpack<'de> for RawCell {
         Ok(RawCell {
             data,
             references,
+            is_exotic,
             level,
         })
     }
@@ -602,9 +606,8 @@ impl BitPack for RawCell {
     where
         W: BitWriter + ?Sized,
     {
-        let level: u8 = 0;
-        let is_exotic: u8 = 0;
-        let refs_descriptor: u8 = self.references.len() as u8 + is_exotic * 8 + level * 32;
+        let is_exotic: u8 = if self.is_exotic { 1 } else { 0 };
+        let refs_descriptor: u8 = self.references.len() as u8 + is_exotic * 8 + self.level * 32;
         writer.pack(refs_descriptor, ())?;
 
         let padding_bits = self.data.len() % 8;

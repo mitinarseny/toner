@@ -23,6 +23,7 @@ pub type CellBuilderError = <CellBuilder as BitWriter>::Error;
 /// [`CellBuilder`] can then be converted to constructed [`Cell`] by using
 /// [`.into_cell()`](CellBuilder::into_cell).
 pub struct CellBuilder {
+    is_exotic: bool,
     data: CellBitWriter,
     references: Vec<Arc<Cell>>,
 }
@@ -35,9 +36,17 @@ impl CellBuilder {
     #[must_use]
     pub(crate) const fn new() -> Self {
         Self {
+            is_exotic: false,
             data: LimitWriter::new(BitVec::EMPTY, MAX_BITS_LEN),
             references: Vec::new(),
         }
+    }
+
+    /// Mark cell as exotic.
+    #[inline]
+    pub fn exotic(&mut self) -> &mut Self {
+        self.is_exotic = true;
+        self
     }
 
     /// Store the value with args using its [`CellSerialize`]
@@ -139,6 +148,7 @@ impl CellBuilder {
     #[must_use]
     pub fn into_cell(self) -> Cell {
         Cell {
+            is_exotic: self.is_exotic,
             data: self.data.into_inner(),
             references: self.references,
         }

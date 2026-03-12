@@ -16,6 +16,7 @@ use crate::{
 /// A [Cell](https://docs.ton.org/develop/data-formats/cell-boc#cell).
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct Cell {
+    pub is_exotic: bool,
     pub data: BitVec<u8, Msb0>,
     pub references: Vec<Arc<Self>>,
 }
@@ -33,6 +34,7 @@ impl Cell {
     #[must_use]
     pub const fn new() -> Self {
         Self {
+            is_exotic: false,
             data: BitVec::EMPTY,
             references: Vec::new(),
         }
@@ -42,7 +44,7 @@ impl Cell {
     #[inline]
     #[must_use]
     pub fn parser(&self) -> CellParser<'_> {
-        CellParser::new(&self.data, &self.references)
+        CellParser::new(self.is_exotic, &self.data, &self.references)
     }
 
     /// Shortcut for [`.parser()`](Cell::parser)[`.parse()`](CellParser::parse)[`.ensure_empty()`](CellParser::ensure_empty).
@@ -94,8 +96,8 @@ impl Cell {
     /// See [Cell serialization](https://docs.ton.org/develop/data-formats/cell-boc#cell-serialization)
     #[inline]
     fn refs_descriptor(&self) -> u8 {
-        // TODO: exotic cells
-        self.references.len() as u8 | (self.level() << 5)
+        let is_exotic: u8 = if self.is_exotic { 1 } else { 0 };
+        self.references.len() as u8 | (is_exotic << 3) | (self.level() << 5)
     }
 
     /// See [Cell serialization](https://docs.ton.org/develop/data-formats/cell-boc#cell-serialization)
@@ -106,7 +108,14 @@ impl Cell {
     }
 
     #[inline]
-    fn max_depth(&self) -> u16 {
+    pub fn max_depth(&self) -> u16 {
+        let data = self.data.as_raw_slice();
+        if self.is_exotic && data[0] == 0x01 {
+            let level = data[1] as usize;
+            let depth_offset = 2 + 32 * level;
+            return u16::from_be_bytes([data[depth_offset], data[depth_offset + 1]]);
+        }
+
         self.references
             .iter()
             .map(Deref::deref)
@@ -122,6 +131,13 @@ impl Cell {
         D: Digest,
         Output<D>: Into<[u8; 32]>,
     {
+        let data = self.data.as_raw_slice();
+        if self.is_exotic && data[0] == 0x01 {
+            let mut h = [0u8; 32];
+            h.copy_from_slice(&data[2..34]);
+            return h;
+        }
+
         let mut d = D::new();
         d.update([self.refs_descriptor(), self.bits_descriptor()]);
 

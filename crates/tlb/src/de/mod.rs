@@ -173,6 +173,7 @@ impl<'de> CellDeserialize<'de> for Cell {
     #[inline]
     fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
+            is_exotic: parser.is_exotic,
             data: mem::take(&mut parser.data).to_bitvec(),
             references: mem::take(&mut parser.references).to_vec(),
         })
