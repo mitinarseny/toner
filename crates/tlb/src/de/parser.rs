@@ -26,8 +26,16 @@ pub struct CellParser<'de> {
 
 impl<'de> CellParser<'de> {
     #[inline]
-    pub(crate) const fn new(is_exotic: bool, data: &'de BitSlice<u8, Msb0>, references: &'de [Arc<Cell>]) -> Self {
-        Self { is_exotic, data, references }
+    pub(crate) const fn new(
+        is_exotic: bool,
+        data: &'de BitSlice<u8, Msb0>,
+        references: &'de [Arc<Cell>],
+    ) -> Self {
+        Self {
+            is_exotic,
+            data,
+            references,
+        }
     }
 
     /// Parse the value with args using its [`CellDeserialize`]
