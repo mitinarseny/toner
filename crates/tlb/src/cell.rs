@@ -110,7 +110,8 @@ impl Cell {
     #[inline]
     pub fn max_depth(&self) -> u16 {
         let data = self.data.as_raw_slice();
-        if self.is_exotic && data[0] == 0x01 {
+        // if is a pruned branch
+        if self.is_exotic && data.len() == 36 && data[0] == 0x01 {
             let level = data[1] as usize;
             let depth_offset = 2 + 32 * level;
             return u16::from_be_bytes([data[depth_offset], data[depth_offset + 1]]);
@@ -132,7 +133,8 @@ impl Cell {
         Output<D>: Into<[u8; 32]>,
     {
         let data = self.data.as_raw_slice();
-        if self.is_exotic && data[0] == 0x01 {
+        // if is a pruned branch
+        if self.is_exotic && data.len() == 36 && data[0] == 0x01 {
             let mut h = [0u8; 32];
             h.copy_from_slice(&data[2..34]);
             return h;
