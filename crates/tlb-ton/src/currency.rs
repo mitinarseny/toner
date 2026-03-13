@@ -76,7 +76,7 @@ impl CellSerialize for ExtraCurrencyCollection {
 
     #[inline]
     fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
-        builder.store_as::<_, &HashmapE<Data<VarInt<32>>, Same>>(&self.0, (32, (), ()))?;
+        builder.store_as::<_, &HashmapE<Data<VarInt<5>>, Same>>(&self.0, (32, (), ()))?;
         Ok(())
     }
 }
@@ -87,7 +87,7 @@ impl<'de> CellDeserialize<'de> for ExtraCurrencyCollection {
     #[inline]
     fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self(
-            parser.parse_as::<_, HashmapE<Data<VarInt<32>>, Same>>((32, (), ()))?,
+            parser.parse_as::<_, HashmapE<Data<VarInt<5>>, Same>>((32, (), ()))?,
         ))
     }
 }
