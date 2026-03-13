@@ -210,6 +210,7 @@ const _: () = {
     impl<'a> Arbitrary<'a> for Cell {
         fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
             Ok(Self {
+                is_exotic: false,
                 data: {
                     let len_bytes = u
                         .arbitrary_len::<u8>()?
@@ -242,6 +243,7 @@ const _: () = {
 
         fn arbitrary_take_rest(mut u: Unstructured<'a>) -> Result<Self> {
             Ok(Self {
+                is_exotic: false,
                 data: {
                     let len_bytes = u.len().min(MAX_BITS_LEN.div_ceil(bits_of::<u8>()));
                     let bytes = u.bytes(len_bytes)?;
