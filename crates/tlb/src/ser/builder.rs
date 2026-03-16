@@ -45,16 +45,16 @@ impl CellBuilder {
     /// Mark an empty cell as exotic.
     #[inline]
     pub fn exotic(&mut self) -> Result<&mut Self, CellBuilderError> {
-        if self.data.is_empty() && self.references.is_empty() {
-            self.is_exotic = true;
-            Ok(self)
-        } else {
-            Err(Error::custom(format!(
+        if !self.data.is_empty() || !self.references.is_empty() {
+            return Err(Error::custom(format!(
                 "cannot mark exotic cell with non-empty data: {} bits, {} references",
                 self.data.len(),
                 self.references.len(),
             )))
         }
+
+        self.is_exotic = true;
+        Ok(self)
     }
 
     /// Store the value with args using its [`CellSerialize`]
