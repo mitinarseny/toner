@@ -44,7 +44,7 @@ impl CellBuilder {
 
     /// Mark cell as exotic.
     #[inline]
-    pub fn exotic(&mut self) -> &mut Self {
+    pub fn exotic(mut self) -> Self {
         self.is_exotic = true;
         self
     }
