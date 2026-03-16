@@ -156,10 +156,16 @@ impl<'de> CellParser<'de> {
         Ok(())
     }
 
+    /// Returns whether this parsed cell is exotic.
+    #[inline]
+    pub const fn is_exotic(&self) -> bool {
+        self.is_exotic
+    }
+
     /// Returns an error if this parsed cell is not exotic.
     #[inline]
     pub fn ensure_exotic(&self) -> Result<(), CellParserError<'de>> {
-        if !self.is_exotic {
+        if !self.is_exotic() {
             return Err(Error::custom("cell is not exotic"));
         }
         Ok(())
@@ -168,7 +174,7 @@ impl<'de> CellParser<'de> {
     /// Returns an error if this parsed cell is not ordinary.
     #[inline]
     pub fn ensure_ordinary(&self) -> Result<(), CellParserError<'de>> {
-        if self.is_exotic {
+        if self.is_exotic() {
             return Err(Error::custom("cell is not ordinary"));
         }
         Ok(())
