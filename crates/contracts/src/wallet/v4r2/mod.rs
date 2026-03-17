@@ -141,6 +141,7 @@ impl<'de> CellDeserialize<'de> for WalletV4R2SignBody {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WalletV4R2Op {

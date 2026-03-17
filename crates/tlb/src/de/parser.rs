@@ -19,14 +19,23 @@ pub type CellParserError<'de> = <CellParser<'de> as BitReader<'de>>::Error;
 /// Cell parser created with [`Cell::parser()`].
 #[derive(Clone)]
 pub struct CellParser<'de> {
+    pub(super) is_exotic: bool,
     pub(super) data: &'de BitSlice<u8, Msb0>,
     pub(super) references: &'de [Arc<Cell>],
 }
 
 impl<'de> CellParser<'de> {
     #[inline]
-    pub(crate) const fn new(data: &'de BitSlice<u8, Msb0>, references: &'de [Arc<Cell>]) -> Self {
-        Self { data, references }
+    pub(crate) const fn new(
+        is_exotic: bool,
+        data: &'de BitSlice<u8, Msb0>,
+        references: &'de [Arc<Cell>],
+    ) -> Self {
+        Self {
+            is_exotic,
+            data,
+            references,
+        }
     }
 
     /// Parse the value with args using its [`CellDeserialize`]
@@ -146,6 +155,30 @@ impl<'de> CellParser<'de> {
         }
         Ok(())
     }
+
+    /// Returns whether this parsed cell is exotic.
+    #[inline]
+    pub const fn is_exotic(&self) -> bool {
+        self.is_exotic
+    }
+
+    /// Returns an error if this parsed cell is not exotic.
+    #[inline]
+    pub fn ensure_exotic(&self) -> Result<(), CellParserError<'de>> {
+        if !self.is_exotic() {
+            return Err(Error::custom("cell is not exotic"));
+        }
+        Ok(())
+    }
+
+    /// Returns an error if this parsed cell is not ordinary.
+    #[inline]
+    pub fn ensure_ordinary(&self) -> Result<(), CellParserError<'de>> {
+        if self.is_exotic() {
+            return Err(Error::custom("cell is not ordinary"));
+        }
+        Ok(())
+    }
 }
 
 impl<'de> BitReader<'de> for CellParser<'de> {
@@ -183,6 +216,7 @@ impl<'de> CellDeserialize<'de> for CellParser<'de> {
     #[inline]
     fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
+            is_exotic: parser.is_exotic,
             data: mem::take(&mut parser.data),
             references: mem::take(&mut parser.references),
         })

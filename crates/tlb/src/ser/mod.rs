@@ -132,6 +132,9 @@ impl CellSerialize for Cell {
 
     #[inline]
     fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+        if self.is_exotic {
+            builder.exotic()?;
+        }
         builder.write_bitslice(&self.data)?;
         builder.store_many_as::<_, Ref>(&self.references, ())?;
 
