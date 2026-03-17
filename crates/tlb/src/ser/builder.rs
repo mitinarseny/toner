@@ -50,7 +50,7 @@ impl CellBuilder {
                 "cannot mark exotic cell with non-empty data: {} bits, {} references",
                 self.data.len(),
                 self.references.len(),
-            )))
+            )));
         }
 
         self.is_exotic = true;
@@ -192,6 +192,9 @@ impl CellSerialize for CellBuilder {
     type Args = ();
 
     fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+        if self.is_exotic {
+            builder.exotic()?;
+        }
         builder.write_bitslice(&self.data)?;
         builder.store_many_as::<_, Ref>(&self.references, ())?;
         Ok(())

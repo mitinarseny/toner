@@ -336,4 +336,25 @@ mod tests {
             hex!("f345277cc6cfa747f001367e1e873dcfa8a936b8492431248b7a3eeafa8030e7")
         );
     }
+
+    #[test]
+    fn cell_exotic_serde() {
+        let expected = Cell {
+            is_exotic: true,
+            data: BitVec::from_slice(&[0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+            references: vec![Arc::new(Cell {
+                is_exotic: false,
+                data: BitVec::from_slice(&[0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+                references: vec![],
+            })],
+        };
+
+        let actual = expected
+            .to_cell(NoArgs::EMPTY)
+            .unwrap()
+            .parse_fully::<Cell>(NoArgs::EMPTY)
+            .unwrap();
+
+        assert_eq!(actual, expected);
+    }
 }
