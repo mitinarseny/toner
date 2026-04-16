@@ -89,24 +89,7 @@ impl BagOfCells {
         Some(root)
     }
 
-    /// Traverses all cells, fills all_cells set and inbound references map.
-    fn traverse_cell_tree(
-        cell: &Arc<Cell>,
-        all_cells: &mut HashSet<Arc<Cell>>,
-        in_refs: &mut HashMap<Arc<Cell>, HashSet<Arc<Cell>>>,
-    ) -> Result<(), StringError> {
-        if all_cells.insert(cell.clone()) {
-            for r in &cell.references {
-                if r == cell {
-                    return Err(Error::custom("cell must not reference itself"));
-                }
-                in_refs.entry(r.clone()).or_default().insert(cell.clone());
-                Self::traverse_cell_tree(r, all_cells, in_refs)?;
-            }
-        }
-        Ok(())
-    }
-
+    #[inline]
     pub fn serialize(&self, args: BagOfCellsArgs) -> Result<Vec<u8>, StringError> {
         let mut buf = BitVec::new();
         self.pack(&mut buf, args)?;
@@ -140,6 +123,54 @@ impl BagOfCells {
             .decode(s)
             .map_err(Error::custom)
             .and_then(Self::deserialize)
+    }
+
+    fn topological_order(&self) -> Result<Vec<Arc<Cell>>, StringError> {
+        let mut visited = HashSet::new();
+
+        // collect inbound reference counts per cell
+        let mut parents: HashMap<Arc<Cell>, usize> = HashMap::new();
+        let mut stack: Vec<Arc<Cell>> = self.roots.to_vec();
+        while let Some(cell) = stack.pop() {
+            if !visited.insert(cell.clone()) {
+                continue;
+            }
+
+            for child in &cell.references {
+                if *child == cell {
+                    return Err(Error::custom("cell must not reference itself"));
+                }
+                *parents.entry(child.clone()).or_default() += 1;
+                stack.push(child.clone());
+            }
+        }
+        visited.clear();
+
+        // emit a cell only when all its parents have been emitted
+        let mut ordered_cells = Vec::with_capacity(visited.capacity());
+        stack.extend(self.roots.iter().cloned());
+        while let Some(cell) = stack.pop() {
+            if !visited.insert(cell.clone()) {
+                continue;
+            }
+            ordered_cells.push(cell.clone());
+            // push children in reverse so first child is processed first
+            for child in cell.references.iter().rev() {
+                let emitted = parents.get_mut(child).is_none_or(|d| {
+                    *d -= 1;
+                    *d == 0
+                });
+                if emitted {
+                    stack.push(child.clone());
+                }
+            }
+        }
+
+        if ordered_cells.len() != visited.len() {
+            return Err(Error::custom("reference cycle detected"));
+        }
+
+        Ok(ordered_cells)
     }
 }
 
@@ -199,36 +230,14 @@ impl BitPack for BagOfCells {
     where
         W: BitWriter + ?Sized,
     {
-        let mut all_cells: HashSet<Arc<Cell>> = HashSet::new();
-        let mut in_refs: HashMap<Arc<Cell>, HashSet<Arc<Cell>>> = HashMap::new();
-        for r in &self.roots {
-            Self::traverse_cell_tree(r, &mut all_cells, &mut in_refs).map_err(Error::custom)?;
-        }
-        let mut no_in_refs: HashSet<Arc<Cell>> = HashSet::new();
-        for c in &all_cells {
-            if !in_refs.contains_key(c) {
-                no_in_refs.insert(c.clone());
-            }
-        }
-        let mut ordered_cells: Vec<Arc<Cell>> = Vec::new();
-        let mut indices: HashMap<Arc<Cell>, u32> = HashMap::new();
-        while let Some(cell) = no_in_refs.iter().next().cloned() {
-            ordered_cells.push(cell.clone());
-            indices.insert(cell.clone(), indices.len() as u32);
-            for child in &cell.references {
-                if let Some(refs) = in_refs.get_mut(child) {
-                    refs.remove(&cell);
-                    if refs.is_empty() {
-                        no_in_refs.insert(child.clone());
-                        in_refs.remove(child);
-                    }
-                }
-            }
-            no_in_refs.remove(&cell);
-        }
-        if !in_refs.is_empty() {
-            return Err(Error::custom("reference cycle detected"));
-        }
+        let ordered_cells = self.topological_order().map_err(Error::custom)?;
+
+        let indices: HashMap<Arc<Cell>, u32> = ordered_cells
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(i, c)| (c, i as u32))
+            .collect();
 
         RawBagOfCells {
             cells: ordered_cells
@@ -657,17 +666,17 @@ mod tests {
 
     #[test]
     fn test_transaction_cell_order() {
-        let given = "te6cckECBgEAASsAA69zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzAAAAAADGXUE/1x+/TeYAak1oavz9FAnLeILzRluhT6ShsMD6Hn83NwAAAAAAp9jCaeC47AABQIAQIDAAEgAIJyJil/CR+E5Y9B0bK7cvIPQoGyWJEKWRuiSWUxCK+uUajCiX2i+eCjQ2W4mt3Qs439Ve1Y07MQEmZTEL3jp8jQbQIFIDAkBAUAnkKwLmJaAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAW8AAAAAAAAAAAAAAAAEtRS2kSeULjPfdJ4YfFGEir+G1RruLcPyCFvDGFBOfjgQYV5oE";
-        let boc = BagOfCells::parse_base64(&given).unwrap();
+        let expected = "te6cckECBgEAASsAA69zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzAAAAAADGXUE/1x+/TeYAak1oavz9FAnLeILzRluhT6ShsMD6Hn83NwAAAAAAp9jCaeC47AABQIAQIDAAEgAIJyJil/CR+E5Y9B0bK7cvIPQoGyWJEKWRuiSWUxCK+uUajCiX2i+eCjQ2W4mt3Qs439Ve1Y07MQEmZTEL3jp8jQbQIFIDAkBAUAnkKwLmJaAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAW8AAAAAAAAAAAAAAAAEtRS2kSeULjPfdJ4YfFGEir+G1RruLcPyCFvDGFBOfjgQYV5oE";
+        let boc = BagOfCells::parse_base64(&expected).unwrap();
 
         let actual = base64_standard.encode(
             boc.serialize(BagOfCellsArgs {
                 has_crc32c: true,
-                ..BagOfCellsArgs::default()
+                has_idx: false,
             })
             .unwrap(),
         );
 
-        assert_eq!(given, actual);
+        assert_eq!(expected, actual);
     }
 }
