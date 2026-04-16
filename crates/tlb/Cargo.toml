@@ -32,3 +32,4 @@ sha2 = ["dep:sha2"]
 [dev-dependencies]
 hex-literal.workspace = true
 num-bigint.workspace = true
+tlb = { path = ".", features = ["base64"] }

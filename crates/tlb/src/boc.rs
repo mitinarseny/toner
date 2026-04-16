@@ -637,6 +637,7 @@ impl RawCell {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::{Engine, engine::general_purpose::STANDARD as base64_standard};
 
     #[test]
     fn test_block_boc() {
@@ -652,5 +653,21 @@ mod tests {
         let boc = BagOfCells::parse_hex(hex_data).unwrap();
 
         assert_eq!(boc.roots.len(), 1);
+    }
+
+    #[test]
+    fn test_transaction_cell_order() {
+        let given = "te6cckECBgEAASsAA69zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzAAAAAADGXUE/1x+/TeYAak1oavz9FAnLeILzRluhT6ShsMD6Hn83NwAAAAAAp9jCaeC47AABQIAQIDAAEgAIJyJil/CR+E5Y9B0bK7cvIPQoGyWJEKWRuiSWUxCK+uUajCiX2i+eCjQ2W4mt3Qs439Ve1Y07MQEmZTEL3jp8jQbQIFIDAkBAUAnkKwLmJaAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAW8AAAAAAAAAAAAAAAAEtRS2kSeULjPfdJ4YfFGEir+G1RruLcPyCFvDGFBOfjgQYV5oE";
+        let boc = BagOfCells::parse_base64(&given).unwrap();
+
+        let actual = base64_standard.encode(
+            boc.serialize(BagOfCellsArgs {
+                has_crc32c: true,
+                ..BagOfCellsArgs::default()
+            })
+            .unwrap(),
+        );
+
+        assert_eq!(given, actual);
     }
 }
