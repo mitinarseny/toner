@@ -148,7 +148,7 @@ impl BagOfCells {
 
         // emit a cell only when all its parents have been emitted
         let mut ordered_cells = Vec::with_capacity(visited.capacity());
-        stack.extend(self.roots.iter().cloned());
+        stack.extend(self.roots.iter().cloned().rev());
         while let Some(cell) = stack.pop() {
             if !visited.insert(cell.clone()) {
                 continue;
@@ -164,10 +164,6 @@ impl BagOfCells {
                     stack.push(child.clone());
                 }
             }
-        }
-
-        if ordered_cells.len() != visited.len() {
-            return Err(Error::custom("reference cycle detected"));
         }
 
         Ok(ordered_cells)
@@ -666,16 +662,16 @@ mod tests {
 
     #[test]
     fn test_transaction_cell_order() {
-        let expected = "te6cckECBgEAASsAA69zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzAAAAAADGXUE/1x+/TeYAak1oavz9FAnLeILzRluhT6ShsMD6Hn83NwAAAAAAp9jCaeC47AABQIAQIDAAEgAIJyJil/CR+E5Y9B0bK7cvIPQoGyWJEKWRuiSWUxCK+uUajCiX2i+eCjQ2W4mt3Qs439Ve1Y07MQEmZTEL3jp8jQbQIFIDAkBAUAnkKwLmJaAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAW8AAAAAAAAAAAAAAAAEtRS2kSeULjPfdJ4YfFGEir+G1RruLcPyCFvDGFBOfjgQYV5oE";
-        let boc = BagOfCells::parse_base64(&expected).unwrap();
+        let input = "te6cckECBgEAASsAA69zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzAAAAAADGXUE/1x+/TeYAak1oavz9FAnLeILzRluhT6ShsMD6Hn83NwAAAAAAp9jCaeC47AABQIAQIDAAEgAIJyJil/CR+E5Y9B0bK7cvIPQoGyWJEKWRuiSWUxCK+uUajCiX2i+eCjQ2W4mt3Qs439Ve1Y07MQEmZTEL3jp8jQbQIFIDAkBAUAnkKwLmJaAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAW8AAAAAAAAAAAAAAAAEtRS2kSeULjPfdJ4YfFGEir+G1RruLcPyCFvDGFBOfjgQYV5oE";
+        let expected = base64_standard.decode(input).unwrap();
+        let boc = BagOfCells::deserialize(&expected).unwrap();
 
-        let actual = base64_standard.encode(
-            boc.serialize(BagOfCellsArgs {
+        let actual = boc
+            .serialize(BagOfCellsArgs {
                 has_crc32c: true,
                 has_idx: false,
             })
-            .unwrap(),
-        );
+            .unwrap();
 
         assert_eq!(expected, actual);
     }
