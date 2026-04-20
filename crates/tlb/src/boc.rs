@@ -1,6 +1,6 @@
 //! Collection of types related to [Bag Of Cells](https://docs.ton.org/develop/data-formats/cell-boc#bag-of-cells)
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     fmt::Debug,
     ops::Div,
     sync::Arc,
@@ -146,22 +146,21 @@ impl BagOfCells {
         }
         visited.clear();
 
-        // emit a cell only when all its parents have been emitted
+        // emit a cell only when all its parents have been emitted (BFS order)
         let mut ordered_cells = Vec::with_capacity(visited.capacity());
-        stack.extend(self.roots.iter().cloned().rev());
-        while let Some(cell) = stack.pop() {
+        let mut queue: VecDeque<Arc<Cell>> = self.roots.iter().cloned().collect();
+        while let Some(cell) = queue.pop_front() {
             if !visited.insert(cell.clone()) {
                 continue;
             }
             ordered_cells.push(cell.clone());
-            // push children in reverse so first child is processed first
-            for child in cell.references.iter().rev() {
+            for child in &cell.references {
                 let emitted = parents.get_mut(child).is_none_or(|d| {
                     *d -= 1;
                     *d == 0
                 });
                 if emitted {
-                    stack.push(child.clone());
+                    queue.push_back(child.clone());
                 }
             }
         }
@@ -663,6 +662,22 @@ mod tests {
     #[test]
     fn test_transaction_cell_order() {
         let input = "te6cckECBgEAASsAA69zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzAAAAAADGXUE/1x+/TeYAak1oavz9FAnLeILzRluhT6ShsMD6Hn83NwAAAAAAp9jCaeC47AABQIAQIDAAEgAIJyJil/CR+E5Y9B0bK7cvIPQoGyWJEKWRuiSWUxCK+uUajCiX2i+eCjQ2W4mt3Qs439Ve1Y07MQEmZTEL3jp8jQbQIFIDAkBAUAnkKwLmJaAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAW8AAAAAAAAAAAAAAAAEtRS2kSeULjPfdJ4YfFGEir+G1RruLcPyCFvDGFBOfjgQYV5oE";
+        let expected = base64_standard.decode(input).unwrap();
+        let boc = BagOfCells::deserialize(&expected).unwrap();
+
+        let actual = boc
+            .serialize(BagOfCellsArgs {
+                has_crc32c: true,
+                has_idx: false,
+            })
+            .unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_transaction_cell_order_bfs() {
+        let input = "te6cckECBwEAAYkAA69zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzAAAAAADk4cJ02flRa/9MdZY4Kv86XQNpNSWsTll3Mn96dutILpbXpgAAAAAA5OHBaeY5jgABQIAQIDAQGgBACCcpRsZLNLjgnrRVYg3289oKHKev5A0oaytb8wIDi8wImG5mbyKy8tXd38D0kWtpWsN1qI1kXXA4sP4/+xDZiMpG4CDwQJKDuuwBgRBQYAq2n+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE/zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzSg7rsAAAAAAAAAcnDgNPMcxxAAJ5Bd45iWgAAAAAAAAAAAD4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFvAAAAAAAAAAAAAAAABLUUtpEnlC4z33SeGHxRhIq/htUa7i3D8ghbwxhQTn44ET8E/Jg==";
         let expected = base64_standard.decode(input).unwrap();
         let boc = BagOfCells::deserialize(&expected).unwrap();
 
