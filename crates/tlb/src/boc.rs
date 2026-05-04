@@ -137,18 +137,18 @@ impl BagOfCells {
             }
 
             for child in &cell.references {
-                if *child == cell {
-                    return Err(Error::custom("cell must not reference itself"));
-                }
                 *parents.entry(child.clone()).or_default() += 1;
                 stack.push(child.clone());
             }
         }
+        let cell_count = visited.len();
         visited.clear();
 
         // emit a cell only when all its parents have been emitted (BFS order)
-        let mut ordered_cells = Vec::with_capacity(visited.capacity());
-        let mut queue: VecDeque<Arc<Cell>> = self.roots.iter().cloned().collect();
+        let mut ordered_cells = Vec::with_capacity(cell_count);
+        let mut queue = VecDeque::from(stack);
+        queue.extend(self.roots.iter().cloned());
+
         while let Some(cell) = queue.pop_front() {
             if !visited.insert(cell.clone()) {
                 continue;
@@ -642,6 +642,7 @@ impl RawCell {
 mod tests {
     use super::*;
     use base64::{Engine, engine::general_purpose::STANDARD as base64_standard};
+    use bitvec::bitvec;
 
     #[test]
     fn test_block_boc() {
@@ -689,5 +690,49 @@ mod tests {
             .unwrap();
 
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_boc_same_refs_in_cell() {
+        let child = Arc::new(Cell::default());
+        let cell = Arc::new(Cell {
+            references: vec![child.clone(), child],
+            ..Cell::default()
+        });
+        let boc = BagOfCells::from_root(cell.clone());
+
+        let serialized = boc.serialize(BagOfCellsArgs::default()).unwrap();
+        let deserialized = BagOfCells::deserialize(&serialized).unwrap();
+
+        assert_eq!(deserialized.roots[0].references.len(), 2);
+        assert_eq!(boc, deserialized);
+    }
+
+    #[test]
+    fn test_boc_shared_subgraph() {
+        let shared = Arc::new(Cell {
+            references: vec![Arc::new(Cell::default())],
+            ..Cell::default()
+        });
+        let parent1 = Arc::new(Cell {
+            data: bitvec![u8, Msb0; 1, 0],
+            references: vec![shared.clone()],
+            ..Cell::default()
+        });
+        let parent2 = Arc::new(Cell {
+            data: bitvec![u8, Msb0; 1, 1],
+            references: vec![shared],
+            ..Cell::default()
+        });
+        let root = Arc::new(Cell {
+            references: vec![parent1, parent2],
+            ..Cell::default()
+        });
+        let boc = BagOfCells::from_root(root);
+
+        let serialized = boc.serialize(BagOfCellsArgs::default()).unwrap();
+        let deserialized = BagOfCells::deserialize(&serialized).unwrap();
+
+        assert_eq!(boc, deserialized);
     }
 }
