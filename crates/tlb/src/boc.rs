@@ -1,6 +1,6 @@
 //! Collection of types related to [Bag Of Cells](https://docs.ton.org/develop/data-formats/cell-boc#bag-of-cells)
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, hash_map::Entry},
     fmt::Debug,
     ops::Div,
     sync::Arc,
@@ -125,47 +125,39 @@ impl BagOfCells {
             .and_then(Self::deserialize)
     }
 
-    fn topological_order(&self) -> Result<Vec<Arc<Cell>>, StringError> {
-        let mut visited = HashSet::new();
+    /// Returns all cells of BoC in topological reversed order using DFS post-order traversal.
+    #[inline]
+    fn topological_order(&self) -> Vec<Arc<Cell>> {
+        enum CellState {
+            Visited,
+            Allocated,
+        }
 
-        // collect inbound reference counts per cell
-        let mut parents: HashMap<Arc<Cell>, usize> = HashMap::new();
-        let mut stack: Vec<Arc<Cell>> = self.roots.to_vec();
+        let mut ordered_cells = Vec::new();
+        let mut state: HashMap<Arc<Cell>, CellState> = HashMap::new();
+        let mut stack: Vec<Arc<Cell>> = Vec::new();
+
+        stack.extend(self.roots.iter().cloned().rev());
+        stack.extend(self.roots.iter().cloned().rev());
+
         while let Some(cell) = stack.pop() {
-            if !visited.insert(cell.clone()) {
-                continue;
-            }
-
-            for child in &cell.references {
-                *parents.entry(child.clone()).or_default() += 1;
-                stack.push(child.clone());
-            }
-        }
-        let cell_count = visited.len();
-        visited.clear();
-
-        // emit a cell only when all its parents have been emitted (BFS order)
-        let mut ordered_cells = Vec::with_capacity(cell_count);
-        let mut queue = VecDeque::from(stack);
-        queue.extend(self.roots.iter().cloned());
-
-        while let Some(cell) = queue.pop_front() {
-            if !visited.insert(cell.clone()) {
-                continue;
-            }
-            ordered_cells.push(cell.clone());
-            for child in &cell.references {
-                let emitted = parents.get_mut(child).is_none_or(|d| {
-                    *d -= 1;
-                    *d == 0
-                });
-                if emitted {
-                    queue.push_back(child.clone());
+            match state.entry(cell) {
+                Entry::Vacant(e) => {
+                    stack.extend(e.key().references.iter().cloned());
+                    stack.extend(e.key().references.iter().cloned());
+                    e.insert(CellState::Visited);
                 }
+                Entry::Occupied(mut e) => match e.get_mut() {
+                    CellState::Visited => {
+                        ordered_cells.push(e.key().clone());
+                        e.insert(CellState::Allocated);
+                    }
+                    CellState::Allocated => {}
+                },
             }
         }
 
-        Ok(ordered_cells)
+        ordered_cells
     }
 }
 
@@ -225,11 +217,12 @@ impl BitPack for BagOfCells {
     where
         W: BitWriter + ?Sized,
     {
-        let ordered_cells = self.topological_order().map_err(Error::custom)?;
+        let ordered_cells = self.topological_order();
 
         let indices: HashMap<Arc<Cell>, u32> = ordered_cells
             .iter()
             .cloned()
+            .rev()
             .enumerate()
             .map(|(i, c)| (c, i as u32))
             .collect();
@@ -237,6 +230,7 @@ impl BitPack for BagOfCells {
         RawBagOfCells {
             cells: ordered_cells
                 .into_iter()
+                .rev()
                 .map(|cell| RawCell {
                     data: cell.data.clone(),
                     references: cell
@@ -396,9 +390,6 @@ impl BitPack for RawBagOfCells {
     where
         W: BitWriter + ?Sized,
     {
-        if self.roots.len() > 1 {
-            return Err(Error::custom("only single root cell supported"));
-        }
         let size_bits: u32 = 32 - (self.cells.len() as u32).leading_zeros();
         let size_bytes: u32 = size_bits.div_ceil(8);
 
@@ -431,13 +422,13 @@ impl BitPack for RawBagOfCells {
             // cells:(##(size * 8))
             .pack_as::<_, VarNBytes>(self.cells.len() as u32, size_bytes)?
             // roots:(##(size * 8)) { roots >= 1 }
-            .pack_as::<_, VarNBytes>(1u32, size_bytes)? // single root
+            .pack_as::<_, VarNBytes>(self.roots.len() as u32, size_bytes)?
             // absent:(##(size * 8)) { roots + absent <= cells }
             .pack_as::<_, VarNBytes>(0u32, size_bytes)? // complete BoCs only
             // tot_cells_size:(##(off_bytes * 8))
             .pack_as::<_, VarNBytes>(tot_cells_size, off_bytes)?
             // root_list:(roots * ##(size * 8))
-            .pack_as::<_, VarNBytes>(0u32, size_bytes)?; // root should have index 0
+            .pack_many_as::<_, VarNBytes>(self.roots.iter().copied(), size_bytes)?;
         if args.has_idx {
             // index:has_idx?(cells * ##(off_bytes * 8))
             buffered.pack_many_as::<_, VarNBytes>(index, off_bytes)?;
@@ -659,19 +650,25 @@ mod tests {
     }
 
     #[rstest]
-    #[case::topological_order(
-        "te6cckECBgEAASsAA69zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzAAAAAADGXUE/1x+/TeYAak1oavz9FAnLeILzRluhT6ShsMD6Hn83NwAAAAAAp9jCaeC47AABQIAQIDAAEgAIJyJil/CR+E5Y9B0bK7cvIPQoGyWJEKWRuiSWUxCK+uUajCiX2i+eCjQ2W4mt3Qs439Ve1Y07MQEmZTEL3jp8jQbQIFIDAkBAUAnkKwLmJaAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAW8AAAAAAAAAAAAAAAAEtRS2kSeULjPfdJ4YfFGEir+G1RruLcPyCFvDGFBOfjgQYV5oE"
+    #[case::topological_order_1(
+        "te6cckECBgEAASsAA69zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzAAAAAADGXUE/1x+/TeYAak1oavz9FAnLeILzRluhT6ShsMD6Hn83NwAAAAAAp9jCaeC47AABQIAQIDAAEgAIJyJil/CR+E5Y9B0bK7cvIPQoGyWJEKWRuiSWUxCK+uUajCiX2i+eCjQ2W4mt3Qs439Ve1Y07MQEmZTEL3jp8jQbQIFIDAkBAUAnkKwLmJaAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAW8AAAAAAAAAAAAAAAAEtRS2kSeULjPfdJ4YfFGEir+G1RruLcPyCFvDGFBOfjgQYV5oE",
+        true
     )]
-    #[case::topological_order_bfs(
-        "te6cckECBwEAAYkAA69zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzAAAAAADk4cJ02flRa/9MdZY4Kv86XQNpNSWsTll3Mn96dutILpbXpgAAAAAA5OHBaeY5jgABQIAQIDAQGgBACCcpRsZLNLjgnrRVYg3289oKHKev5A0oaytb8wIDi8wImG5mbyKy8tXd38D0kWtpWsN1qI1kXXA4sP4/+xDZiMpG4CDwQJKDuuwBgRBQYAq2n+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE/zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzSg7rsAAAAAAAAAcnDgNPMcxxAAJ5Bd45iWgAAAAAAAAAAAD4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFvAAAAAAAAAAAAAAAABLUUtpEnlC4z33SeGHxRhIq/htUa7i3D8ghbwxhQTn44ET8E/Jg=="
+    #[case::topological_order_2(
+        "te6cckECBwEAAYkAA69zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzAAAAAADk4cJ02flRa/9MdZY4Kv86XQNpNSWsTll3Mn96dutILpbXpgAAAAAA5OHBaeY5jgABQIAQIDAQGgBACCcpRsZLNLjgnrRVYg3289oKHKev5A0oaytb8wIDi8wImG5mbyKy8tXd38D0kWtpWsN1qI1kXXA4sP4/+xDZiMpG4CDwQJKDuuwBgRBQYAq2n+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE/zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzSg7rsAAAAAAAAAcnDgNPMcxxAAJ5Bd45iWgAAAAAAAAAAAD4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFvAAAAAAAAAAAAAAAABLUUtpEnlC4z33SeGHxRhIq/htUa7i3D8ghbwxhQTn44ET8E/Jg==",
+        true
     )]
-    fn test_boc_roundtrip(#[case] base64_data: &str) {
+    #[case::topological_order_3(
+        "te6ccgECEAMAA3wCAQADr3VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVUAAAAAAOThwx0Vh9Evpai1uL/DXcr4Sn9mNK7NAXLgP+1q1LPShG6LAAAAAADGXUNp+J/9AAFAgLAwQDr3MzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMAAAAAAOThwmWHEilcojP/Lyrm+9m1AWOmElHOZcaitFetkRriSOTdAAAAAADk4cFp+J/9AAFAgGBwgDr3MzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMAAAAAAOThwY99GkMOH/fVnIQGnrEXXx2MIQL66Unu7T+VbvBjrQlVAAAAAADGXUJp+J/9AAFAgLDA0AgnLALMNFwKvcK2++PHtQI9WTlxqQxOOhoM3uX9gg969jkwr+pDbelpQgbu9BD0yM3hoTxZ2/5XzsTvIBshSouIpMAgUwMCQFDwCeQRFuYloAAAAAAAAAAAAuAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBoAkAgnK4yc7e2wCoY9G+C/s6CNu24mbROy+nl3HLsEhf/velGOSIgjoi+9pxQeTCyyI8YVtlkisXQghliqU/0e64hmmAAg8ECSg7rsAYEQoPAKtp/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABP8zMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM0oO67AAAAAAAAAHJw4DT8T/6QACeQXeOYloAAAAAAAAAAAA+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABIACCcifLWfe/z/Vijy8EQsS2ETFvyJiZX/FnhPYFin7ChmApuMnO3tsAqGPRvgv7OgjbtuJm0Tsvp5dxy7BIX/73pRgCBSAwJA4PAJ5CsC5iWgAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFvAAAAAAAAAAAAAAAABLUUtpEnlC4z33SeGHxRhIq/htUa7i3D8ghbwxhQTn44E",
+        false
+    )]
+    fn test_boc_roundtrip(#[case] base64_data: &str, #[case] has_crc32c: bool) {
         let expected = base64_standard.decode(base64_data).unwrap();
         let boc = BagOfCells::deserialize(&expected).unwrap();
 
         let actual = boc
             .serialize(BagOfCellsArgs {
-                has_crc32c: true,
+                has_crc32c,
                 has_idx: false,
             })
             .unwrap();
@@ -716,6 +713,21 @@ mod tests {
             ..Cell::default()
         });
         let boc = BagOfCells::from_root(root);
+
+        let serialized = boc.serialize(BagOfCellsArgs::default()).unwrap();
+        let deserialized = BagOfCells::deserialize(&serialized).unwrap();
+
+        assert_eq!(boc, deserialized);
+    }
+
+    #[test]
+    fn test_boc_root_also_child() {
+        let root1 = Arc::new(Cell::default());
+        let root2 = Arc::new(Cell {
+            references: vec![root1.clone()],
+            ..Cell::default()
+        });
+        let boc = BagOfCells::from_root(root2);
 
         let serialized = boc.serialize(BagOfCellsArgs::default()).unwrap();
         let deserialized = BagOfCells::deserialize(&serialized).unwrap();
