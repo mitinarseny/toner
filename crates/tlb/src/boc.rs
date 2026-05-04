@@ -89,6 +89,18 @@ impl BagOfCells {
         Some(root)
     }
 
+    /// Returns the root cells as a slice.
+    #[inline]
+    pub fn roots(&self) -> &[Arc<Cell>] {
+        self.roots.as_ref()
+    }
+
+    /// Consumes `self` and returns the root cells.
+    #[inline]
+    pub fn into_roots(self) -> Vec<Arc<Cell>> {
+        self.roots
+    }
+
     /// Traverses all cells, fills all_cells set and inbound references map.
     fn traverse_cell_tree(
         cell: &Arc<Cell>,
