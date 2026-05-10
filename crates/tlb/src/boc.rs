@@ -126,7 +126,6 @@ impl BagOfCells {
     }
 
     /// Returns all cells of BoC in topological reversed order using DFS post-order traversal.
-    #[inline]
     fn topological_order(&self) -> Vec<Arc<Cell>> {
         enum CellState {
             Visited,
@@ -428,7 +427,7 @@ impl BitPack for RawBagOfCells {
             // tot_cells_size:(##(off_bytes * 8))
             .pack_as::<_, VarNBytes>(tot_cells_size, off_bytes)?
             // root_list:(roots * ##(size * 8))
-            .pack_many_as::<_, VarNBytes>(self.roots.iter().copied(), size_bytes)?;
+            .pack_many_as::<_, &VarNBytes>(&self.roots, size_bytes)?;
         if args.has_idx {
             // index:has_idx?(cells * ##(off_bytes * 8))
             buffered.pack_many_as::<_, VarNBytes>(index, off_bytes)?;
@@ -727,7 +726,9 @@ mod tests {
             references: vec![root1.clone()],
             ..Cell::default()
         });
-        let boc = BagOfCells::from_root(root2);
+        let boc = BagOfCells {
+            roots: vec![root1, root2],
+        };
 
         let serialized = boc.serialize(BagOfCellsArgs::default()).unwrap();
         let deserialized = BagOfCells::deserialize(&serialized).unwrap();
