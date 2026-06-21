@@ -128,6 +128,7 @@ where
     /// #   message::Message,
     /// #   currency::ONE_TON,
     /// #   action::SendMsgAction,
+    /// #   time::UtcDateTime,
     /// # };
     /// # use ton_contracts::wallet::{
     /// #   mnemonic::Mnemonic,
@@ -142,7 +143,7 @@ where
     /// # let keypair = mnemonic.generate_keypair(None).unwrap();
     /// # let wallet = Wallet::<V5R1>::derive_default(keypair).unwrap();
     /// let msg = wallet.create_external_message(
-    ///     Default::default(), // DateTime::UNIX_EPOCH means no deadline
+    ///     UtcDateTime::UNIX_EPOCH, // means no deadline
     ///     0, // seqno
     ///     [SendMsgAction {
     ///         mode: 3,
