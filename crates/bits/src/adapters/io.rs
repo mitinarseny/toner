@@ -263,16 +263,15 @@ where
 
     fn write_bitslice(&mut self, mut bits: &BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
         while !bits.is_empty() {
-            if self.buffered().is_empty() {
-                if let Some(body) = bits
+            if self.buffered().is_empty()
+                && let Some(body) = bits
                     .domain()
                     .region()
                     .and_then(|(head, body, _tail)| head.is_none().then_some(body))
-                {
-                    self.io.write_all(body)?;
-                    bits = unsafe { bits.get_unchecked(body.len() * bits_of::<u8>()..) };
-                    continue;
-                }
+            {
+                self.io.write_all(body)?;
+                bits = unsafe { bits.get_unchecked(body.len() * bits_of::<u8>()..) };
+                continue;
             }
 
             let buf_cap_left = self.buffer_capacity_left();
