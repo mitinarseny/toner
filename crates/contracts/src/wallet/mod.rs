@@ -12,7 +12,6 @@ pub use self::{signer::*, version::*};
 use core::marker::PhantomData;
 use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
 use num_bigint::BigUint;
 use tlb_ton::{
     Cell, MsgAddress,
@@ -21,6 +20,7 @@ use tlb_ton::{
     message::{CommonMsgInfo, ExternalInMsgInfo, Message},
     ser::{CellBuilderError, CellSerializeExt},
     state_init::StateInit,
+    time::UtcDateTime,
 };
 
 /// Generic wallet for signing messages
@@ -105,7 +105,7 @@ where
     #[inline]
     pub fn create_sign_body(
         &self,
-        expire_at: DateTime<Utc>,
+        expire_at: UtcDateTime,
         seqno: u32,
         msgs: impl IntoIterator<Item = SendMsgAction>,
     ) -> V::SignBody {
@@ -164,7 +164,7 @@ where
     #[inline]
     pub fn create_external_message(
         &self,
-        expire_at: DateTime<Utc>,
+        expire_at: UtcDateTime,
         seqno: u32,
         msgs: impl IntoIterator<Item = SendMsgAction>,
         state_init: bool,

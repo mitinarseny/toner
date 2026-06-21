@@ -13,8 +13,8 @@ description = "Common TL-B types for TON blockchain"
 tlb.workspace = true
 
 arbitrary = { workspace = true, features = ["derive"], optional = true }
+arbitrary_with = { workspace = true, optional = true }
 base64.workspace = true
-chrono.workspace = true
 crc.workspace = true
 digest.workspace = true
 hex.workspace = true
@@ -25,6 +25,7 @@ num-traits.workspace = true
 serde_with = { workspace = true, optional = true }
 strum.workspace = true
 sha2 = { workspace = true, optional = true }
+time.workspace = true
 
 [dependencies.schemars_0_8]
 workspace = true
@@ -42,11 +43,10 @@ optional = true
 default = ["sha2"]
 
 arbitrary = [
-    "dep:arbitrary",
-    "chrono/arbitrary",
-    "chrono/std",
-    "num-bigint/arbitrary",
-    "tlb/arbitrary",
+  "dep:arbitrary",
+  "dep:arbitrary_with",
+  "num-bigint/arbitrary",
+  "tlb/arbitrary",
 ]
 base64 = ["tlb/base64"]
 schemars_0_8 = ["dep:schemars_0_8"]

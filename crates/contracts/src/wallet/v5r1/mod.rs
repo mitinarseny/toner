@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use nacl::sign::PUBLIC_KEY_LENGTH;
 use tlb_ton::{
@@ -10,6 +9,7 @@ use tlb_ton::{
     de::{CellDeserialize, CellParser, CellParserError},
     hashmap::HashmapE,
     ser::{CellBuilder, CellBuilderError, CellSerialize},
+    time::UtcDateTime,
 };
 
 use super::WalletVersion;
@@ -52,7 +52,7 @@ impl WalletVersion for V5R1 {
     #[inline]
     fn create_sign_body(
         wallet_id: u32,
-        valid_until: DateTime<Utc>,
+        valid_until: UtcDateTime,
         msg_seqno: u32,
         msgs: impl IntoIterator<Item = SendMsgAction>,
     ) -> Self::SignBody {
@@ -237,9 +237,9 @@ pub struct WalletV5RSignBody {
     pub wallet_id: u32,
     #[cfg_attr(
         feature = "arbitrary",
-        arbitrary(with = UnixTimestamp::arbitrary)
+        arbitrary(with = ::arbitrary_with::As::<UnixTimestamp>::arbitrary)
     )]
-    pub valid_until: DateTime<Utc>,
+    pub valid_until: UtcDateTime,
     pub msg_seqno: u32,
     pub inner: WalletV5R1InnerRequest,
 }

@@ -9,4 +9,5 @@ mod timestamp;
 
 pub use self::{address::*, timestamp::*};
 
+pub use time;
 pub use tlb::*;
