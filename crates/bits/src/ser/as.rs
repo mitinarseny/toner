@@ -235,10 +235,7 @@ where
         W: BitWriter + ?Sized,
     {
         Either::<Same, &As>::pack_as(
-            &match source.as_ref() {
-                None => Either::Left(()),
-                Some(v) => Either::Right(v),
-            },
+            &source.as_ref().map_or(Either::Left(()), Either::Right),
             writer,
             ((), args),
         )

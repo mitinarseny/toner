@@ -16,7 +16,7 @@ where
     fn store_as(
         source: &T,
         builder: &mut CellBuilder,
-        _: Self::Args,
+        (): Self::Args,
     ) -> Result<(), CellBuilderError> {
         As::store_as(source, builder, <As::Args>::default())
     }
@@ -30,7 +30,7 @@ where
     type Args = ();
 
     #[inline]
-    fn parse_as(parser: &mut CellParser<'de>, _: Self::Args) -> Result<T, CellParserError<'de>> {
+    fn parse_as(parser: &mut CellParser<'de>, (): Self::Args) -> Result<T, CellParserError<'de>> {
         As::parse_as(parser, <As::Args>::default())
     }
 }

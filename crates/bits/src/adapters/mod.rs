@@ -129,7 +129,7 @@ pub struct Tee<T, W> {
 }
 
 impl<T, W> Tee<T, W> {
-    pub(crate) fn new(inner: T, writer: W) -> Self {
+    pub(crate) const fn new(inner: T, writer: W) -> Self {
         Self { inner, writer }
     }
 
@@ -384,7 +384,7 @@ pub struct Join<T1, T2>(T1, T2);
 
 impl<T1, T2> Join<T1, T2> {
     #[inline]
-    pub(crate) fn new(a: T1, b: T2) -> Self {
+    pub(crate) const fn new(a: T1, b: T2) -> Self {
         Self(a, b)
     }
 
@@ -452,6 +452,7 @@ pub struct Owned {
 }
 
 impl Owned {
+    #[must_use]
     pub fn new(bits: BitVec<u8, Msb0>) -> Self {
         Self {
             rest: bits.as_bitslice(),
@@ -459,13 +460,14 @@ impl Owned {
         }
     }
 
+    #[must_use]
     #[inline]
-    pub fn rest<'a>(&self) -> &'a BitSlice<u8, Msb0> {
+    pub const fn rest<'a>(&self) -> &'a BitSlice<u8, Msb0> {
         // TODO
         unsafe { self.rest.as_ref().unwrap_unchecked() }
     }
 
-    fn advance(&mut self, n: usize) {
+    const fn advance(&mut self, n: usize) {
         self.inner.counter += n;
     }
 }

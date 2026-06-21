@@ -225,7 +225,7 @@ impl<'de> BitReader<'de> for &'de BitSlice<u8, Msb0> {
     }
 }
 
-impl<'de> BitReader<'de> for &[bool] {
+impl BitReader<'_> for &[bool] {
     type Error = StringError;
 
     #[inline]
@@ -252,7 +252,7 @@ impl<'de> BitReader<'de> for &[bool] {
 }
 
 /// Binary string, e.g. `"0010110...."`
-impl<'de> BitReader<'de> for &str {
+impl BitReader<'_> for &str {
     type Error = StringError;
 
     #[inline]

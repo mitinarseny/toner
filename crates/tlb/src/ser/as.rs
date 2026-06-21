@@ -221,11 +221,11 @@ where
         builder: &mut CellBuilder,
         args: Self::Args,
     ) -> Result<(), CellBuilderError> {
-        match source.as_ref() {
-            None => Either::Left(()),
-            Some(v) => Either::Right(AsWrap::<&T, As>::new(v)),
-        }
-        .store(builder, ((), args))
+        source
+            .as_ref()
+            .map(AsWrap::<&T, As>::new)
+            .map_or(Either::Left(()), Either::Right)
+            .store(builder, ((), args))
     }
 }
 

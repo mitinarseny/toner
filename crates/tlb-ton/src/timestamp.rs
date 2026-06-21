@@ -1,4 +1,4 @@
-use time::UtcDateTime;
+use jiff::Timestamp;
 use tlb::{
     Error,
     bits::{
@@ -8,18 +8,18 @@ use tlb::{
 };
 
 /// Adapter to **de**/**ser**ialize UNIX timestamp as `u32` from [`DateTime`]
-pub struct UnixTimestamp;
+pub struct UnixTimestampSeconds;
 
-impl BitPackAs<UtcDateTime> for UnixTimestamp {
+impl BitPackAs<Timestamp> for UnixTimestampSeconds {
     type Args = ();
 
     #[inline]
-    fn pack_as<W>(source: &UtcDateTime, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack_as<W>(source: &Timestamp, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
         let timestamp: u32 = source
-            .unix_timestamp()
+            .as_second()
             .try_into()
             .map_err(|_| Error::custom("timestamp: overflow"))?;
         writer.pack(timestamp, ())?;
@@ -27,16 +27,16 @@ impl BitPackAs<UtcDateTime> for UnixTimestamp {
     }
 }
 
-impl<'de> BitUnpackAs<'de, UtcDateTime> for UnixTimestamp {
+impl<'de> BitUnpackAs<'de, Timestamp> for UnixTimestampSeconds {
     type Args = ();
 
     #[inline]
-    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<UtcDateTime, R::Error>
+    fn unpack_as<R>(reader: &mut R, (): Self::Args) -> Result<Timestamp, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
         let timestamp: u32 = reader.unpack(())?;
-        UtcDateTime::from_unix_timestamp(timestamp as i64).map_err(Error::custom)
+        Timestamp::from_second(timestamp as i64).map_err(Error::custom)
     }
 }
 
@@ -45,11 +45,11 @@ const _: () = {
     use arbitrary::{Result, Unstructured};
     use arbitrary_with::ArbitraryAs;
 
-    impl<'a> ArbitraryAs<'a, UtcDateTime> for UnixTimestamp {
-        fn arbitrary_as(u: &mut Unstructured<'a>) -> Result<UtcDateTime> {
-            Ok(UtcDateTime::from_unix_timestamp(u.int_in_range(
-                UtcDateTime::UNIX_EPOCH.unix_timestamp()..=UtcDateTime::MAX.unix_timestamp(),
-            )?)
+    impl<'a> ArbitraryAs<'a, Timestamp> for UnixTimestampSeconds {
+        fn arbitrary_as(u: &mut Unstructured<'a>) -> Result<Timestamp> {
+            Ok(Timestamp::from_second(
+                u.int_in_range(Timestamp::UNIX_EPOCH.as_second()..=Timestamp::MAX.as_second())?,
+            )
             .unwrap_or_else(|_| unreachable!()))
         }
     }
@@ -57,17 +57,17 @@ const _: () = {
 
 #[cfg(test)]
 mod tests {
-    use time::UtcDateTime;
+
     use tlb::bits::{de::unpack_fully_as, ser::pack_as};
 
     use super::*;
 
     #[test]
     fn unix_timestamp_serde() {
-        let ts = UtcDateTime::UNIX_EPOCH;
+        let ts = Timestamp::UNIX_EPOCH;
 
-        let packed = pack_as::<_, UnixTimestamp>(ts, ()).unwrap();
-        let got: UtcDateTime = unpack_fully_as::<_, UnixTimestamp>(&packed, ()).unwrap();
+        let packed = pack_as::<_, UnixTimestampSeconds>(ts, ()).unwrap();
+        let got: Timestamp = unpack_fully_as::<_, UnixTimestampSeconds>(&packed, ()).unwrap();
 
         assert_eq!(got, ts);
     }

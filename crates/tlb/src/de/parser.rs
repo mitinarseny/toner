@@ -214,7 +214,7 @@ impl<'de> CellDeserialize<'de> for CellParser<'de> {
     type Args = ();
 
     #[inline]
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut Self, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             is_exotic: parser.is_exotic,
             data: mem::take(&mut parser.data),

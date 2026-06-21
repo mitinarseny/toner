@@ -151,7 +151,7 @@ where
     }
 }
 
-impl<'de, R> BitReader<'de> for Io<R>
+impl<R> BitReader<'_> for Io<R>
 where
     R: Read,
 {
@@ -226,6 +226,7 @@ where
     fn skip(&mut self, n: usize) -> Result<usize, Self::Error> {
         let mut rest = n;
         rest -= self.buf_skip_at_most(n);
+
         rest -= io::copy(
             &mut self.io.by_ref().take((rest / bits_of::<u8>()) as u64),
             &mut io::sink(),

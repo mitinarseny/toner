@@ -20,7 +20,7 @@ impl<const BITS: usize> BitPackAs<BigUint> for NBits<BITS> {
     type Args = ();
 
     #[inline]
-    fn pack_as<W>(source: &BigUint, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack_as<W>(source: &BigUint, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -45,7 +45,7 @@ impl<'de, const BITS: usize> BitUnpackAs<'de, BigUint> for NBits<BITS> {
     type Args = ();
 
     #[inline]
-    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<BigUint, R::Error>
+    fn unpack_as<R>(reader: &mut R, (): Self::Args) -> Result<BigUint, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -60,7 +60,7 @@ impl<const BITS: usize> BitPackAs<BigInt> for NBits<BITS> {
     type Args = ();
 
     #[inline]
-    fn pack_as<W>(source: &BigInt, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack_as<W>(source: &BigInt, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -85,7 +85,7 @@ impl<'de, const BITS: usize> BitUnpackAs<'de, BigInt> for NBits<BITS> {
     type Args = ();
 
     #[inline]
-    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<BigInt, R::Error>
+    fn unpack_as<R>(reader: &mut R, (): Self::Args) -> Result<BigInt, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -111,15 +111,15 @@ impl<const BITS_FOR_BYTES_LEN: usize> BitPackAs<BigUint> for VarInt<BITS_FOR_BYT
     type Args = ();
 
     #[inline]
-    fn pack_as<W>(source: &BigUint, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack_as<W>(source: &BigUint, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
-        let bytes = if source != &BigUint::ZERO {
-            source.to_bytes_be()
-        } else {
+        let bytes = if source == &BigUint::ZERO {
             // BigUint::to_bytes_be() returns [0] instead of []
             Vec::new()
+        } else {
+            source.to_bytes_be()
         };
         writer.pack_as::<_, VarLen<Vec<Same>, BITS_FOR_BYTES_LEN>>(bytes, ())?;
         Ok(())
@@ -132,7 +132,7 @@ impl<'de, const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<'de, BigUint>
     type Args = ();
 
     #[inline]
-    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<BigUint, R::Error>
+    fn unpack_as<R>(reader: &mut R, (): Self::Args) -> Result<BigUint, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -151,7 +151,7 @@ impl<const BITS_FOR_BYTES_LEN: usize> BitPackAs<BigInt> for VarInt<BITS_FOR_BYTE
     type Args = ();
 
     #[inline]
-    fn pack_as<W>(source: &BigInt, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack_as<W>(source: &BigInt, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -164,7 +164,7 @@ impl<'de, const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<'de, BigInt> for VarInt<B
     type Args = ();
 
     #[inline]
-    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<BigInt, R::Error>
+    fn unpack_as<R>(reader: &mut R, (): Self::Args) -> Result<BigInt, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {

@@ -17,10 +17,10 @@ use tlb_ton::{
     Cell, MsgAddress,
     action::SendMsgAction,
     bits::NoArgs,
+    jiff::Timestamp,
     message::{CommonMsgInfo, ExternalInMsgInfo, Message},
     ser::{CellBuilderError, CellSerializeExt},
     state_init::StateInit,
-    time::UtcDateTime,
 };
 
 /// Generic wallet for signing messages
@@ -105,7 +105,7 @@ where
     #[inline]
     pub fn create_sign_body(
         &self,
-        expire_at: UtcDateTime,
+        expire_at: Timestamp,
         seqno: u32,
         msgs: impl IntoIterator<Item = SendMsgAction>,
     ) -> V::SignBody {
@@ -128,7 +128,7 @@ where
     /// #   message::Message,
     /// #   currency::ONE_TON,
     /// #   action::SendMsgAction,
-    /// #   time::UtcDateTime,
+    /// #   jiff::Timestamp,
     /// # };
     /// # use ton_contracts::wallet::{
     /// #   mnemonic::Mnemonic,
@@ -143,7 +143,7 @@ where
     /// # let keypair = mnemonic.generate_keypair(None).unwrap();
     /// # let wallet = Wallet::<V5R1>::derive_default(keypair).unwrap();
     /// let msg = wallet.create_external_message(
-    ///     UtcDateTime::UNIX_EPOCH, // means no deadline
+    ///     Timestamp::UNIX_EPOCH, // means no deadline
     ///     0, // seqno
     ///     [SendMsgAction {
     ///         mode: 3,
@@ -165,7 +165,7 @@ where
     #[inline]
     pub fn create_external_message(
         &self,
-        expire_at: UtcDateTime,
+        expire_at: Timestamp,
         seqno: u32,
         msgs: impl IntoIterator<Item = SendMsgAction>,
         state_init: bool,

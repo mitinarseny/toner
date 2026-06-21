@@ -292,7 +292,7 @@ impl BitPack for BagOfCells {
 impl<'de> BitUnpack<'de> for BagOfCells {
     type Args = ();
 
-    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, (): Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -320,7 +320,7 @@ impl<'de> BitUnpack<'de> for BagOfCells {
                 .into(),
             );
         }
-        Ok(BagOfCells {
+        Ok(Self {
             roots: raw
                 .roots
                 .into_iter()
@@ -460,7 +460,7 @@ impl BitPack for RawBagOfCells {
 impl<'de> BitUnpack<'de> for RawBagOfCells {
     type Args = ();
 
-    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, (): Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -537,13 +537,14 @@ impl<'de> BitUnpack<'de> for RawBagOfCells {
             }
         }
 
-        Ok(RawBagOfCells {
+        Ok(Self {
             cells: cell_data,
             roots: root_list,
         })
     }
 }
 
+#[allow(clippy::redundant_pub_crate)] // exported later
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub(crate) struct RawCell {
     pub data: BitVec<u8, Msb0>,
@@ -589,7 +590,7 @@ impl<'de> BitUnpack<'de> for RawCell {
             .take(ref_num)
             .collect::<Result<_, _>>()?;
 
-        Ok(RawCell {
+        Ok(Self {
             data,
             references,
             is_exotic,

@@ -47,6 +47,7 @@ impl Cell {
         CellParser::new(self.is_exotic, &self.data, &self.references)
     }
 
+    #[allow(clippy::doc_link_code)]
     /// Shortcut for [`.parser()`](Cell::parser)[`.parse()`](CellParser::parse)[`.ensure_empty()`](CellParser::ensure_empty).
     #[inline]
     pub fn parse_fully<'de, T>(&'de self, args: T::Args) -> Result<T, CellParserError<'de>>
@@ -59,6 +60,7 @@ impl Cell {
         Ok(v)
     }
 
+    #[allow(clippy::doc_link_code)]
     /// Shortcut for [`.parser()`](Cell::parser)[`.parse_as()`](CellParser::parse_as)[`.ensure_empty()`](CellParser::ensure_empty).
     #[inline]
     pub fn parse_fully_as<'de, T, As>(&'de self, args: As::Args) -> Result<T, CellParserError<'de>>
@@ -88,7 +90,7 @@ impl Cell {
         self.references
             .iter()
             .map(Deref::deref)
-            .map(Cell::level)
+            .map(Self::level)
             .max()
             .unwrap_or(0)
     }
@@ -123,7 +125,7 @@ impl Cell {
         self.references
             .iter()
             .map(Deref::deref)
-            .map(Cell::max_depth)
+            .map(Self::max_depth)
             .max()
             .map(|d| d + 1)
             .unwrap_or(0)
