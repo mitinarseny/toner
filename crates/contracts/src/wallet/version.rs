@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
 use tlb_ton::{
     Cell, action::SendMsgAction, bits::NoArgs, ser::CellSerialize, state_init::StateInit,
+    time::UtcDateTime,
 };
 
 use super::PUBLIC_KEY_LENGTH;
@@ -25,7 +25,7 @@ pub trait WalletVersion {
     /// [`.wrap_signed_external()`](WalletVersion::wrap_signed_external)
     fn create_sign_body(
         wallet_id: u32,
-        expire_at: DateTime<Utc>,
+        expire_at: UtcDateTime,
         seqno: u32,
         msgs: impl IntoIterator<Item = SendMsgAction>,
     ) -> Self::SignBody;

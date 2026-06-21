@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use time::UtcDateTime;
 use tlb::{
     Error,
     bits::{
@@ -10,41 +10,16 @@ use tlb::{
 /// Adapter to **de**/**ser**ialize UNIX timestamp as `u32` from [`DateTime`]
 pub struct UnixTimestamp;
 
-#[cfg(feature = "arbitrary")]
-impl UnixTimestamp {
-    #[inline]
-    pub fn arbitrary(u: &mut ::arbitrary::Unstructured) -> ::arbitrary::Result<DateTime<Utc>> {
-        Ok(DateTime::from_timestamp(
-            u.int_in_range(
-                DateTime::UNIX_EPOCH.timestamp()..=DateTime::<Utc>::MAX_UTC.timestamp(),
-            )?,
-            0,
-        )
-        .unwrap_or_else(|| unreachable!()))
-    }
-
-    #[inline]
-    pub fn arbitrary_option(
-        u: &mut ::arbitrary::Unstructured,
-    ) -> ::arbitrary::Result<Option<DateTime<Utc>>> {
-        use arbitrary::Arbitrary;
-
-        Option::<()>::arbitrary(u)?
-            .map(|()| Self::arbitrary(u))
-            .transpose()
-    }
-}
-
-impl BitPackAs<DateTime<Utc>> for UnixTimestamp {
+impl BitPackAs<UtcDateTime> for UnixTimestamp {
     type Args = ();
 
     #[inline]
-    fn pack_as<W>(source: &DateTime<Utc>, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack_as<W>(source: &UtcDateTime, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
         let timestamp: u32 = source
-            .timestamp()
+            .unix_timestamp()
             .try_into()
             .map_err(|_| Error::custom("timestamp: overflow"))?;
         writer.pack(timestamp, ())?;
@@ -52,32 +27,47 @@ impl BitPackAs<DateTime<Utc>> for UnixTimestamp {
     }
 }
 
-impl<'de> BitUnpackAs<'de, DateTime<Utc>> for UnixTimestamp {
+impl<'de> BitUnpackAs<'de, UtcDateTime> for UnixTimestamp {
     type Args = ();
 
     #[inline]
-    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<DateTime<Utc>, R::Error>
+    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<UtcDateTime, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
         let timestamp: u32 = reader.unpack(())?;
-        DateTime::from_timestamp(timestamp as i64, 0)
-            .ok_or_else(|| Error::custom("timestamp: overflow"))
+        UtcDateTime::from_unix_timestamp(timestamp as i64).map_err(Error::custom)
     }
 }
 
+#[cfg(feature = "arbitrary")]
+const _: () = {
+    use arbitrary::{Result, Unstructured};
+    use arbitrary_with::ArbitraryAs;
+
+    impl<'a> ArbitraryAs<'a, UtcDateTime> for UnixTimestamp {
+        fn arbitrary_as(u: &mut Unstructured<'a>) -> Result<UtcDateTime> {
+            Ok(UtcDateTime::from_unix_timestamp(u.int_in_range(
+                UtcDateTime::UNIX_EPOCH.unix_timestamp()..=UtcDateTime::MAX.unix_timestamp(),
+            )?)
+            .unwrap_or_else(|_| unreachable!()))
+        }
+    }
+};
+
 #[cfg(test)]
 mod tests {
+    use time::UtcDateTime;
     use tlb::bits::{de::unpack_fully_as, ser::pack_as};
 
     use super::*;
 
     #[test]
     fn unix_timestamp_serde() {
-        let ts = DateTime::UNIX_EPOCH;
+        let ts = UtcDateTime::UNIX_EPOCH;
 
         let packed = pack_as::<_, UnixTimestamp>(ts, ()).unwrap();
-        let got: DateTime<Utc> = unpack_fully_as::<_, UnixTimestamp>(&packed, ()).unwrap();
+        let got: UtcDateTime = unpack_fully_as::<_, UnixTimestamp>(&packed, ()).unwrap();
 
         assert_eq!(got, ts);
     }

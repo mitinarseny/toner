@@ -1,6 +1,6 @@
 //! Collection of typs related to [Message](https://docs.ton.org/develop/data-formats/msg-tlb#message-tl-b)
-use chrono::{DateTime, Utc};
 use num_bigint::BigUint;
+use time::UtcDateTime;
 use tlb::{
     Cell, Context, EitherInlineOrRef,
     bits::{
@@ -215,9 +215,9 @@ pub struct InternalMsgInfo {
     /// Unix time
     #[cfg_attr(
         feature = "arbitrary",
-        arbitrary(with = UnixTimestamp::arbitrary_option)
+        arbitrary(with = ::arbitrary_with::As::<Option<UnixTimestamp>>::arbitrary)
     )]
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: Option<UtcDateTime>,
 }
 
 impl InternalMsgInfo {
@@ -255,7 +255,7 @@ impl CellSerialize for InternalMsgInfo {
             .pack_as::<_, &Grams>(&self.ihr_fee, ())?
             .pack_as::<_, &Grams>(&self.fwd_fee, ())?
             .pack(self.created_lt, ())?
-            .pack_as::<_, UnixTimestamp>(self.created_at.unwrap_or(DateTime::UNIX_EPOCH), ())?;
+            .pack_as::<_, UnixTimestamp>(self.created_at.unwrap_or(UtcDateTime::UNIX_EPOCH), ())?;
         Ok(())
     }
 }
@@ -275,7 +275,7 @@ impl<'de> CellDeserialize<'de> for InternalMsgInfo {
             fwd_fee: parser.unpack_as::<_, Grams>(())?,
             created_lt: parser.unpack(())?,
             created_at: Some(parser.unpack_as::<_, UnixTimestamp>(())?)
-                .filter(|dt| *dt != DateTime::UNIX_EPOCH),
+                .filter(|dt| *dt != UtcDateTime::UNIX_EPOCH),
         })
     }
 }
@@ -334,7 +334,11 @@ pub struct ExternalOutMsgInfo {
     pub src: MsgAddress,
     pub dst: MsgAddress,
     pub created_lt: u64,
-    pub created_at: DateTime<Utc>,
+    #[cfg_attr(
+        feature = "arbitrary",
+        arbitrary(with = ::arbitrary_with::As::<UnixTimestamp>::arbitrary)
+    )]
+    pub created_at: UtcDateTime,
 }
 
 impl BitPack for ExternalOutMsgInfo {
@@ -441,7 +445,7 @@ mod tests {
             src: MsgAddress::NULL,
             dst: MsgAddress::NULL,
             created_lt: 0,
-            created_at: DateTime::UNIX_EPOCH,
+            created_at: UtcDateTime::UNIX_EPOCH,
         });
 
         let cell = info.to_cell(()).unwrap();

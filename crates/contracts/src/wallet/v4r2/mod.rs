@@ -1,7 +1,6 @@
 use core::iter;
 use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use nacl::sign::PUBLIC_KEY_LENGTH;
 use num_bigint::BigUint;
@@ -14,6 +13,7 @@ use tlb_ton::{
     hashmap::HashmapE,
     ser::{CellBuilder, CellBuilderError, CellSerialize},
     state_init::StateInit,
+    time::UtcDateTime,
 };
 
 use super::WalletVersion;
@@ -52,7 +52,7 @@ impl WalletVersion for V4R2 {
 
     fn create_sign_body(
         wallet_id: u32,
-        expire_at: DateTime<Utc>,
+        expire_at: UtcDateTime,
         seqno: u32,
         msgs: impl IntoIterator<Item = SendMsgAction>,
     ) -> Self::SignBody {
@@ -110,7 +110,11 @@ impl<'de> CellDeserialize<'de> for WalletV4R2Data {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV4R2SignBody {
     pub wallet_id: u32,
-    pub expire_at: DateTime<Utc>,
+    #[cfg_attr(
+        feature = "arbitrary",
+        arbitrary(with = ::arbitrary_with::As::<UnixTimestamp>::arbitrary)
+    )]
+    pub expire_at: UtcDateTime,
     pub seqno: u32,
     pub op: WalletV4R2Op,
 }

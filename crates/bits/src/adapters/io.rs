@@ -206,7 +206,7 @@ where
                     break;
                 }
                 let shift_to_head = head.map_or(0, |p| p.into_bitslice().len());
-                rest.shift_left(shift_to_head);
+                rest.shift_start(shift_to_head);
                 rest = &mut rest[bytes * bits_of::<u8>()..];
                 continue;
             }
@@ -252,7 +252,7 @@ where
     #[inline]
     fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error> {
         let flush = self.buffer_capacity_left() == 1;
-        self.buf.shift_left(1);
+        self.buf.shift_start(1);
         unsafe { self.buf.set_unchecked(Self::BUF_LEN - 1, bit) };
         if flush {
             let buf = self.reset_buf();
@@ -263,22 +263,21 @@ where
 
     fn write_bitslice(&mut self, mut bits: &BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
         while !bits.is_empty() {
-            if self.buffered().is_empty() {
-                if let Some(body) = bits
+            if self.buffered().is_empty()
+                && let Some(body) = bits
                     .domain()
                     .region()
                     .and_then(|(head, body, _tail)| head.is_none().then_some(body))
-                {
-                    self.io.write_all(body)?;
-                    bits = unsafe { bits.get_unchecked(body.len() * bits_of::<u8>()..) };
-                    continue;
-                }
+            {
+                self.io.write_all(body)?;
+                bits = unsafe { bits.get_unchecked(body.len() * bits_of::<u8>()..) };
+                continue;
             }
 
             let buf_cap_left = self.buffer_capacity_left();
             let n = bits.len().min(buf_cap_left);
             let flush = n == buf_cap_left;
-            self.buf.shift_left(n);
+            self.buf.shift_start(n);
             bits = unsafe {
                 self.buf
                     .get_unchecked_mut(Self::BUF_LEN - n..)

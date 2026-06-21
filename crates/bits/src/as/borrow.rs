@@ -44,12 +44,12 @@ impl<'de: 'a, 'a> BitUnpackAs<'de, Cow<'a, [u8]>> for BorrowCow {
         if v.len() != len_bits {
             return Err(Error::custom("EOF"));
         }
-        if let Cow::Borrowed(s) = v {
-            if let Some((head, body, tail)) = s.domain().region() {
-                if head.is_none() && tail.is_none() {
-                    return Ok(Cow::Borrowed(body));
-                }
-            }
+        if let Cow::Borrowed(s) = v
+            && let Some((head, body, tail)) = s.domain().region()
+            && head.is_none()
+            && tail.is_none()
+        {
+            return Ok(Cow::Borrowed(body));
         }
 
         let mut v = v.into_owned();

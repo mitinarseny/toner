@@ -142,7 +142,7 @@ impl<'de, const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<'de, BigUint>
         let total_bits = (bits.len() + 7) & !7;
         let shift = total_bits - bits.len();
         bits.resize(total_bits, false);
-        bits.shift_right(shift);
+        bits.shift_end(shift);
         Ok(BigUint::from_bytes_be(bits.as_raw_slice()))
     }
 }
@@ -174,7 +174,7 @@ impl<'de, const BITS_FOR_BYTES_LEN: usize> BitUnpackAs<'de, BigInt> for VarInt<B
         let total_bits = (bits.len() + 7) & !7;
         let shift = total_bits - bits.len();
         bits.resize(total_bits, false);
-        bits.shift_right(shift);
+        bits.shift_end(shift);
         Ok(BigInt::from_signed_bytes_be(bits.as_raw_slice()))
     }
 }
