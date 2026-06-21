@@ -23,7 +23,7 @@ arbitrary = "1.4"
 arbitrary_with = "0.3.2"
 array-util = "1"
 base64 = "0.21"
-bitvec = "1"
+bitvec = "1.1"
 crc = "3"
 digest = { version = "0.11", default-features = false }
 either = "1"
