@@ -42,7 +42,7 @@
 //! impl CellSerialize for Hello {
 //!     type Args = ();
 //!
-//!     fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+//!     fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
 //!         builder
 //!             // tag$10
 //!             .pack_as::<_, NBits<2>>(0b10, ())?
@@ -93,7 +93,7 @@
 //! # impl CellSerialize for Hello {
 //! #     type Args = ();
 //! #
-//! #     fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+//! #     fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
 //! #         builder
 //! #             // tag$10
 //! #             .pack_as::<_, NBits<2>>(0b10, ())?
@@ -109,7 +109,7 @@
 //! impl<'de> CellDeserialize<'de> for Hello {
 //!     type Args = ();
 //!
-//!     fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+//!     fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
 //!         // tag$10
 //!         let tag: u8 = parser.unpack_as::<_, NBits<2>>(())?;
 //!         if tag != 0b10 {

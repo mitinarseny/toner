@@ -112,7 +112,7 @@ impl<'de> BitUnpack<'de> for bool {
     type Args = ();
 
     #[inline]
-    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, (): Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -218,6 +218,7 @@ where
     where
         R: BitReader<'de> + ?Sized,
     {
+        #[allow(clippy::match_bool)]
         match reader.unpack(()).context("tag")? {
             false => reader.unpack(la).map(Either::Left).context("left"),
             true => reader.unpack(ra).map(Either::Right).context("right"),
@@ -251,7 +252,7 @@ where
 {
     type Args = ();
 
-    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, (): Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {

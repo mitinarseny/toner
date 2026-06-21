@@ -45,7 +45,7 @@ impl CellSerialize for CurrencyCollection {
     type Args = ();
 
     #[inline]
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         builder
             .pack_as::<_, &Grams>(&self.grams, ())?
             .store(&self.other, ())?;
@@ -57,7 +57,7 @@ impl<'de> CellDeserialize<'de> for CurrencyCollection {
     type Args = ();
 
     #[inline]
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             grams: parser.unpack_as::<_, Grams>(())?,
             other: parser.parse(())?,
@@ -75,7 +75,7 @@ impl CellSerialize for ExtraCurrencyCollection {
     type Args = ();
 
     #[inline]
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         builder.store_as::<_, &HashmapE<Data<VarInt<5>>, Same>>(&self.0, (32, (), ()))?;
         Ok(())
     }
@@ -85,7 +85,7 @@ impl<'de> CellDeserialize<'de> for ExtraCurrencyCollection {
     type Args = ();
 
     #[inline]
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self(
             parser.parse_as::<_, HashmapE<Data<VarInt<5>>, Same>>((32, (), ()))?,
         ))

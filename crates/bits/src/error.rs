@@ -6,11 +6,13 @@ use thiserror::Error as ThisError;
 /// **De**/**ser**ialization error
 pub trait Error: StdError + Sized {
     /// Returns a custom error from given message
+    #[must_use]
     fn custom<T>(msg: T) -> Self
     where
         T: Display;
 
     /// Wraps current error in given context
+    #[must_use]
     fn context<C>(self, context: C) -> Self
     where
         C: Display;
@@ -44,7 +46,7 @@ where
     type Error = E;
 
     #[inline]
-    fn with_context<C>(self, context: impl FnOnce() -> C) -> Result<T, E>
+    fn with_context<C>(self, context: impl FnOnce() -> C) -> Self
     where
         C: Display,
     {

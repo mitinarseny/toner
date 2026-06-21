@@ -12,11 +12,11 @@ categories = ["encoding"]
 license-file = "LICENSE.txt"
 
 [workspace.dependencies]
-tlbits = { path = "./crates/bits", version = "0.9.0" }
-tlb = { path = "./crates/tlb", version = "0.9.0" }
-tlb-ton = { path = "./crates/tlb-ton", version = "0.9.0" }
-ton-contracts = { path = "./crates/contracts", version = "0.9.0" }
-toner = { path = "./crates/toner", version = "0.9.0" }
+tlbits = { path = "./crates/bits", version = "0.10.0" }
+tlb = { path = "./crates/tlb", version = "0.10.0" }
+tlb-ton = { path = "./crates/tlb-ton", version = "0.10.0" }
+ton-contracts = { path = "./crates/contracts", version = "0.10.0" }
+toner = { path = "./crates/toner", version = "0.10.0" }
 
 anyhow = "1"
 arbitrary = "1.4"
@@ -31,6 +31,7 @@ hex = "0.4"
 hex-literal = "0.4"
 impl-tools = "0.11"
 itertools = "0.12"
+jiff = { version = "0.2.29", default-features = false }
 lazy_static = "1.4"
 num-bigint = "0.4"
 num-traits = "0.2"
@@ -42,4 +43,12 @@ serde_with = { version = "3.8", features = ["macros"] }
 sha2 = "0.11"
 strum = { version = "0.25", features = ["derive"] }
 thiserror = "1"
-time = { version = "0.3.49", default-features = false }
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+# as_conversions = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+# pedantic = { level = "deny", priority = -1 }
+
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"

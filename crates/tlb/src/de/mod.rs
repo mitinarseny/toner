@@ -25,7 +25,7 @@ impl<'de> CellDeserialize<'de> for () {
     type Args = ();
 
     #[inline]
-    fn parse(_parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(_parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(())
     }
 }
@@ -171,7 +171,7 @@ impl<'de> CellDeserialize<'de> for Cell {
     type Args = ();
 
     #[inline]
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             is_exotic: parser.is_exotic,
             data: mem::take(&mut parser.data).to_bitvec(),

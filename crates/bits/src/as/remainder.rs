@@ -14,7 +14,7 @@ impl<'de: 'a, 'a> BitUnpackAs<'de, Cow<'a, BitSlice<u8, Msb0>>> for Remainder {
     type Args = ();
 
     #[inline]
-    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<Cow<'a, BitSlice<u8, Msb0>>, R::Error>
+    fn unpack_as<R>(reader: &mut R, (): Self::Args) -> Result<Cow<'a, BitSlice<u8, Msb0>>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -27,7 +27,7 @@ impl<'de> BitUnpackAs<'de, BitVec<u8, Msb0>> for Remainder {
     type Args = ();
 
     #[inline]
-    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<BitVec<u8, Msb0>, R::Error>
+    fn unpack_as<R>(reader: &mut R, (): Self::Args) -> Result<BitVec<u8, Msb0>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -41,7 +41,7 @@ impl<'de: 'a, 'a> BitUnpackAs<'de, Cow<'a, [u8]>> for Remainder {
     type Args = ();
 
     #[inline]
-    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<Cow<'a, [u8]>, R::Error>
+    fn unpack_as<R>(reader: &mut R, (): Self::Args) -> Result<Cow<'a, [u8]>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -54,7 +54,7 @@ impl<'de> BitUnpackAs<'de, Vec<u8>> for Remainder {
     type Args = ();
 
     #[inline]
-    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<Vec<u8>, R::Error>
+    fn unpack_as<R>(reader: &mut R, (): Self::Args) -> Result<Vec<u8>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -66,7 +66,7 @@ impl<'de: 'a, 'a> BitUnpackAs<'de, Cow<'a, str>> for Remainder {
     type Args = ();
 
     #[inline]
-    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<Cow<'a, str>, R::Error>
+    fn unpack_as<R>(reader: &mut R, (): Self::Args) -> Result<Cow<'a, str>, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -79,7 +79,7 @@ impl<'de> BitUnpackAs<'de, String> for Remainder {
     type Args = ();
 
     #[inline]
-    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<String, R::Error>
+    fn unpack_as<R>(reader: &mut R, (): Self::Args) -> Result<String, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {

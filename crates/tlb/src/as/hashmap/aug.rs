@@ -15,7 +15,8 @@ use impl_tools::autoimpl;
 
 use super::hm_label::HmLabel;
 
-/// [`HashmapAugE n X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#hashmapauge).  
+/// [`HashmapAugE n X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#hashmapauge).
+///
 /// When `E = ()` it is equivalent to [`HashmapE n X`](https://docs.ton.org/develop/data-formats/tl-b-types#hashmap)
 /// ```tlb
 /// ahme_empty$0 {n:#} {X:Type} {Y:Type} extra:Y = HashmapAugE n X Y;      
@@ -108,7 +109,7 @@ impl<T, E> HashmapE<T, E> {
 
     /// Return whether this hashmap is empty
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         matches!(self, Self::Empty)
     }
 
@@ -462,7 +463,8 @@ where
     }
 }
 
-/// [`HashmapNode n X`](https://docs.ton.org/develop/data-formats/tl-b-types#hashmap)  
+/// [`HashmapNode n X`](https://docs.ton.org/develop/data-formats/tl-b-types#hashmap)
+///
 /// Type parameter `E` is optional and stands for `extra`, so it can be reused
 /// for [`HashmapAugNode n X E`](HashmapAugNode)
 /// ```tlb
@@ -602,7 +604,8 @@ where
     }
 }
 
-/// [`HashmapAugNode n X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#hashmapauge)  
+/// [`HashmapAugNode n X Y`](https://docs.ton.org/develop/data-formats/tl-b-types#hashmapauge)
+///
 /// When `E = ()` it is equivalent to [`HashmapNode n X`](https://docs.ton.org/develop/data-formats/tl-b-types#hashmap)
 /// ```tlb
 /// ahmn_leaf#_ {X:Type} {Y:Type} extra:Y value:X = HashmapAugNode 0 X Y;
@@ -619,7 +622,7 @@ pub struct HashmapAugNode<T, E = ()> {
 
 impl<T, E> HashmapAugNode<T, E> {
     #[inline]
-    pub fn new(node: HashmapNode<T, E>, extra: E) -> Self {
+    pub const fn new(node: HashmapNode<T, E>, extra: E) -> Self {
         Self { node, extra }
     }
 }

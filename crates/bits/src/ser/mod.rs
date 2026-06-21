@@ -90,7 +90,7 @@ impl BitPack for bool {
     type Args = ();
 
     #[inline]
-    fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -172,7 +172,7 @@ where
 impl BitPack for BitSlice<u8, Msb0> {
     type Args = ();
 
-    fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -186,7 +186,7 @@ where
 {
     type Args = ();
 
-    fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {

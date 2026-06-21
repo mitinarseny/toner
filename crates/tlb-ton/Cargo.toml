@@ -1,6 +1,8 @@
+lints.workspace = true
+
 [package]
 name = "tlb-ton"
-version = "0.9.0"
+version = "0.10.0"
 edition.workspace = true
 rust-version.workspace = true
 repository.workspace = true
@@ -19,13 +21,13 @@ crc.workspace = true
 digest.workspace = true
 hex.workspace = true
 impl-tools.workspace = true
+jiff.workspace = true
 lazy_static.workspace = true
 num-bigint.workspace = true
 num-traits.workspace = true
 serde_with = { workspace = true, optional = true }
 strum.workspace = true
 sha2 = { workspace = true, optional = true }
-time.workspace = true
 
 [dependencies.schemars_0_8]
 workspace = true

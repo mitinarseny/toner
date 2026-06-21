@@ -34,7 +34,7 @@ use super::Same;
 /// impl BitPack for BinaryData {
 ///     type Args = ();
 ///
-///     fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+///     fn pack<W>(&self, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
 ///         where W: BitWriter + ?Sized,
 ///     {
 ///         writer.pack(self.field, ())?;
@@ -45,7 +45,7 @@ use super::Same;
 /// impl<'de> BitUnpack<'de> for BinaryData {
 ///     type Args = ();
 ///
-///     fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
+///     fn unpack<R>(reader: &mut R, (): Self::Args) -> Result<Self, R::Error>
 ///         where R: BitReader<'de> + ?Sized,
 ///     {
 ///         Ok(Self {
@@ -117,7 +117,7 @@ where
     fn store_as(
         source: &T,
         builder: &mut CellBuilder,
-        _: Self::Args,
+        (): Self::Args,
     ) -> Result<(), CellBuilderError> {
         fn pack_max<'a>(
             mut s: &'a [u8],
@@ -158,7 +158,7 @@ where
 {
     type Args = ();
 
-    fn parse_as(parser: &mut CellParser<'de>, _: Self::Args) -> Result<T, CellParserError<'de>> {
+    fn parse_as(parser: &mut CellParser<'de>, (): Self::Args) -> Result<T, CellParserError<'de>> {
         let mut parser: CellParser = parser.parse(())?;
 
         let mut data = Vec::new();

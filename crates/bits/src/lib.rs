@@ -38,7 +38,7 @@
 //! impl BitPack for Hello {
 //!     type Args = ();
 //!
-//!     fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+//!     fn pack<W>(&self, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
 //!         where W: BitWriter + ?Sized,
 //!     {
 //!         writer
@@ -85,7 +85,7 @@
 //! # impl BitPack for Hello {
 //! #     type Args = ();
 //! #
-//! #     fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+//! #     fn pack<W>(&self, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
 //! #         where W: BitWriter + ?Sized,
 //! #     {
 //! #         writer
@@ -101,7 +101,7 @@
 //! impl<'de> BitUnpack<'de> for Hello {
 //!     type Args = ();
 //!
-//!     fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
+//!     fn unpack<R>(reader: &mut R, (): Self::Args) -> Result<Self, R::Error>
 //!         where R: BitReader<'de> + ?Sized,
 //!     {
 //!         // tag$10

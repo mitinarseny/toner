@@ -1,6 +1,6 @@
 //! Collection of typs related to [Message](https://docs.ton.org/develop/data-formats/msg-tlb#message-tl-b)
+use jiff::Timestamp;
 use num_bigint::BigUint;
-use time::UtcDateTime;
 use tlb::{
     Cell, Context, EitherInlineOrRef,
     bits::{
@@ -14,7 +14,7 @@ use tlb::{
 };
 
 use crate::{
-    MsgAddress, UnixTimestamp,
+    MsgAddress, UnixTimestampSeconds,
     currency::{CurrencyCollection, ExtraCurrencyCollection, Grams},
     state_init::StateInit,
 };
@@ -75,7 +75,7 @@ where
 {
     type Args = ();
 
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         builder
             // info:CommonMsgInfo
             .store(&self.info, ())?
@@ -95,7 +95,7 @@ where
 {
     type Args = ();
 
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             // info:CommonMsgInfo
             info: parser.parse(()).context("info")?,
@@ -142,7 +142,7 @@ impl CellSerialize for CommonMsgInfo {
     type Args = ();
 
     #[inline]
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         match self {
             Self::Internal(msg) => builder
                 // int_msg_info$0
@@ -165,7 +165,7 @@ impl<'de> CellDeserialize<'de> for CommonMsgInfo {
     type Args = ();
 
     #[inline]
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         match parser.unpack(())? {
             // int_msg_info$0
             false => Ok(Self::Internal(parser.parse(()).context("int_msg_info")?)),
@@ -215,15 +215,15 @@ pub struct InternalMsgInfo {
     /// Unix time
     #[cfg_attr(
         feature = "arbitrary",
-        arbitrary(with = ::arbitrary_with::As::<Option<UnixTimestamp>>::arbitrary)
+        arbitrary(with = ::arbitrary_with::As::<Option<UnixTimestampSeconds>>::arbitrary)
     )]
-    pub created_at: Option<UtcDateTime>,
+    pub created_at: Option<Timestamp>,
 }
 
 impl InternalMsgInfo {
     #[inline]
     pub const fn transfer(dst: MsgAddress, grams: BigUint, bounce: bool) -> Self {
-        InternalMsgInfo {
+        Self {
             ihr_disabled: true,
             bounce,
             bounced: false,
@@ -244,7 +244,7 @@ impl InternalMsgInfo {
 impl CellSerialize for InternalMsgInfo {
     type Args = ();
 
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         builder
             .pack(self.ihr_disabled, ())?
             .pack(self.bounce, ())?
@@ -255,7 +255,10 @@ impl CellSerialize for InternalMsgInfo {
             .pack_as::<_, &Grams>(&self.ihr_fee, ())?
             .pack_as::<_, &Grams>(&self.fwd_fee, ())?
             .pack(self.created_lt, ())?
-            .pack_as::<_, UnixTimestamp>(self.created_at.unwrap_or(UtcDateTime::UNIX_EPOCH), ())?;
+            .pack_as::<_, UnixTimestampSeconds>(
+                self.created_at.unwrap_or(Timestamp::UNIX_EPOCH),
+                (),
+            )?;
         Ok(())
     }
 }
@@ -263,7 +266,7 @@ impl CellSerialize for InternalMsgInfo {
 impl<'de> CellDeserialize<'de> for InternalMsgInfo {
     type Args = ();
 
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             ihr_disabled: parser.unpack(())?,
             bounce: parser.unpack(())?,
@@ -274,8 +277,8 @@ impl<'de> CellDeserialize<'de> for InternalMsgInfo {
             ihr_fee: parser.unpack_as::<_, Grams>(())?,
             fwd_fee: parser.unpack_as::<_, Grams>(())?,
             created_lt: parser.unpack(())?,
-            created_at: Some(parser.unpack_as::<_, UnixTimestamp>(())?)
-                .filter(|dt| *dt != UtcDateTime::UNIX_EPOCH),
+            created_at: Some(parser.unpack_as::<_, UnixTimestampSeconds>(())?)
+                .filter(|dt| *dt != Timestamp::UNIX_EPOCH),
         })
     }
 }
@@ -296,7 +299,7 @@ pub struct ExternalInMsgInfo {
 impl BitPack for ExternalInMsgInfo {
     type Args = ();
 
-    fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -311,7 +314,7 @@ impl BitPack for ExternalInMsgInfo {
 impl<'de> BitUnpack<'de> for ExternalInMsgInfo {
     type Args = ();
 
-    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, (): Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -336,15 +339,15 @@ pub struct ExternalOutMsgInfo {
     pub created_lt: u64,
     #[cfg_attr(
         feature = "arbitrary",
-        arbitrary(with = ::arbitrary_with::As::<UnixTimestamp>::arbitrary)
+        arbitrary(with = ::arbitrary_with::As::<UnixTimestampSeconds>::arbitrary)
     )]
-    pub created_at: UtcDateTime,
+    pub created_at: Timestamp,
 }
 
 impl BitPack for ExternalOutMsgInfo {
     type Args = ();
 
-    fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -352,7 +355,7 @@ impl BitPack for ExternalOutMsgInfo {
             .pack(self.src, ())?
             .pack(self.dst, ())?
             .pack(self.created_lt, ())?
-            .pack_as::<_, UnixTimestamp>(self.created_at, ())?;
+            .pack_as::<_, UnixTimestampSeconds>(self.created_at, ())?;
         Ok(())
     }
 }
@@ -360,7 +363,7 @@ impl BitPack for ExternalOutMsgInfo {
 impl<'de> BitUnpack<'de> for ExternalOutMsgInfo {
     type Args = ();
 
-    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, (): Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -368,7 +371,7 @@ impl<'de> BitUnpack<'de> for ExternalOutMsgInfo {
             src: reader.unpack(())?,
             dst: reader.unpack(())?,
             created_lt: reader.unpack(())?,
-            created_at: reader.unpack_as::<_, UnixTimestamp>(())?,
+            created_at: reader.unpack_as::<_, UnixTimestampSeconds>(())?,
         })
     }
 }
@@ -445,7 +448,7 @@ mod tests {
             src: MsgAddress::NULL,
             dst: MsgAddress::NULL,
             created_lt: 0,
-            created_at: UtcDateTime::UNIX_EPOCH,
+            created_at: Timestamp::UNIX_EPOCH,
         });
 
         let cell = info.to_cell(()).unwrap();

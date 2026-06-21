@@ -24,7 +24,7 @@ where
     type Args = ();
 
     #[inline]
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         builder.store_as::<_, Either<Data, Ref>>(
             match self {
                 Self::Hash(hash) => Either::Left(hash),
@@ -43,7 +43,7 @@ where
     type Args = ();
 
     #[inline]
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(
             match parser.parse_as::<_, Either<Data, Ref>>(NoArgs::EMPTY)? {
                 Either::Left(hash) => Self::Hash(hash),

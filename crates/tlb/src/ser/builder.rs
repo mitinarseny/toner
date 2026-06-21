@@ -28,7 +28,9 @@ pub struct CellBuilder {
     references: Vec<Arc<Cell>>,
 }
 
+#[allow(clippy::redundant_pub_crate)] // exported later
 pub(crate) const MAX_BITS_LEN: usize = 1023;
+#[allow(clippy::redundant_pub_crate)] // exported later
 pub(crate) const MAX_REFS_COUNT: usize = 4;
 
 impl CellBuilder {
@@ -191,7 +193,7 @@ impl BitWriter for CellBuilder {
 impl CellSerialize for CellBuilder {
     type Args = ();
 
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         if self.is_exotic {
             builder.exotic()?;
         }

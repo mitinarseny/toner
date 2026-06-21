@@ -273,7 +273,7 @@ impl BitPack for MsgAddress {
     type Args = ();
 
     #[inline]
-    fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -297,7 +297,7 @@ impl<'de> BitUnpack<'de> for MsgAddress {
     type Args = ();
 
     #[inline]
-    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, (): Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -353,7 +353,7 @@ impl BitPack for MsgAddressTag {
     type Args = ();
 
     #[inline]
-    fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -366,7 +366,7 @@ impl<'de> BitUnpack<'de> for MsgAddressTag {
     type Args = ();
 
     #[inline]
-    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, (): Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -390,7 +390,7 @@ pub struct Anycast {
 impl BitPack for Anycast {
     type Args = ();
 
-    fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -405,7 +405,7 @@ impl BitPack for Anycast {
 impl<'de> BitUnpack<'de> for Anycast {
     type Args = ();
 
-    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, (): Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {

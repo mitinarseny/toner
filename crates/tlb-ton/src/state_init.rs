@@ -63,7 +63,7 @@ where
     type Args = ();
 
     #[inline]
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         builder
             // split_depth:(Maybe (## 5))
             .pack_as::<_, Option<NBits<5>>>(self.split_depth, ())?
@@ -87,7 +87,7 @@ where
     type Args = ();
 
     #[inline]
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             // split_depth:(Maybe (## 5))
             split_depth: parser.unpack_as::<_, Option<NBits<5>>>(())?,
@@ -118,7 +118,7 @@ impl BitPack for TickTock {
     type Args = ();
 
     #[inline]
-    fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -131,7 +131,7 @@ impl<'de> BitUnpack<'de> for TickTock {
     type Args = ();
 
     #[inline]
-    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, (): Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -157,7 +157,7 @@ impl CellSerialize for SimpleLib {
     type Args = ();
 
     #[inline]
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         builder
             .pack(self.public, ())?
             .store_as::<_, Ref>(&self.root, ())?;
@@ -169,8 +169,8 @@ impl<'de> CellDeserialize<'de> for SimpleLib {
     type Args = ();
 
     #[inline]
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
-        Ok(SimpleLib {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
+        Ok(Self {
             public: parser.unpack(())?,
             root: parser.parse_as::<_, Ref>(())?,
         })

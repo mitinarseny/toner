@@ -63,7 +63,7 @@ where
     type Args = ();
 
     #[inline]
-    fn pack_as<W>(source: &T, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack_as<W>(source: &T, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -79,7 +79,7 @@ where
     type Args = ();
 
     #[inline]
-    fn unpack_as<R>(reader: &mut R, _: Self::Args) -> Result<T, R::Error>
+    fn unpack_as<R>(reader: &mut R, (): Self::Args) -> Result<T, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {

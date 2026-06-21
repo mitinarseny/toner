@@ -43,18 +43,16 @@ impl CellSerialize for OutAction {
     type Args = ();
 
     #[inline]
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         match self {
-            OutAction::SendMsg(action) => {
-                builder.pack(Self::SEND_MSG_PREFIX, ())?.store(action, ())?
-            }
-            OutAction::SetCode(new_code) => builder
+            Self::SendMsg(action) => builder.pack(Self::SEND_MSG_PREFIX, ())?.store(action, ())?,
+            Self::SetCode(new_code) => builder
                 .pack(Self::SET_CODE_PREFIX, ())?
                 .store_as::<_, Ref>(new_code, ())?,
-            OutAction::ReserveCurrency(action) => builder
+            Self::ReserveCurrency(action) => builder
                 .pack(Self::RESERVE_CURRENCY_PREFIX, ())?
                 .store(action, ())?,
-            OutAction::ChangeLibrary(action) => builder
+            Self::ChangeLibrary(action) => builder
                 .pack(Self::CHANGE_LIBRARY_PREFIX, ())?
                 .store(action, ())?,
         };
@@ -66,7 +64,7 @@ impl<'de> CellDeserialize<'de> for OutAction {
     type Args = ();
 
     #[inline]
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(match parser.unpack(())? {
             Self::SEND_MSG_PREFIX => Self::SendMsg(parser.parse(()).context("action_send_msg")?),
             Self::SET_CODE_PREFIX => {
@@ -103,7 +101,7 @@ where
     type Args = ();
 
     #[inline]
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         builder
             .pack(self.mode, ())?
             .store_as::<_, Ref>(&self.message, ())?;
@@ -120,7 +118,7 @@ where
     type Args = ();
 
     #[inline]
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             mode: parser.unpack(())?,
             message: parser.parse_as::<_, Ref>(())?,
@@ -142,7 +140,7 @@ impl CellSerialize for ReserveCurrencyAction {
     type Args = ();
 
     #[inline]
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         builder.pack(self.mode, ())?.store(&self.currency, ())?;
         Ok(())
     }
@@ -152,7 +150,7 @@ impl<'de> CellDeserialize<'de> for ReserveCurrencyAction {
     type Args = ();
 
     #[inline]
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             mode: parser.unpack(())?,
             currency: parser.parse(())?,
@@ -177,7 +175,7 @@ where
     type Args = ();
 
     #[inline]
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         builder
             .pack_as::<_, NBits<7>>(self.mode, ())?
             .store(&self.libref, ())?;
@@ -192,7 +190,7 @@ where
     type Args = ();
 
     #[inline]
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             mode: parser.unpack_as::<_, NBits<7>>(())?,
             libref: parser.parse(())?,

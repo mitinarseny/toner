@@ -17,12 +17,12 @@ use crate::{
 #[derive(Debug, Clone)]
 pub enum BinTree<X> {
     Leaf(X),
-    Fork([Box<BinTree<X>>; 2]),
+    Fork([Box<Self>; 2]),
 }
 
 impl<X> BinTree<X> {
     #[inline]
-    pub fn as_leaf(&self) -> Option<&X> {
+    pub const fn as_leaf(&self) -> Option<&X> {
         match self {
             Self::Leaf(v) => Some(v),
             _ => None,
@@ -30,7 +30,7 @@ impl<X> BinTree<X> {
     }
 
     #[inline]
-    pub fn as_fork(&self) -> Option<[&BinTree<X>; 2]> {
+    pub fn as_fork(&self) -> Option<[&Self; 2]> {
         match self {
             Self::Fork(v) => Some(v.each_ref().map(Deref::deref)),
             _ => None,
@@ -46,7 +46,7 @@ impl<X> BinTree<X> {
     }
 
     #[inline]
-    pub fn into_fork(self) -> Option<[BinTree<X>; 2]> {
+    pub fn into_fork(self) -> Option<[Self; 2]> {
         match self {
             Self::Fork(v) => Some(v.map(|b| *b)),
             _ => None,
@@ -70,7 +70,7 @@ where
             // bt_leaf$0
             false => BinTree::Leaf(parser.parse_as::<T, As>(args)?),
             // bt_fork$1
-            true => BinTree::Fork(parser.parse_as::<_, [Box<Ref<BinTree<As>>>; 2]>(args)?),
+            true => BinTree::Fork(parser.parse_as::<_, [Box<Ref<Self>>; 2]>(args)?),
         })
     }
 }

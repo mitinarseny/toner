@@ -41,7 +41,7 @@ where
 {
     type Args = ();
 
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         builder
             // transfer#0f8a7ea5
             .pack(JETTON_TRANSFER_TAG, ())?
@@ -71,7 +71,7 @@ where
 {
     type Args = ();
 
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         // transfer#0f8a7ea5
         parser.unpack::<ConstU32<JETTON_TRANSFER_TAG>>(())?;
         Ok(Self {
@@ -113,7 +113,7 @@ where
     type Args = ();
 
     #[inline]
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         match self {
             Self::Data(data) => builder.store(data, NoArgs::EMPTY)?,
             Self::Comment(comment) => builder.pack(Self::COMMENT_PREFIX, ())?.pack(comment, ())?,
@@ -128,7 +128,7 @@ where
 {
     type Args = ();
 
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         if parser.bits_left() >= bits_of::<u32>()
             // clone, so we don't advance original parser
             && parser.clone().unpack::<u32>(())? == Self::COMMENT_PREFIX
@@ -156,7 +156,7 @@ impl BitPack for ForwardPayloadComment {
     type Args = ();
 
     #[inline]
-    fn pack<W>(&self, writer: &mut W, _: Self::Args) -> Result<(), W::Error>
+    fn pack<W>(&self, writer: &mut W, (): Self::Args) -> Result<(), W::Error>
     where
         W: BitWriter + ?Sized,
     {
@@ -174,7 +174,7 @@ impl<'de> BitUnpack<'de> for ForwardPayloadComment {
     type Args = ();
 
     #[inline]
-    fn unpack<R>(reader: &mut R, _: Self::Args) -> Result<Self, R::Error>
+    fn unpack<R>(reader: &mut R, (): Self::Args) -> Result<Self, R::Error>
     where
         R: BitReader<'de> + ?Sized,
     {
@@ -212,7 +212,7 @@ where
 {
     type Args = ();
 
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         builder
             .pack(JETTON_TRANSFER_NOTIFICATION_TAG, ())?
             .pack(self.query_id, ())?
@@ -232,7 +232,7 @@ where
 {
     type Args = ();
 
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         parser.unpack::<ConstU32<JETTON_TRANSFER_NOTIFICATION_TAG>>(())?;
         Ok(Self {
             query_id: parser.unpack(())?,
@@ -268,7 +268,7 @@ where
 {
     type Args = ();
 
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         builder
             .pack(JETTON_BURN_TAG, ())?
             .pack_as::<_, &VarInt<4>>(&self.amount, ())?
@@ -284,7 +284,7 @@ where
 {
     type Args = ();
 
-    fn parse(parser: &mut CellParser<'de>, _: Self::Args) -> Result<Self, CellParserError<'de>> {
+    fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         parser.unpack::<ConstU32<JETTON_BURN_TAG>>(())?;
         Ok(Self {
             query_id: parser.unpack(())?,

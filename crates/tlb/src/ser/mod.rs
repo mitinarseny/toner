@@ -26,7 +26,7 @@ impl CellSerialize for () {
     type Args = ();
 
     #[inline]
-    fn store(&self, _builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, _builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         Ok(())
     }
 }
@@ -131,7 +131,7 @@ impl CellSerialize for Cell {
     type Args = ();
 
     #[inline]
-    fn store(&self, builder: &mut CellBuilder, _: Self::Args) -> Result<(), CellBuilderError> {
+    fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         if self.is_exotic {
             builder.exotic()?;
         }

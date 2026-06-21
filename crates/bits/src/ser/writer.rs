@@ -23,7 +23,8 @@ pub trait BitWriter {
     /// Writes a single bit.
     fn write_bit(&mut self, bit: bool) -> Result<(), Self::Error>;
 
-    /// Writes given bitslice.  
+    /// Writes given bitslice.
+    ///
     /// Might be optimized by the implementation.
     #[inline]
     fn write_bitslice(&mut self, bits: &BitSlice<u8, Msb0>) -> Result<(), Self::Error> {
@@ -33,7 +34,8 @@ pub trait BitWriter {
         Ok(())
     }
 
-    /// Writes given `bit` exactly `n` times.  
+    /// Writes given `bit` exactly `n` times.
+    ///
     /// Might be optimized by the implementation.
     #[inline]
     fn repeat_bit(&mut self, n: usize, bit: bool) -> Result<(), Self::Error> {
@@ -144,7 +146,8 @@ pub trait BitWriterExt: BitWriter {
         BitCounter::new(self)
     }
 
-    /// Sets given limit on this writer.  
+    /// Sets given limit on this writer.
+    ///
     /// Returned wrapped writer will return an error when caller tries to
     /// write value which will exceed the total limit by using
     /// [`.pack()`](BitWriterExt::pack) or any similar method.
