@@ -526,7 +526,7 @@ impl<'de> BitUnpack<'de> for RawBagOfCells {
             .context("cell_data")?;
 
         let buf = buffered.into_writer();
-        if buf.len() % 8 != 0 {
+        if !buf.len().is_multiple_of(8) {
             return Err(Error::custom("produced stream is not byte-aligned"));
         }
         if has_crc32c {
