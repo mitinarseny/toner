@@ -1,5 +1,5 @@
 //! Collection of typs related to [Message](https://docs.ton.org/develop/data-formats/msg-tlb#message-tl-b)
-use jiff::Timestamp;
+
 use num_bigint::BigUint;
 use tlb::{
     Cell, Context, EitherInlineOrRef,
@@ -14,7 +14,7 @@ use tlb::{
 };
 
 use crate::{
-    MsgAddress, UnixTimestampSeconds,
+    MsgAddress,
     currency::{CurrencyCollection, ExtraCurrencyCollection, Grams},
     state_init::StateInit,
 };
@@ -213,11 +213,7 @@ pub struct InternalMsgInfo {
     /// Logic time of sending message assigned by validator. Using for odering actions in smart contract.
     pub created_lt: u64,
     /// Unix time
-    #[cfg_attr(
-        feature = "arbitrary",
-        arbitrary(with = ::arbitrary_with::As::<Option<UnixTimestampSeconds>>::arbitrary)
-    )]
-    pub created_at: Option<Timestamp>,
+    pub created_at: u32,
 }
 
 impl InternalMsgInfo {
@@ -236,7 +232,7 @@ impl InternalMsgInfo {
             ihr_fee: BigUint::ZERO,
             fwd_fee: BigUint::ZERO,
             created_lt: 0,
-            created_at: None,
+            created_at: 0,
         }
     }
 }
@@ -255,10 +251,7 @@ impl CellSerialize for InternalMsgInfo {
             .pack_as::<_, &Grams>(&self.ihr_fee, ())?
             .pack_as::<_, &Grams>(&self.fwd_fee, ())?
             .pack(self.created_lt, ())?
-            .pack_as::<_, UnixTimestampSeconds>(
-                self.created_at.unwrap_or(Timestamp::UNIX_EPOCH),
-                (),
-            )?;
+            .pack(self.created_at, ())?;
         Ok(())
     }
 }
@@ -277,8 +270,7 @@ impl<'de> CellDeserialize<'de> for InternalMsgInfo {
             ihr_fee: parser.unpack_as::<_, Grams>(())?,
             fwd_fee: parser.unpack_as::<_, Grams>(())?,
             created_lt: parser.unpack(())?,
-            created_at: Some(parser.unpack_as::<_, UnixTimestampSeconds>(())?)
-                .filter(|dt| *dt != Timestamp::UNIX_EPOCH),
+            created_at: parser.unpack(())?,
         })
     }
 }
@@ -337,11 +329,7 @@ pub struct ExternalOutMsgInfo {
     pub src: MsgAddress,
     pub dst: MsgAddress,
     pub created_lt: u64,
-    #[cfg_attr(
-        feature = "arbitrary",
-        arbitrary(with = ::arbitrary_with::As::<UnixTimestampSeconds>::arbitrary)
-    )]
-    pub created_at: Timestamp,
+    pub created_at: u32,
 }
 
 impl BitPack for ExternalOutMsgInfo {
@@ -355,7 +343,7 @@ impl BitPack for ExternalOutMsgInfo {
             .pack(self.src, ())?
             .pack(self.dst, ())?
             .pack(self.created_lt, ())?
-            .pack_as::<_, UnixTimestampSeconds>(self.created_at, ())?;
+            .pack(self.created_at, ())?;
         Ok(())
     }
 }
@@ -371,7 +359,7 @@ impl<'de> BitUnpack<'de> for ExternalOutMsgInfo {
             src: reader.unpack(())?,
             dst: reader.unpack(())?,
             created_lt: reader.unpack(())?,
-            created_at: reader.unpack_as::<_, UnixTimestampSeconds>(())?,
+            created_at: reader.unpack(())?,
         })
     }
 }
@@ -395,7 +383,7 @@ mod tests {
                 ihr_fee: BigUint::ZERO,
                 fwd_fee: BigUint::ZERO,
                 created_lt: 0,
-                created_at: None,
+                created_at: 0,
             }),
             init: None,
             body: (),
@@ -419,7 +407,7 @@ mod tests {
             ihr_fee: BigUint::ZERO,
             fwd_fee: BigUint::ZERO,
             created_lt: 0,
-            created_at: None,
+            created_at: 0,
         });
 
         let cell = info.to_cell(()).unwrap();
@@ -448,7 +436,7 @@ mod tests {
             src: MsgAddress::NULL,
             dst: MsgAddress::NULL,
             created_lt: 0,
-            created_at: Timestamp::UNIX_EPOCH,
+            created_at: 0,
         });
 
         let cell = info.to_cell(()).unwrap();
