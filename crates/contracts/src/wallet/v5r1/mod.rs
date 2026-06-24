@@ -3,12 +3,11 @@ use std::sync::Arc;
 use lazy_static::lazy_static;
 use nacl::sign::PUBLIC_KEY_LENGTH;
 use tlb_ton::{
-    BagOfCells, Cell, Context, Data, Error, List, MsgAddress, Same, UnixTimestampSeconds,
+    BagOfCells, Cell, Context, Data, Error, List, MsgAddress, Same,
     action::{OutAction, SendMsgAction},
     bits::{de::BitReaderExt, ser::BitWriterExt},
     de::{CellDeserialize, CellParser, CellParserError},
     hashmap::HashmapE,
-    jiff::Timestamp,
     ser::{CellBuilder, CellBuilderError, CellSerialize},
 };
 
@@ -52,7 +51,7 @@ impl WalletVersion for V5R1 {
     #[inline]
     fn create_sign_body(
         wallet_id: u32,
-        valid_until: Timestamp,
+        valid_until: u32,
         msg_seqno: u32,
         msgs: impl IntoIterator<Item = SendMsgAction>,
     ) -> Self::SignBody {
@@ -235,11 +234,7 @@ impl<'de> CellDeserialize<'de> for ExtendedAction {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV5RSignBody {
     pub wallet_id: u32,
-    #[cfg_attr(
-        feature = "arbitrary",
-        arbitrary(with = ::arbitrary_with::As::<UnixTimestampSeconds>::arbitrary)
-    )]
-    pub valid_until: Timestamp,
+    pub valid_until: u32,
     pub msg_seqno: u32,
     pub inner: WalletV5R1InnerRequest,
 }
@@ -250,7 +245,7 @@ impl CellSerialize for WalletV5RSignBody {
     fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         builder
             .pack(self.wallet_id, ())?
-            .pack_as::<_, UnixTimestampSeconds>(self.valid_until, ())?
+            .pack(self.valid_until, ())?
             .pack(self.msg_seqno, ())?
             .store(&self.inner, ())?;
         Ok(())
@@ -263,7 +258,7 @@ impl<'de> CellDeserialize<'de> for WalletV5RSignBody {
     fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             wallet_id: parser.unpack(())?,
-            valid_until: parser.unpack_as::<_, UnixTimestampSeconds>(())?,
+            valid_until: parser.unpack(())?,
             msg_seqno: parser.unpack(())?,
             inner: parser.parse(())?,
         })

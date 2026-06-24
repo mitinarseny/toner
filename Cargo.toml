@@ -12,11 +12,11 @@ categories = ["encoding"]
 license-file = "LICENSE.txt"
 
 [workspace.dependencies]
-tlbits = { path = "./crates/bits", version = "0.10.0" }
-tlb = { path = "./crates/tlb", version = "0.10.0" }
-tlb-ton = { path = "./crates/tlb-ton", version = "0.10.0" }
-ton-contracts = { path = "./crates/contracts", version = "0.10.0" }
-toner = { path = "./crates/toner", version = "0.10.0" }
+tlbits = { path = "./crates/bits", version = "0.11.0" }
+tlb = { path = "./crates/tlb", version = "0.11.0" }
+tlb-ton = { path = "./crates/tlb-ton", version = "0.11.0" }
+ton-contracts = { path = "./crates/contracts", version = "0.11.0" }
+toner = { path = "./crates/toner", version = "0.11.0" }
 
 anyhow = "1"
 arbitrary = "1.4"
@@ -31,7 +31,6 @@ hex = "0.4"
 hex-literal = "0.4"
 impl-tools = "0.11"
 itertools = "0.12"
-jiff = { version = "0.2.29", default-features = false }
 lazy_static = "1.4"
 num-bigint = "0.4"
 num-traits = "0.2"

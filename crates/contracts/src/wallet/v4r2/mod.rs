@@ -5,13 +5,12 @@ use lazy_static::lazy_static;
 use nacl::sign::PUBLIC_KEY_LENGTH;
 use num_bigint::BigUint;
 use tlb_ton::{
-    BagOfCells, Cell, Error, MsgAddress, Ref, Same, UnixTimestampSeconds,
+    BagOfCells, Cell, Error, MsgAddress, Ref, Same,
     action::SendMsgAction,
     bits::{NoArgs, de::BitReaderExt, ser::BitWriterExt},
     currency::Grams,
     de::{CellDeserialize, CellParser, CellParserError},
     hashmap::HashmapE,
-    jiff::Timestamp,
     ser::{CellBuilder, CellBuilderError, CellSerialize},
     state_init::StateInit,
 };
@@ -52,7 +51,7 @@ impl WalletVersion for V4R2 {
 
     fn create_sign_body(
         wallet_id: u32,
-        expire_at: Timestamp,
+        expire_at: u32,
         seqno: u32,
         msgs: impl IntoIterator<Item = SendMsgAction>,
     ) -> Self::SignBody {
@@ -110,11 +109,7 @@ impl<'de> CellDeserialize<'de> for WalletV4R2Data {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletV4R2SignBody {
     pub wallet_id: u32,
-    #[cfg_attr(
-        feature = "arbitrary",
-        arbitrary(with = ::arbitrary_with::As::<UnixTimestampSeconds>::arbitrary)
-    )]
-    pub expire_at: Timestamp,
+    pub expire_at: u32,
     pub seqno: u32,
     pub op: WalletV4R2Op,
 }
@@ -125,7 +120,7 @@ impl CellSerialize for WalletV4R2SignBody {
     fn store(&self, builder: &mut CellBuilder, (): Self::Args) -> Result<(), CellBuilderError> {
         builder
             .pack(self.wallet_id, ())?
-            .pack_as::<_, UnixTimestampSeconds>(self.expire_at, ())?
+            .pack(self.expire_at, ())?
             .pack(self.seqno, ())?
             .store(&self.op, ())?;
         Ok(())
@@ -138,7 +133,7 @@ impl<'de> CellDeserialize<'de> for WalletV4R2SignBody {
     fn parse(parser: &mut CellParser<'de>, (): Self::Args) -> Result<Self, CellParserError<'de>> {
         Ok(Self {
             wallet_id: parser.unpack(())?,
-            expire_at: parser.unpack_as::<_, UnixTimestampSeconds>(())?,
+            expire_at: parser.unpack(())?,
             seqno: parser.unpack(())?,
             op: parser.parse(())?,
         })
