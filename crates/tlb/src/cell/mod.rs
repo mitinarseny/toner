@@ -7,7 +7,6 @@ pub(crate) mod level_mask;
 use core::{
     fmt::{self, Debug},
     hash::Hash,
-    ops::Deref,
 };
 use std::sync::Arc;
 
@@ -15,7 +14,7 @@ use bitvec::{order::Msb0, vec::BitVec};
 use digest::{Digest, Output};
 
 use crate::{
-    cell::{hasher::CellHasher, iter::CellIter, kind::CellKind, level_mask::LevelMask},
+    cell::{hasher::CellHasher, iter::CellIter, kind::ExoticCellKind, level_mask::LevelMask},
     de::{CellDeserialize, CellDeserializeAs, CellParser, CellParserError},
     ser::CellBuilder,
 };
@@ -97,9 +96,8 @@ impl Cell {
         &self,
         child_masks: impl IntoIterator<Item = LevelMask>,
     ) -> LevelMask {
-        let kind = self.kind().unwrap_or_default();
-
-        if kind.is_pruned_branch() {
+        let kind = self.exotic_kind();
+        if kind.is_some_and(|k| k.is_pruned_branch()) {
             return LevelMask::new(self.data.as_raw_slice()[1]);
         }
 
@@ -107,46 +105,11 @@ impl Cell {
             .into_iter()
             .fold(LevelMask::default(), |acc, m| acc | m);
 
-        if kind.is_merkle() {
+        if kind.is_some_and(|k| k.is_merkle()) {
             mask.merkle_shift()
         } else {
             mask
         }
-    }
-
-    /// See [Cell level](https://docs.ton.org/blockchain-basics/primitives/serialization/cells#level-of-a-cell)
-    #[inline]
-    #[deprecated(note = "it seems that level is needed only for internal use")]
-    pub fn level(&self) -> u8 {
-        self.references
-            .iter()
-            .map(Deref::deref)
-            .map(Self::level)
-            .max()
-            .unwrap_or(0)
-    }
-
-    #[inline]
-    #[deprecated(note = "it seems that depth is needed only for internal use")]
-    pub fn max_depth(&self) -> u16 {
-        let data = self.data.as_raw_slice();
-        let kind = self.kind().unwrap_or_default();
-
-        if kind.is_pruned_branch() {
-            let level = data[1].count_ones() as usize;
-            if data.len() == 1 + 1 + 32 * level + 2 * level {
-                let depth_offset = 1 + 1 + 32 * level;
-                return u16::from_be_bytes([data[depth_offset], data[depth_offset + 1]]);
-            }
-        }
-
-        self.references
-            .iter()
-            .map(Deref::deref)
-            .map(Self::max_depth)
-            .max()
-            .map(|d| d + 1)
-            .unwrap_or(0)
     }
 
     /// [Standard Cell representation hash](https://docs.ton.org/blockchain-basics/primitives/serialization/cells#standard-cell-representation-and-its-hash)
@@ -184,21 +147,23 @@ impl Cell {
         CellIter::new(self)
     }
 
-    pub(crate) fn kind(&self) -> Option<CellKind> {
-        if self.is_exotic {
-            let data = self.data.as_raw_slice();
-            Some(match data.first() {
-                Some(0x01) if data.len() == 36 || data.len() == 70 || data.len() == 104 => {
-                    CellKind::PrunedBranch
-                }
-                Some(0x02) if data.len() == 33 => CellKind::LibraryReference,
-                Some(0x03) if data.len() == 35 => CellKind::MerkleProof,
-                Some(0x04) if data.len() == 69 => CellKind::MerkleUpdate,
-                _ => return None,
-            })
-        } else {
-            Some(CellKind::Ordinary)
+    pub(crate) fn exotic_kind(&self) -> Option<ExoticCellKind> {
+        if !self.is_exotic {
+            return None;
         }
+
+        let data = self.data.as_raw_slice();
+        let kind = match data.first()? {
+            0x01 if data.len() == 36 || data.len() == 70 || data.len() == 104 => {
+                ExoticCellKind::PrunedBranch
+            }
+            0x02 if data.len() == 33 => ExoticCellKind::LibraryReference,
+            0x03 if data.len() == 35 => ExoticCellKind::MerkleProof,
+            0x04 if data.len() == 69 => ExoticCellKind::MerkleUpdate,
+            tag => ExoticCellKind::Unknown { tag: *tag },
+        };
+
+        Some(kind)
     }
 }
 
@@ -289,32 +254,11 @@ mod tests {
     use crate::{
         r#as::{Data, Ref},
         bits::{NBits, NoArgs, ser::BitWriterExt},
-        ser::{CellSerializeExt, CellSerializeWrapAsExt},
+        ser::CellSerializeExt,
         tests::assert_store_parse_as_eq,
     };
 
     use super::*;
-
-    #[test]
-    #[allow(deprecated)]
-    fn zero_depth() {
-        assert_eq!(().to_cell(()).unwrap().max_depth(), 0)
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn max_depth() {
-        let cell = (
-            ().wrap_as::<Ref>(),
-            (().wrap_as::<Ref>(), ().wrap_as::<Ref<Ref>>())
-                .wrap_as::<Ref>()
-                .wrap_as::<Ref>(),
-            ((), ()),
-        )
-            .to_cell(NoArgs::EMPTY)
-            .unwrap();
-        assert_eq!(cell.max_depth(), 4)
-    }
 
     #[test]
     fn cell_serde() {

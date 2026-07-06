@@ -1,21 +1,20 @@
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum CellKind {
-    #[default]
-    Ordinary,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ExoticCellKind {
     PrunedBranch,
     LibraryReference,
     MerkleProof,
     MerkleUpdate,
+    Unknown { tag: u8 },
 }
 
-impl CellKind {
+impl ExoticCellKind {
     #[inline]
     pub fn is_pruned_branch(&self) -> bool {
-        matches!(self, CellKind::PrunedBranch)
+        matches!(self, Self::PrunedBranch)
     }
 
     #[inline]
     pub fn is_merkle(&self) -> bool {
-        matches!(self, CellKind::MerkleProof | CellKind::MerkleUpdate)
+        matches!(self, Self::MerkleProof | Self::MerkleUpdate)
     }
 }

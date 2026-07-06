@@ -42,9 +42,9 @@ where
     }
 
     fn compute(cell: &Cell, children: &[CellHashes]) -> CellHashes {
-        let kind = cell.kind().unwrap_or_default();
-        let is_pruned = kind.is_pruned_branch();
-        let merkle_offset = u8::from(kind.is_merkle());
+        let kind = cell.exotic_kind();
+        let is_pruned = kind.is_some_and(|k| k.is_pruned_branch());
+        let merkle_offset = u8::from(kind.is_some_and(|k| k.is_merkle()));
         let mask = cell.level_mask_with(children.iter().map(|c| c.mask));
         let mut hasher = D::new();
 
