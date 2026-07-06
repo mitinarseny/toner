@@ -2,6 +2,12 @@ use std::ops::Deref;
 
 use crate::Cell;
 
+#[derive(Debug, Clone)]
+pub(crate) enum Frame<'a> {
+    Visit(&'a Cell),
+    Emit(&'a Cell),
+}
+
 /// DFS post-order iterator over a Cell DAG.
 ///
 /// Each cell is yielded **after all of its descendants**, with children
@@ -9,14 +15,14 @@ use crate::Cell;
 /// `C, A, D, B, R`.
 #[derive(Debug, Clone)]
 pub struct CellIter<'a> {
-    stack: Vec<(&'a Cell, bool)>,
+    stack: Vec<Frame<'a>>,
 }
 
 impl<'a> CellIter<'a> {
     #[inline]
     pub fn new(root: &'a Cell) -> Self {
         Self {
-            stack: vec![(root, false)],
+            stack: vec![Frame::Visit(root)],
         }
     }
 
@@ -38,15 +44,22 @@ impl<'a> Iterator for CellIter<'a> {
     type Item = &'a Cell;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some((cell, emit)) = self.stack.pop() {
-            if emit {
-                return Some(cell);
-            }
-            self.stack.push((cell, true));
-            for child in cell.references.iter().rev() {
-                self.stack.push((child.deref(), false));
+        while let Some(frame) = self.stack.pop() {
+            match frame {
+                Frame::Visit(cell) => {
+                    self.stack.push(Frame::Emit(cell));
+                    self.stack.extend(
+                        cell.references
+                            .iter()
+                            .rev()
+                            .map(Deref::deref)
+                            .map(Frame::Visit),
+                    );
+                }
+                Frame::Emit(cell) => return Some(cell),
             }
         }
+
         None
     }
 }

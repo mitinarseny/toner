@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 
 use crate::Cell;
+use crate::cell::iter::Frame;
 
 /// Iterator over a Cell DAG that yields cells in an order suitable for
 /// [Bag of Cells](https://docs.ton.org/blockchain-basics/primitives/serialization/boc#serialization)
@@ -15,16 +16,16 @@ use crate::Cell;
 ///
 /// [`Self::from_roots`] processes roots left-to-right (so the first root's
 /// subtree is drained first).
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct BagOfCellsIter<'a> {
-    stack: Vec<(&'a Cell, bool)>,
+    stack: Vec<Frame<'a>>,
 }
 
 impl<'a> BagOfCellsIter<'a> {
     #[inline]
     pub(crate) fn from_root(root: &'a Cell) -> Self {
         Self {
-            stack: vec![(root, true), (root, false)],
+            stack: vec![Frame::Emit(root), Frame::Visit(root)],
         }
     }
 
@@ -36,8 +37,9 @@ impl<'a> BagOfCellsIter<'a> {
         let stack = roots
             .iter()
             .rev()
-            .map(|root| (root.as_ref(), true))
-            .chain(roots.iter().rev().map(|root| (root.as_ref(), false)))
+            .map(AsRef::as_ref)
+            .map(Frame::Emit)
+            .chain(roots.iter().rev().map(AsRef::as_ref).map(Frame::Visit))
             .collect();
 
         Self { stack }
@@ -57,18 +59,19 @@ impl<'a> Iterator for BagOfCellsIter<'a> {
     type Item = &'a Cell;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some((cell, emit)) = self.stack.pop() {
-            if emit {
-                return Some(cell);
-            }
-            self.stack.extend(
-                cell.references
-                    .iter()
-                    .map(Deref::deref)
-                    .map(|c| (c, true))
-                    .chain(cell.references.iter().map(Deref::deref).map(|c| (c, false))),
-            );
+        while let Some(frame) = self.stack.pop() {
+            match frame {
+                Frame::Visit(cell) => self.stack.extend(
+                    cell.references
+                        .iter()
+                        .map(Deref::deref)
+                        .map(Frame::Emit)
+                        .chain(cell.references.iter().map(Deref::deref).map(Frame::Visit)),
+                ),
+                Frame::Emit(cell) => return Some(cell),
+            };
         }
+
         None
     }
 }
