@@ -23,13 +23,6 @@ pub struct BagOfCellsIter<'a> {
 
 impl<'a> BagOfCellsIter<'a> {
     #[inline]
-    pub(crate) fn from_root(root: &'a Cell) -> Self {
-        Self {
-            stack: vec![Frame::Emit(root), Frame::Visit(root)],
-        }
-    }
-
-    #[inline]
     pub(crate) fn from_roots<T>(roots: &'a [T]) -> Self
     where
         T: AsRef<Cell>,
@@ -162,7 +155,7 @@ mod tests {
     fn iter_tree_descendants_before_ancestors() {
         let root = make_tree();
 
-        let order: Vec<u8> = BagOfCellsIter::from_root(&root).map(cell_name).collect();
+        let order: Vec<u8> = BagOfCellsIter::from_roots(&[root]).map(cell_name).collect();
 
         assert_eq!(order, vec![b'D', b'C', b'B', b'A', b'R']);
     }
@@ -171,7 +164,7 @@ mod tests {
     fn iter_dag_shared_cells_twice() {
         let root = make_dag();
 
-        let order: Vec<u8> = BagOfCellsIter::from_root(&root).map(cell_name).collect();
+        let order: Vec<u8> = BagOfCellsIter::from_roots(&[root]).map(cell_name).collect();
 
         assert_eq!(order, vec![b'C', b'C', b'B', b'A', b'R']);
     }
@@ -180,7 +173,7 @@ mod tests {
     fn augmented_tree_passes_children_values() {
         let root = make_tree();
 
-        let result: Vec<(u8, u32)> = BagOfCellsIter::from_root(&root)
+        let result: Vec<(u8, u32)> = BagOfCellsIter::from_roots(&[root])
             .augmented(|_, children: &[&u32]| children.iter().map(|&&v| v).sum::<u32>() + 1)
             .map(|(cell, sum)| (cell_name(cell), sum))
             .collect();
@@ -195,7 +188,7 @@ mod tests {
     fn augmented_uniq_dag_each_cell_once_single_hashmap() {
         let root = make_dag();
 
-        let result: Vec<(u8, u32)> = BagOfCellsIter::from_root(&root)
+        let result: Vec<(u8, u32)> = BagOfCellsIter::from_roots(&[root])
             .augmented(|_, children: &[&u32]| children.iter().map(|&&v| v).sum::<u32>() + 1)
             .unique()
             .map(|(cell, sum)| (cell_name(cell), sum))

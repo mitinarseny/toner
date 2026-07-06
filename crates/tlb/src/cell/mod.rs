@@ -15,10 +15,7 @@ use bitvec::{order::Msb0, vec::BitVec};
 use digest::{Digest, Output};
 
 use crate::{
-    cell::{
-        boc_iter::BagOfCellsIter, hasher::CellHasher, iter::CellIter, kind::CellKind,
-        level_mask::LevelMask,
-    },
+    cell::{hasher::CellHasher, iter::CellIter, kind::CellKind, level_mask::LevelMask},
     de::{CellDeserialize, CellDeserializeAs, CellParser, CellParserError},
     ser::CellBuilder,
 };
@@ -185,13 +182,6 @@ impl Cell {
     #[inline]
     pub fn iter(&self) -> CellIter<'_> {
         CellIter::new(self)
-    }
-
-    /// Iterate this cell's DAG in [Bag of Cells](https://docs.ton.org/blockchain-basics/primitives/serialization/boc)
-    /// order — see [`BagOfCellsIter`] for the exact ordering.
-    #[inline]
-    pub fn boc_iter(&self) -> BagOfCellsIter<'_> {
-        BagOfCellsIter::from_root(self)
     }
 
     pub(crate) fn kind(&self) -> Option<CellKind> {
