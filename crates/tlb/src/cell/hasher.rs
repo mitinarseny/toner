@@ -15,7 +15,7 @@ where
     Output<D>: Into<[u8; 32]>,
 {
     #[inline]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             _marker: core::marker::PhantomData,
         }

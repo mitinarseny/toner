@@ -25,7 +25,7 @@ impl LevelMask {
     }
 
     #[inline]
-    pub fn limited_by(self, level: u8) -> Self {
+    pub const fn limited_by(self, level: u8) -> Self {
         Self(self.0 & ((1u8 << level).wrapping_sub(1)))
     }
 

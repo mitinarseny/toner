@@ -40,7 +40,7 @@ impl<'a> BagOfCellsIter<'a> {
     }
 
     #[inline]
-    pub fn augmented<A, F>(self, f: F) -> AugmentedBagOfCellsIter<'a, F, A, EmitAll>
+    pub(crate) fn augmented<A, F>(self, f: F) -> AugmentedBagOfCellsIter<'a, F, A, EmitAll>
     where
         F: for<'m> FnMut(&'a Cell, ChildrenAugments<'m, A>) -> A,
         A: Clone,
@@ -83,7 +83,7 @@ pub struct AugmentedBagOfCellsIter<'a, F, A, U = EmitAll> {
 
 impl<'a, F, A> AugmentedBagOfCellsIter<'a, F, A, EmitAll> {
     #[inline]
-    pub fn new(inner: BagOfCellsIter<'a>, f: F) -> Self {
+    pub(crate) fn new(inner: BagOfCellsIter<'a>, f: F) -> Self {
         Self {
             inner,
             memo: HashMap::new(),
@@ -93,7 +93,7 @@ impl<'a, F, A> AugmentedBagOfCellsIter<'a, F, A, EmitAll> {
     }
 
     #[inline]
-    pub fn unique(self) -> AugmentedBagOfCellsIter<'a, F, A, EmitUnique> {
+    pub(crate) fn unique(self) -> AugmentedBagOfCellsIter<'a, F, A, EmitUnique> {
         AugmentedBagOfCellsIter {
             inner: self.inner,
             memo: self.memo,
@@ -150,7 +150,7 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) struct ChildrenAugments<'a, A> {
+pub struct ChildrenAugments<'a, A> {
     refs: std::slice::Iter<'a, Arc<Cell>>,
     memo: &'a HashMap<&'a Cell, A>,
 }

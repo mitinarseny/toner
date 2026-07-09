@@ -3,7 +3,7 @@ use std::ops::Deref;
 use crate::Cell;
 
 #[derive(Debug, Clone)]
-pub(crate) enum Frame<'a> {
+pub enum Frame<'a> {
     Visit(&'a Cell),
     Emit(&'a Cell),
 }
@@ -20,14 +20,14 @@ pub struct CellIter<'a> {
 
 impl<'a> CellIter<'a> {
     #[inline]
-    pub fn new(root: &'a Cell) -> Self {
+    pub(super) fn new(root: &'a Cell) -> Self {
         Self {
             stack: vec![Frame::Visit(root)],
         }
     }
 
     #[inline]
-    pub fn augmented<A, F>(self, f: F) -> AugmentedCellIter<'a, F, A>
+    pub(super) const fn augmented<A, F>(self, f: F) -> AugmentedCellIter<'a, F, A>
     where
         F: FnMut(&'a Cell, &[A]) -> A,
         A: Clone,

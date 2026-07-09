@@ -12,7 +12,7 @@ use crate::{
         de::{BitReader, BitReaderExt, BitUnpack},
         ser::{BitPack, BitWriter, BitWriterExt},
     },
-    cell::{Cell, boc_iter::BagOfCellsIter},
+    cell::{BagOfCellsIter, Cell},
 };
 
 /// Alias to [`BagOfCells`]
@@ -668,10 +668,10 @@ mod tests {
         for root in boc.roots() {
             for cell in root.iter().filter(|c| c.is_exotic) {
                 let data = cell.data.as_raw_slice();
-                if let 0x03 = data[0] {
+                if data[0] == 0x03 {
                     expected.push(hex::encode(&data[1..33]));
                 }
-                if let 0x04 = data[0] {
+                if data[0] == 0x04 {
                     expected.push(hex::encode(&data[1..33]));
                     expected.push(hex::encode(&data[33..65]));
                 }
@@ -698,7 +698,7 @@ mod tests {
             references: vec![child.clone(), child],
             ..Cell::default()
         });
-        let boc = BagOfCells::from_root(cell.clone());
+        let boc = BagOfCells::from_root(cell);
 
         let serialized = boc.serialize(BagOfCellsArgs::default()).unwrap();
         let deserialized = BagOfCells::deserialize(&serialized).unwrap();

@@ -9,12 +9,12 @@ pub enum ExoticCellKind {
 
 impl ExoticCellKind {
     #[inline]
-    pub fn is_pruned_branch(&self) -> bool {
+    pub const fn is_pruned_branch(&self) -> bool {
         matches!(self, Self::PrunedBranch)
     }
 
     #[inline]
-    pub fn is_merkle(&self) -> bool {
+    pub const fn is_merkle(&self) -> bool {
         matches!(self, Self::MerkleProof | Self::MerkleUpdate)
     }
 }

@@ -1,8 +1,10 @@
-pub(crate) mod boc_iter;
+mod boc_iter;
 mod hasher;
 mod iter;
 mod kind;
-pub(crate) mod level_mask;
+mod level_mask;
+
+pub use boc_iter::BagOfCellsIter;
 
 use core::{
     fmt::{self, Debug},
@@ -92,7 +94,7 @@ impl Cell {
 
     /// See [Cell level](https://docs.ton.org/blockchain-basics/primitives/serialization/cells#level-of-a-cell)
     #[inline]
-    pub(crate) fn level_mask_with<'a>(
+    pub(super) fn level_mask_with<'a>(
         &self,
         child_masks: impl IntoIterator<Item = &'a LevelMask>,
     ) -> LevelMask {
