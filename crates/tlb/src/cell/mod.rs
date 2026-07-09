@@ -1,7 +1,14 @@
+mod boc_iter;
+mod hasher;
+mod iter;
+mod kind;
+mod level_mask;
+
+pub use boc_iter::BagOfCellsIter;
+
 use core::{
     fmt::{self, Debug},
     hash::Hash,
-    ops::Deref,
 };
 use std::sync::Arc;
 
@@ -9,11 +16,12 @@ use bitvec::{order::Msb0, vec::BitVec};
 use digest::{Digest, Output};
 
 use crate::{
+    cell::{hasher::CellHasher, iter::CellIter, kind::ExoticCellKind, level_mask::LevelMask},
     de::{CellDeserialize, CellDeserializeAs, CellParser, CellParserError},
     ser::CellBuilder,
 };
 
-/// A [Cell](https://docs.ton.org/develop/data-formats/cell-boc#cell).
+/// A [Cell](https://docs.ton.org/blockchain-basics/primitives/serialization/cells#cell).
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct Cell {
     pub is_exotic: bool,
@@ -84,104 +92,80 @@ impl Cell {
         (self.data.len(), self.data.as_raw_slice())
     }
 
-    /// See [Cell level](https://docs.ton.org/develop/data-formats/cell-boc#cell-level)
+    /// See [Cell level](https://docs.ton.org/blockchain-basics/primitives/serialization/cells#level-of-a-cell)
     #[inline]
-    pub fn level(&self) -> u8 {
-        self.references
-            .iter()
-            .map(Deref::deref)
-            .map(Self::level)
-            .max()
-            .unwrap_or(0)
-    }
-
-    /// See [Cell serialization](https://docs.ton.org/develop/data-formats/cell-boc#cell-serialization)
-    #[inline]
-    fn refs_descriptor(&self) -> u8 {
-        let is_exotic: u8 = if self.is_exotic { 1 } else { 0 };
-        self.references.len() as u8 | (is_exotic << 3) | (self.level() << 5)
-    }
-
-    /// See [Cell serialization](https://docs.ton.org/develop/data-formats/cell-boc#cell-serialization)
-    #[inline]
-    fn bits_descriptor(&self) -> u8 {
-        let b = self.data.len();
-        (b / 8) as u8 + b.div_ceil(8) as u8
-    }
-
-    #[inline]
-    pub fn max_depth(&self) -> u16 {
-        let data = self.data.as_raw_slice();
-        // if is a pruned branch
-        if self.is_exotic && data.len() >= 36 && data[0] == 0x01 {
-            let level = data[1].count_ones() as usize;
-            // tag + level + hashes + depths
-            if data.len() == 1 + 1 + 32 * level + 2 * level {
-                let depth_offset = 1 + 1 + 32 * level;
-                return u16::from_be_bytes([data[depth_offset], data[depth_offset + 1]]);
-            }
+    pub(super) fn level_mask_with<'a>(
+        &self,
+        child_masks: impl IntoIterator<Item = &'a LevelMask>,
+    ) -> LevelMask {
+        let kind = self.exotic_kind();
+        if kind.is_some_and(|k| k.is_pruned_branch()) {
+            return LevelMask::new(self.data.as_raw_slice()[1]);
         }
 
-        self.references
-            .iter()
-            .map(Deref::deref)
-            .map(Self::max_depth)
-            .max()
-            .map(|d| d + 1)
-            .unwrap_or(0)
+        let mask = child_masks
+            .into_iter()
+            .fold(LevelMask::default(), |acc, m| acc | *m);
+
+        if kind.is_some_and(|k| k.is_merkle()) {
+            mask.merkle_shift()
+        } else {
+            mask
+        }
     }
 
-    /// [Standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#standard-cell-representation-hash-calculation)
+    /// [Standard Cell representation hash](https://docs.ton.org/blockchain-basics/primitives/serialization/cells#standard-cell-representation-and-its-hash)
+    #[inline]
     pub fn hash_digest<D>(&self) -> [u8; 32]
     where
         D: Digest,
         Output<D>: Into<[u8; 32]>,
     {
-        let data = self.data.as_raw_slice();
-        // if is a pruned branch
-        if self.is_exotic && data.len() >= 36 && data[0] == 0x01 {
-            let mut h = [0u8; 32];
-            h.copy_from_slice(&data[2..34]);
-            return h;
-        }
-
-        let mut d = D::new();
-        d.update([self.refs_descriptor(), self.bits_descriptor()]);
-
-        let rest_bits = self.data.len() % 8;
-
-        if rest_bits == 0 {
-            d.update(self.data.as_raw_slice());
-        } else {
-            let (last, data) = self
-                .data
-                .as_raw_slice()
-                .split_last()
-                .unwrap_or_else(|| unreachable!());
-            d.update(data);
-            let mut last = last & (!0u8 << (8 - rest_bits)); // clear the rest
-            last |= 1 << (8 - rest_bits - 1); // put stop-bit
-            d.update([last])
-        }
-
-        // refs depth
-        for r in &self.references {
-            d.update(r.max_depth().to_be_bytes());
-        }
-
-        // refs hashes
-        for r in &self.references {
-            d.update(r.hash_digest::<D>());
-        }
-
-        d.finalize().into()
+        let hasher = CellHasher::<D>::new();
+        hasher.repr_hash(self)
     }
 
-    /// Calculates [standard Cell representation hash](https://docs.ton.org/develop/data-formats/cell-boc#cell-hash)
+    /// Calculates [standard Cell representation hash](https://docs.ton.org/blockchain-basics/primitives/serialization/cells#standard-cell-representation-and-its-hash)
     #[cfg(feature = "sha2")]
     #[inline]
     pub fn hash(&self) -> [u8; 32] {
-        self.hash_digest::<sha2::Sha256>()
+        let hasher = CellHasher::<sha2::Sha256>::new();
+
+        hasher.repr_hash(self)
+    }
+
+    #[cfg(feature = "sha2")]
+    #[inline]
+    pub fn level_hash(&self, level: u8) -> (u16, [u8; 32]) {
+        let hasher = CellHasher::<sha2::Sha256>::new();
+
+        hasher.level_hash(self, level)
+    }
+
+    /// Iterate this cell's DAG in DFS post-order
+    /// (descendants left-to-right, then the cell). See [`CellIter`].
+    #[inline]
+    pub fn iter(&self) -> CellIter<'_> {
+        CellIter::new(self)
+    }
+
+    pub(crate) fn exotic_kind(&self) -> Option<ExoticCellKind> {
+        if !self.is_exotic {
+            return None;
+        }
+
+        let data = self.data.as_raw_slice();
+        let kind = match data.first()? {
+            0x01 if data.len() == 36 || data.len() == 70 || data.len() == 104 => {
+                ExoticCellKind::PrunedBranch
+            }
+            0x02 if data.len() == 33 => ExoticCellKind::LibraryReference,
+            0x03 if data.len() == 35 => ExoticCellKind::MerkleProof,
+            0x04 if data.len() == 69 => ExoticCellKind::MerkleUpdate,
+            tag => ExoticCellKind::Unknown { tag: *tag },
+        };
+
+        Some(kind)
     }
 }
 
@@ -272,30 +256,11 @@ mod tests {
     use crate::{
         r#as::{Data, Ref},
         bits::{NBits, NoArgs, ser::BitWriterExt},
-        ser::{CellSerializeExt, CellSerializeWrapAsExt},
+        ser::CellSerializeExt,
         tests::assert_store_parse_as_eq,
     };
 
     use super::*;
-
-    #[test]
-    fn zero_depth() {
-        assert_eq!(().to_cell(()).unwrap().max_depth(), 0)
-    }
-
-    #[test]
-    fn max_depth() {
-        let cell = (
-            ().wrap_as::<Ref>(),
-            (().wrap_as::<Ref>(), ().wrap_as::<Ref<Ref>>())
-                .wrap_as::<Ref>()
-                .wrap_as::<Ref>(),
-            ((), ()),
-        )
-            .to_cell(NoArgs::EMPTY)
-            .unwrap();
-        assert_eq!(cell.max_depth(), 4)
-    }
 
     #[test]
     fn cell_serde() {
@@ -358,5 +323,32 @@ mod tests {
             .unwrap();
 
         assert_eq!(actual, expected);
+    }
+
+    pub fn make_cell(name: u8, refs: Vec<Arc<Cell>>) -> Arc<Cell> {
+        Arc::new(Cell {
+            data: BitVec::from_vec(vec![name]),
+            references: refs,
+            ..Cell::default()
+        })
+    }
+
+    pub fn cell_name(cell: &Cell) -> u8 {
+        cell.data.as_raw_slice()[0]
+    }
+
+    pub fn make_tree() -> Arc<Cell> {
+        let c = make_cell(b'C', vec![]);
+        let d = make_cell(b'D', vec![]);
+        let a = make_cell(b'A', vec![c]);
+        let b = make_cell(b'B', vec![d]);
+        make_cell(b'R', vec![a, b])
+    }
+
+    pub fn make_dag() -> Arc<Cell> {
+        let c = make_cell(b'C', vec![]);
+        let a = make_cell(b'A', vec![c.clone()]);
+        let b = make_cell(b'B', vec![c]);
+        make_cell(b'R', vec![a, b])
     }
 }
