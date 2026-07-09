@@ -1,5 +1,6 @@
 use digest::{Digest, Output};
 use std::iter::once;
+use std::sync::Arc;
 
 use crate::{Cell, cell::level_mask::LevelMask};
 
@@ -34,21 +35,24 @@ where
 
     #[inline]
     fn compute_root(&self, cell: &Cell) -> CellHashes {
-        cell.iter()
-            .augmented(Self::compute)
+        let aug = cell
+            .iter()
+            .augmented(|cell, children| Arc::new(Self::compute(cell, children)))
             .last()
             .map(|(_, hashes)| hashes)
-            .unwrap_or_default()
+            .unwrap_or_default();
+
+        Arc::into_inner(aug).expect("exactly one")
     }
 
-    fn compute(cell: &Cell, children: &[CellHashes]) -> CellHashes {
+    fn compute(cell: &Cell, children: &[Arc<CellHashes>]) -> CellHashes {
         let kind = cell.exotic_kind();
         let is_pruned = kind.is_some_and(|k| k.is_pruned_branch());
         let merkle_offset = u8::from(kind.is_some_and(|k| k.is_merkle()));
-        let mask = cell.level_mask_with(children.iter().map(|c| c.mask));
-        let mut hasher = D::new();
+        let mask = cell.level_mask_with(children.iter().map(|c| &c.mask));
 
         if is_pruned {
+            let mut hasher = D::new();
             let data = cell.data.as_raw_slice();
             let n = data[1].count_ones() as usize;
             let mut iter = data[2..2 + 32 * n]
@@ -76,6 +80,7 @@ where
                 higher: iter.chain(once(hash)).collect(),
             }
         } else {
+            let mut hasher = D::new();
             let repr = {
                 cell.write_descriptors(&mut hasher, mask.limited_by(0));
                 cell.write_data(&mut hasher);
@@ -110,7 +115,7 @@ where
 }
 
 #[inline]
-fn max_depth(children: &[CellHashes], level: u8) -> u16 {
+fn max_depth(children: &[Arc<CellHashes>], level: u8) -> u16 {
     children
         .iter()
         .map(|c| c.get(level).depth)
@@ -152,7 +157,7 @@ impl Cell {
     }
 
     #[inline]
-    fn write_children<D: Digest>(&self, d: &mut D, level: u8, children: &[CellHashes]) {
+    fn write_children<D: Digest>(&self, d: &mut D, level: u8, children: &[Arc<CellHashes>]) {
         for c in children {
             d.update(c.get(level).depth.to_be_bytes());
         }
@@ -162,13 +167,13 @@ impl Cell {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq)]
 struct LevelHash {
     hash: [u8; 32],
     depth: u16,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 struct CellHashes {
     mask: LevelMask,
     repr: LevelHash,

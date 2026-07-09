@@ -1,3 +1,5 @@
+use std::ops::BitOr;
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LevelMask(u8);
 
@@ -38,7 +40,7 @@ impl LevelMask {
     }
 }
 
-impl core::ops::BitOr for LevelMask {
+impl BitOr<Self> for LevelMask {
     type Output = Self;
 
     #[inline]

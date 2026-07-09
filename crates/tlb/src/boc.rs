@@ -12,7 +12,7 @@ use crate::{
         de::{BitReader, BitReaderExt, BitUnpack},
         ser::{BitPack, BitWriter, BitWriterExt},
     },
-    cell::{Cell, boc_iter::BagOfCellsIter, level_mask::LevelMask},
+    cell::{Cell, boc_iter::BagOfCellsIter},
 };
 
 /// Alias to [`BagOfCells`]
@@ -191,9 +191,7 @@ impl BitPack for BagOfCells {
         W: BitWriter + ?Sized,
     {
         let ordered_cells: Vec<_> = BagOfCellsIter::from_roots(&self.roots)
-            .augmented(|cell, child_masks: &[&LevelMask]| {
-                cell.level_mask_with(child_masks.iter().map(|&&m| m))
-            })
+            .augmented(|cell, child_masks| cell.level_mask_with(child_masks))
             .unique()
             .collect();
 

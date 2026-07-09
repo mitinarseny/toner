@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::ops::Deref;
+use std::sync::Arc;
 
 use crate::Cell;
 use crate::cell::iter::Frame;
@@ -41,7 +42,7 @@ impl<'a> BagOfCellsIter<'a> {
     #[inline]
     pub fn augmented<A, F>(self, f: F) -> AugmentedBagOfCellsIter<'a, F, A, EmitAll>
     where
-        F: FnMut(&'a Cell, &[&A]) -> A,
+        F: for<'m> FnMut(&'a Cell, ChildrenAugments<'m, A>) -> A,
         A: Clone,
     {
         AugmentedBagOfCellsIter::new(self, f)
@@ -102,48 +103,65 @@ impl<'a, F, A> AugmentedBagOfCellsIter<'a, F, A, EmitAll> {
     }
 }
 
+impl<'a, F, A, U> AugmentedBagOfCellsIter<'a, F, A, U> {
+    #[inline]
+    fn compute(&mut self, cell: &'a Cell) -> A
+    where
+        F: for<'m> FnMut(&'a Cell, ChildrenAugments<'m, A>) -> A,
+        A: Clone,
+    {
+        let children = ChildrenAugments {
+            refs: cell.references.iter(),
+            memo: &self.memo,
+        };
+        let value = (self.f)(cell, children);
+        self.memo.insert(cell, value.clone());
+
+        value
+    }
+}
+
 impl<'a, F, A> Iterator for AugmentedBagOfCellsIter<'a, F, A, EmitAll>
 where
-    F: FnMut(&'a Cell, &[&A]) -> A,
+    F: for<'m> FnMut(&'a Cell, ChildrenAugments<'m, A>) -> A,
     A: Clone,
 {
     type Item = (&'a Cell, A);
 
     fn next(&mut self) -> Option<Self::Item> {
         let cell = self.inner.next()?;
-        let value = compute(cell, &mut self.memo, &mut self.f);
+        let value = self.compute(cell);
         Some((cell, value))
     }
 }
 
 impl<'a, F, A> Iterator for AugmentedBagOfCellsIter<'a, F, A, EmitUnique>
 where
-    F: FnMut(&'a Cell, &[&A]) -> A,
+    F: for<'m> FnMut(&'a Cell, ChildrenAugments<'m, A>) -> A,
     A: Clone,
 {
     type Item = (&'a Cell, A);
 
     fn next(&mut self) -> Option<Self::Item> {
         let cell = self.inner.find(|c| !self.memo.contains_key(c))?;
-        let value = compute(cell, &mut self.memo, &mut self.f);
+        let value = self.compute(cell);
         Some((cell, value))
     }
 }
 
-#[inline]
-fn compute<'a, F, A>(cell: &'a Cell, memo: &mut HashMap<&'a Cell, A>, f: &mut F) -> A
-where
-    F: FnMut(&'a Cell, &[&A]) -> A,
-    A: Clone,
-{
-    let children: Vec<&A> = cell
-        .references
-        .iter()
-        .filter_map(|c| memo.get(c.deref()))
-        .collect();
-    let value = f(cell, &children);
-    memo.insert(cell, value.clone());
-    value
+#[derive(Debug)]
+pub(crate) struct ChildrenAugments<'a, A> {
+    refs: std::slice::Iter<'a, Arc<Cell>>,
+    memo: &'a HashMap<&'a Cell, A>,
+}
+
+impl<'a, A> Iterator for ChildrenAugments<'a, A> {
+    type Item = &'a A;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.refs.find_map(|c| self.memo.get(c.deref()))
+    }
 }
 
 #[cfg(test)]
@@ -174,7 +192,7 @@ mod tests {
         let root = make_tree();
 
         let result: Vec<(u8, u32)> = BagOfCellsIter::from_roots(&[root])
-            .augmented(|_, children: &[&u32]| children.iter().map(|&&v| v).sum::<u32>() + 1)
+            .augmented(|_, children| children.sum::<u32>() + 1)
             .map(|(cell, sum)| (cell_name(cell), sum))
             .collect();
 
@@ -189,7 +207,7 @@ mod tests {
         let root = make_dag();
 
         let result: Vec<(u8, u32)> = BagOfCellsIter::from_roots(&[root])
-            .augmented(|_, children: &[&u32]| children.iter().map(|&&v| v).sum::<u32>() + 1)
+            .augmented(|_, children| children.sum::<u32>() + 1)
             .unique()
             .map(|(cell, sum)| (cell_name(cell), sum))
             .collect();

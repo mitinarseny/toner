@@ -92,9 +92,9 @@ impl Cell {
 
     /// See [Cell level](https://docs.ton.org/blockchain-basics/primitives/serialization/cells#level-of-a-cell)
     #[inline]
-    pub(crate) fn level_mask_with(
+    pub(crate) fn level_mask_with<'a>(
         &self,
-        child_masks: impl IntoIterator<Item = LevelMask>,
+        child_masks: impl IntoIterator<Item = &'a LevelMask>,
     ) -> LevelMask {
         let kind = self.exotic_kind();
         if kind.is_some_and(|k| k.is_pruned_branch()) {
@@ -103,7 +103,7 @@ impl Cell {
 
         let mask = child_masks
             .into_iter()
-            .fold(LevelMask::default(), |acc, m| acc | m);
+            .fold(LevelMask::default(), |acc, m| acc | *m);
 
         if kind.is_some_and(|k| k.is_merkle()) {
             mask.merkle_shift()
